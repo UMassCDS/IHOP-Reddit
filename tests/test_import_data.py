@@ -14,14 +14,17 @@ FIXTURE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_fi
 def test_get_spark_dataframe_comments(datafiles, spark):
     files = [str(f) for f in datafiles.listdir()]
     spark_df = get_spark_dataframe(files, spark, "comments")
-    spark_df.show()
     assert len(spark_df.columns) == 14
     assert spark_df.count() == 3
 
-
+@pytest.mark.datafiles(
+    os.path.join(FIXTURE_DIR, 'submissions.json')
+)
 def test_get_spark_dataframe_submissions(datafiles, spark):
-    # TODO
-    assert False
+    files = [str(f) for f in datafiles.listdir()]
+    spark_df = get_spark_dataframe(files, spark, "submissions")
+    assert len(spark_df.columns) == 16
+    assert spark_df.count() == 3
 
 
 

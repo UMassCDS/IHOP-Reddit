@@ -2,6 +2,7 @@
 SQL-like operations, operated on using Spark's ML library or exported to pandas/sklearn formats.
 
 ..TODO Consider how best to match up most active subreddits by number of submissions and number of comments
+..TODO Best output formats?
 """
 import argparse
 
@@ -9,6 +10,9 @@ from pyspark.sql import SparkSession
 
 COMMENTS="comments"
 SUBMISSIONS="submissions"
+
+# How deleted authors are indicated in json
+AUTHOR_DELETED = "[deleted]"
 
 # See https://github.com/pushshift/api for details
 SCHEMAS = {
