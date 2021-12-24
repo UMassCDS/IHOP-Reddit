@@ -22,11 +22,13 @@ def filter_top_n_subreddits(n=1000):
     """
     pass
 
-def get_spark_dataframe(inputs, reddit_type):
+def get_spark_dataframe(inputs, spark, reddit_type):
     """
-    ..TODO
+    :param inputs: Paths to Reddit json data
+    :param spark: SparkSession
+    :param reddit_type: "comments" or "submissions"
     """
-    pass
+    return spark.read.format("json").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
 
 def main(output_path, inputs, reddit_type=COMMENTS):
     """
@@ -35,14 +37,11 @@ def main(output_path, inputs, reddit_type=COMMENTS):
     :param reddit_type: 'comments' or 'submissions'
     """
     # create the Spark session
-    spark = SparkSession.builder.getOrCreate()
+    spark = SparkSession.builder.appName("IHOP import data").getOrCreate()
 
-    if reddit_type==COMMENTS:
-        # TODO
-        pass
-    elif reddit_type==SUBMISSIONS:
-        # TODO
-        pass
+    if reddit_type in [COMMENTS, SUBMISSIONS]:
+        spark_df = get_spark_dataframe(inputs, spark, reddit_type)
+        spark_df.show()
     else:
         raise ValueError(f"Reddit data type {reddit_type} is not valid.")
 
@@ -56,4 +55,4 @@ parser.add_argument("-n", "--top_n", type=int, default=1000, help="Use to filter
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.output, args.inputs, args.type)
+    main(args.output, args.input, args.type)

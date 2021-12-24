@@ -9,5 +9,5 @@ setup(
         'pyspark==3.2.0'
     ],
     setup_requires=['pytest-runner'],
-    tests_require=['pytest']
+    tests_require=['pytest', 'pytest-datafiles']
 )

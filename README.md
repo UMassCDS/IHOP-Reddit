@@ -9,4 +9,4 @@ Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create 
 To install the `ihop` package as importable for testing and development, run `pip install -e .`. See [this article](https://godatadriven.com/blog/a-practical-guide-to-using-setup-py/) for more details on using `setup.py`.
 
 # Testing
-Unit tests can be run with [`pytest`](https://docs.pytest.org/en/6.2.x/).
+Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x/).
