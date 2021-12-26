@@ -3,28 +3,57 @@
 import os
 import pytest
 
-from ihop.import_data import get_spark_dataframe
+from ihop.import_data import SUBMISSIONS, get_spark_dataframe, filter_top_n, remove_deleted_authors
 
 FIXTURE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files')
 
-@pytest.mark.datafiles(
-    os.path.join(FIXTURE_DIR, 'comments1.json'),
-    os.path.join(FIXTURE_DIR, 'comments2.json')
-)
-def test_get_spark_dataframe_comments(datafiles, spark):
-    files = [str(f) for f in datafiles.listdir()]
-    spark_df = get_spark_dataframe(files, spark, "comments")
-    assert len(spark_df.columns) == 14
-    assert spark_df.count() == 3
+COMMENTS_DIRS = [os.path.join(FIXTURE_DIR, 'comments1.json'),  os.path.join(FIXTURE_DIR, 'comments2.json')]
 
-@pytest.mark.datafiles(
-    os.path.join(FIXTURE_DIR, 'submissions.json')
-)
-def test_get_spark_dataframe_submissions(datafiles, spark):
-    files = [str(f) for f in datafiles.listdir()]
-    spark_df = get_spark_dataframe(files, spark, "submissions")
-    assert len(spark_df.columns) == 16
-    assert spark_df.count() == 3
+SUBMISSIONS_DIR = [os.path.join(FIXTURE_DIR, 'submissions.json')]
+
+@pytest.fixture
+def comments(spark):
+    return get_spark_dataframe(COMMENTS_DIRS, spark, "comments")
+
+@pytest.fixture
+def submissions(spark):
+    return get_spark_dataframe(SUBMISSIONS_DIR, spark, "submissions")
+
+
+def test_get_spark_dataframe_comments(comments):
+    assert len(comments.columns) == 14
+    assert comments.count() == 3
+
+
+def test_get_spark_dataframe_submissions(submissions):
+    assert len(submissions.columns) == 16
+    assert submissions.count() == 3
+
+
+def test_filter_top_n(comments):
+    filtered_df = filter_top_n(comments, n=1)
+    as_list = sorted(filtered_df.collect(), key = lambda x: x.author)
+    assert len(as_list) == 2
+    assert as_list[0].subreddit == 'dndnext'
+    assert as_list[1].subreddit == 'dndnext'
+    assert as_list[0].author == '[deleted]'
+    assert as_list[1].author == 'sampleauth2'
+
+
+def test_remove_deleted_authors(comments):
+    filtered = sorted(remove_deleted_authors(comments).collect(), key = lambda x: x.author)
+    assert len(filtered) == 2
+    assert filtered[0].author == 'sampleauth1'
+    assert filtered[1].author == 'sampleauth2'
+
+
+
+
+
+
+
+
+
 
 
 

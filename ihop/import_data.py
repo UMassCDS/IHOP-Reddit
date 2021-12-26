@@ -20,11 +20,23 @@ SCHEMAS = {
         SUBMISSIONS: "author STRING, author_flair_css_class STRING, author_flair_text STRING, created_utc STRING, distinguished STRING, domain STRING, edited INTEGER, gilded STRING, id STRING, is_self BOOLEAN, over_18 BOOLEAN, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING"
         }
 
-def filter_top_n_subreddits(n=1000):
-    """Filters results by the top-n most active subreddits by number of unique posts/comments dataset.
-    ..TODO
+def filter_top_n(dataframe, col='subreddit', n=10000):
+    """Determine the top n most frequent elements in given column, then filter the dataframe to only result in that set. Returns a dataframe that's a subset of the original input dataframe.
+
+    :param dataframe: Spark dataframe
+    :param col: str, Column to use for top n elements
+    :param n: int, number of top elements to consider
     """
-    pass
+    top_n_counts = dataframe.groupBy(col).count().orderBy('count', ascending=False).limit(n)
+    result = dataframe.join(top_n_counts, dataframe[col] == top_n_counts[col], 'inner')
+    return result
+
+
+def remove_deleted_authors(dataframe):
+    """Filters out comments or submissions that have had the author deleted
+    """
+    return dataframe.where(dataframe.author != AUTHOR_DELETED)
+
 
 def get_spark_dataframe(inputs, spark, reddit_type):
     """
