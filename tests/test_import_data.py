@@ -3,7 +3,7 @@
 import os
 import pytest
 
-from ihop.import_data import SUBMISSIONS, get_spark_dataframe, filter_top_n, remove_deleted_authors
+from ihop.import_data import aggregate_for_vectorization, community2vec, get_spark_dataframe, filter_top_n, remove_deleted_authors
 
 FIXTURE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files')
 
@@ -30,9 +30,17 @@ def test_get_spark_dataframe_submissions(submissions):
     assert submissions.count() == 3
 
 
-def test_filter_top_n(comments):
-    filtered_df = filter_top_n(comments, n=1)
-    as_list = sorted(filtered_df.collect(), key = lambda x: x.author)
+def get_top_n_counts(comments):
+    result = get_top_n_counts(comments, n=1).collect()
+    assert len(result) == 1
+    assert result.subreddit == 'dndnext'
+    assert result.count == 1
+
+
+def test_filter_top_n(comments, spark):
+    top_n_counts = spark.createDataFrame([{'subreddit':'dndnext','count':1}])
+    filtered_df = filter_top_n(comments, top_n_counts)
+    as_list = sorted(filtered_df.collect(), key = lambda x: x.subreddit)
     assert len(as_list) == 2
     assert as_list[0].subreddit == 'dndnext'
     assert as_list[1].subreddit == 'dndnext'
@@ -47,13 +55,35 @@ def test_remove_deleted_authors(comments):
     assert filtered[1].author == 'sampleauth2'
 
 
+def test_aggregate_for_vectorization(spark):
+    data = [{'author':'auth1', 'subreddit':"r/scifi"},
+            {'author':'auth1', 'subreddit':"r/fantasy"},
+            {'author':'auth1', 'subreddit':"r/books"},
+            {'author':'auth1', 'subreddit':"r/fantasy"},
+            {'author':'auth2', 'subreddit':"r/movies"},
+            {'author':'auth2', 'subreddit':"r/personalfinance"}
+            ]
+    df = spark.createDataFrame(data)
+    aggregate_result = sorted(aggregate_for_vectorization(df).collect(), key = lambda x: x.author)
+    assert len(aggregate_result) == 2
+    assert aggregate_result[0].author == "auth1"
+    assert aggregate_result[0].subreddit == "r/scifi r/fantasy r/books r/fantasy"
+    assert aggregate_result[1].author == "auth2"
+    assert aggregate_result[1].subreddit == "r/movies r/personalfinance"
 
+def test_community2vec(spark):
+    top_n_subreddits, user_contexts = community2vec(COMMENTS_DIRS, spark)
+    top_n_list = sorted(top_n_subreddits.collect(), key=lambda x: x.subreddit)
+    print(top_n_list)
+    assert len(top_n_list) == 2
+    assert top_n_list[0].subreddit == "NBA2k"
+    assert top_n_list[0]['count'] == 1
+    assert top_n_list[1].subreddit == "dndnext"
+    assert top_n_list[1]['count'] == 2
 
-
-
-
-
-
-
-
-
+    user_contexts_list = sorted(user_contexts.collect(), key = lambda x: x.author)
+    assert len(user_contexts_list) == 2
+    assert user_contexts_list[0].author == "sampleauth1"
+    assert user_contexts_list[0].subreddit == "NBA2k"
+    assert user_contexts_list[1].author == "sampleauth2"
+    assert user_contexts_list[2].subreddit == "dndnext"

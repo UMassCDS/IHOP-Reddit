@@ -1,13 +1,11 @@
 """Loads Reddit json data to a Spark dataframe, which can be filtered using
 SQL-like operations, operated on using Spark's ML library or exported to pandas/sklearn formats.
-
-..TODO Consider how best to match up most active subreddits by number of submissions and number of comments
-..TODO Best output formats?
 """
 import argparse
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import count_distinct
+from pyspark.sql.functions import concat_ws, count_distinct, collect_list
+import seaborn as sns
 
 COMMENTS="comments"
 SUBMISSIONS="submissions"
@@ -17,21 +15,39 @@ DEFAULT_TOP_N=10000
 AUTHOR_DELETED = "[deleted]"
 
 # See https://github.com/pushshift/api for details
+# TODO: subreddit ids aren't tracked, unclear if this is necessary
 SCHEMAS = {
         COMMENTS: "id STRING, parent_id STRING, score INTEGER, author_flair_css_class STRING, author_flair_text STRING, link_id STRING, author STRING, subreddit STRING, body STRING, edited INTEGER, gilded STRING, controversiality INTEGER, created_utc STRING, distinguished STRING",
         SUBMISSIONS: "author STRING, author_flair_css_class STRING, author_flair_text STRING, created_utc STRING, distinguished STRING, domain STRING, edited INTEGER, gilded STRING, id STRING, is_self BOOLEAN, over_18 BOOLEAN, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING"
         }
 
-def filter_top_n(dataframe, col='subreddit', n=DEFAULT_TOP_N):
-    """Determine the top n most frequent values in a column, then filter the dataframe to only results with those values. Returns a dataframe that's a subset of the original input dataframe.
 
-    :param dataframe: Spark dataframe
-    :param col: str, Column to use for top n elements
-    :param n: int, number of top elements to consider
+def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
+    """Determine the top n most frequent values in a column. Return a dataframe of those values with their counts. Results are ordered by counts, then alphabetical ordering of the values in the column, to break ties at the lower end.
+    :param dataframe: Spark DataFrame
+    :param col: str, the column to groupBy for counts
+    :param n: int, limit results to the top n most frequent values
     """
-    top_n_counts = dataframe.groupBy(col).count().orderBy(['count', col], ascending=[0,1]).limit(n)
-    result = dataframe.join(top_n_counts, dataframe[col] == top_n_counts[col], 'inner')
-    return result
+    return dataframe.groupBy(col).count().orderBy(['count', col], ascending=[0,1]).limit(n)
+
+def display_aggregate_counts(dataframe, cat_col='subreddit', num_col='count'):
+    """Displays a barplot of values from the dataframe
+    :param dataframe: Spark Dataframe
+    :param cat_col: str, column of dataframe containing categorical values
+    :param num_col: str, column of dataframe containing numerical values
+    """
+    sns.barplot(x=num_col, y=cat_col, data=dataframe.toPandas())
+
+
+def filter_top_n(dataframe, top_n_counts, col='subreddit'):
+    """Filter the dataframe to only results with those values in top_n_counts.
+    Returns a dataframe that's a subset of the original input dataframe.
+
+    :param dataframe: Spark dataframe to be filtered
+    :param top_n_counts: Spark dataframe with values to be filtered
+    :param col: str, Column to use for top n elements
+    """
+    return dataframe.join(top_n_counts, col, 'inner')
 
 
 def remove_deleted_authors(dataframe):
@@ -72,35 +88,55 @@ def get_spark_dataframe(inputs, spark, reddit_type):
     return spark.read.format("json").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
 
 
-def community2vec(output_path, inputs, reddit_type=COMMENTS, top_n = DEFAULT_TOP_N):
-    """Writes output data for training community2vec (users as 'documents/context', subreddits as 'words')
-    :param output_path: Where to write out the parquet? data format
-    :param inputs: Paths to read JSON Reddit data from
-    :param reddit_type: 'comments' or 'submissions'
+def aggregate_for_vectorization(dataframe, context_col="author", word_col="subreddit"):
+    """Aggregates data on the context col, using whitespace concatenation to combine the values in the word column.
+    Returns a dataframe with two columns, the context column and the aggregated word column.
+
+    :param dataframe: Spark dataframe
+    :param context_col: str, column to group by
+    :param word_col: str, column to concatenate together
     """
-    # create the Spark session
-    spark = SparkSession.builder.appName("IHOP import data").getOrCreate()
+    return dataframe.groupBy(context_col).agg(concat_ws(" ", collect_list(dataframe[word_col])).alias(word_col))
+
+
+def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, quiet=False):
+    """Returns data for training community2vec using skipgrams (users as 'documents/context', subreddits as 'words') as Spark dataframes. Deleted comments are counted when determining the top most frequent values.
+    Returns 2 dataframes: counts of subreddits (vocabulary for community2vec), subreddit comments/submissions aggregated into a list for each author
+
+    :param inputs: Paths to read JSON Reddit data from
+    :param spark: SparkSession
+    :param reddit_type: 'comments' or 'submissions'
+    :param quet: Boolean, true to skip statsitics and plots
+    """
 
     if reddit_type in [COMMENTS, SUBMISSIONS]:
         spark_df = get_spark_dataframe(inputs, spark, reddit_type)
-        top_n_df = filter_top_n(spark_df, top_n = top_n)
-        top_n_df = remove_deleted_authors(top_n_df)
-        print_comparison_stats(spark_df, top_n_df)
-
-        # TODO Combine on user, the write out to file
-
+        top_n_df = get_top_n_counts(spark_df, n=top_n)
+        filtered_df = filter_top_n(spark_df, top_n_df)
+        filtered_df = remove_deleted_authors(filtered_df)
+        context_word_df = aggregate_for_vectorization(filtered_df)
+        if not quiet:
+            display_aggregate_counts(top_n_df)
+            print("Filtered dataframe head snippet:")
+            top_n_df.head().show()
+            print("Filtered dataframe tail snippet:")
+            top_n_df.tail().show()
+            print_comparison_stats(spark_df, top_n_df)
     else:
         raise ValueError(f"Reddit data type {reddit_type} is not valid.")
 
+    return top_n_df, context_word_df
+
 
 parser = argparse.ArgumentParser(description="Parse Pushshift Reddit data to Spark parquet dataframe")
+parser.add_argument("-q", "--quiet", action='store_true', help="Use to turn off dataset descriptions and plots")
 subparsers = parser.add_subparsers(dest='subparser_name')
-
-c2v_parser = subparsers.add_parser('c2v', help="Output data to a format that can be used for training community2vec models in Tensorflow")
-c2v_parser.add_argument("output", help="Path to output file")
+c2v_parser = subparsers.add_parser('c2v', help="Output data as indexed subreddits for each user in a format that can be used for training community2vec models in Tensorflow")
+c2v_parser.add_argument("subreddit_counts_csv", help="Path to CSV file for counts of top N subreddits")
+c2v_parser.add_argument("context_word_csv_dir", help="Path to directory storing multiple CSVs with context/word data for training community2vec/word2vec models")
 c2v_parser.add_argument("input", nargs='+', help="Paths to input files. They should all be the same type ('comments' or 'submissions')")
-c2v_parser.add_argument("-t", "--type", choices=[COMMENTS, SUBMISSIONS], help = "Are these 'comments' or 'submissions' (posts)?")
-c2v_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most activae subreddits (by number of comments/submssions).")
+c2v_parser.add_argument("-t", "--type", choices=[COMMENTS, SUBMISSIONS], help = "Are these 'comments' or 'submissions' (posts)? Default to 'comments'", default=COMMENTS)
+c2v_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
 
 topic_modeling_parser = subparsers.add_parser('topic-model', help="Output data to a fomrat that can be used for training topic models in Mallet (or pre-trained WE clusters?)")
 
@@ -108,7 +144,11 @@ topic_modeling_parser = subparsers.add_parser('topic-model', help="Output data t
 if __name__ == "__main__":
     args = parser.parse_args()
     if args.subparser_name=='c2v':
-        community2vec(args.output, args.input, args.type)
+        spark = SparkSession.builder.appName("IHOP import data").getOrCreate()
+
+        top_n_df, context_word_df = community2vec(args.input, spark, args.type, args.verbose)
+        top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)
+        context_word_df.write.csv(args.context_word_csv_dir)
     elif args.subparser_name=='topic-model':
         # TODO
         print("Topic modeling format not implemented.")
