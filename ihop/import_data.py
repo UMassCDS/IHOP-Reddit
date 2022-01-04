@@ -30,6 +30,7 @@ def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
     """
     return dataframe.groupBy(col).count().orderBy(['count', col], ascending=[0,1]).limit(n)
 
+
 def display_aggregate_counts(dataframe, cat_col='subreddit', num_col='count'):
     """Displays a barplot of values from the dataframe
     :param dataframe: Spark Dataframe
@@ -128,7 +129,7 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, quie
     return top_n_df, context_word_df
 
 
-parser = argparse.ArgumentParser(description="Parse Pushshift Reddit data to Spark parquet dataframe")
+parser = argparse.ArgumentParser(description="Parse Pushshift Reddit data to formats for community2vec and topic modeling.")
 parser.add_argument("-q", "--quiet", action='store_true', help="Use to turn off dataset descriptions and plots")
 subparsers = parser.add_subparsers(dest='subparser_name')
 c2v_parser = subparsers.add_parser('c2v', help="Output data as indexed subreddits for each user in a format that can be used for training community2vec models in Tensorflow")
@@ -138,15 +139,16 @@ c2v_parser.add_argument("input", nargs='+', help="Paths to input files. They sho
 c2v_parser.add_argument("-t", "--type", choices=[COMMENTS, SUBMISSIONS], help = "Are these 'comments' or 'submissions' (posts)? Default to 'comments'", default=COMMENTS)
 c2v_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
 
-topic_modeling_parser = subparsers.add_parser('topic-model', help="Output data to a fomrat that can be used for training topic models in Mallet (or pre-trained WE clusters?)")
+topic_modeling_parser = subparsers.add_parser('topic-model', help="Output data to a format that can be used for training topic models in Mallet (or pre-trained WE clusters?)")
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
     if args.subparser_name=='c2v':
+        print(args)
         spark = SparkSession.builder.appName("IHOP import data").getOrCreate()
-
-        top_n_df, context_word_df = community2vec(args.input, spark, args.type, args.verbose)
+        top_n_df, context_word_df = community2vec(args.input, spark,
+                reddit_type=args.type, top_n=args.top_n, quiet=args.quiet)
         top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)
         context_word_df.write.csv(args.context_word_csv_dir)
     elif args.subparser_name=='topic-model':
