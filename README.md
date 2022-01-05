@@ -1,5 +1,10 @@
 # IHOP
 The Center for Data Science repository for the International Hate Observatory Project.
+The `ihop` directory is a python module
+
+# External dependencies:
+- [Java](https://docs.oracle.com/en/java/javase/17/install/overview-jdk-installation.html) or [OpenJDK](https://openjdk.java.net/install/) (at least version 8). Make sure you have `JAVA_HOME` set appropriately
+- (Optional to support faster compression & customize Hadoop config for Spark) [Hadoop](https://hadoop.apache.org) at least version 3.3 is needed for Pyspark to properly decompress the Reddit zst files (see [this issue](https://stackoverflow.com/questions/64607248/configure-spark-on-yarn-to-use-hadoop-native-libraries) or [this one](https://stackoverflow.com/questions/67099204/reading-a-zst-archive-in-scala-spark-native-zstandard-library-not-available)). Install Hadoop and configure the environment variables using [these instructions](https://phoenixnap.com/kb/install-hadoop-ubuntu).
 
 # Setup and Installation
 Note that [Pyspark](https://spark.apache.org/docs/latest/api/python/getting_started/install.html#dependencies) is used for training embeddings, so you must have Java installed (at least version 8) and `JAVA_HOME` set appropriately.
@@ -10,3 +15,7 @@ To install the `ihop` package as importable for testing and development, run `pi
 
 # Testing
 Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x/).
+
+# Known Issues
+- Spark can't read the origial zst compressed files from Pushshift, due to the window size being larger than 27 and I didn't know how to change the Spark/Hadoop settings to fix this (see note in [zstd man page](https://manpages.debian.org/unstable/zstd/zstd.1.en.html and [Stackoverflow: Read zst to pandas](https://stackoverflow.com/questions/61067762/how-to-extract-zst-files-into-a-pandas-dataframe))). The temporary work around is re-compress the file as a step in `scripts/export_c2v.sh`.
+

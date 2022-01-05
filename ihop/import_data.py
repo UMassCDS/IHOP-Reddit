@@ -2,6 +2,7 @@
 SQL-like operations, operated on using Spark's ML library or exported to pandas/sklearn formats.
 """
 import argparse
+import os
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import concat_ws, count_distinct, collect_list
@@ -17,9 +18,31 @@ AUTHOR_DELETED = "[deleted]"
 # See https://github.com/pushshift/api for details
 # TODO: subreddit ids aren't tracked, unclear if this is necessary
 SCHEMAS = {
-        COMMENTS: "id STRING, parent_id STRING, score INTEGER, author_flair_css_class STRING, author_flair_text STRING, link_id STRING, author STRING, subreddit STRING, body STRING, edited INTEGER, gilded STRING, controversiality INTEGER, created_utc STRING, distinguished STRING",
-        SUBMISSIONS: "author STRING, author_flair_css_class STRING, author_flair_text STRING, created_utc STRING, distinguished STRING, domain STRING, edited INTEGER, gilded STRING, id STRING, is_self BOOLEAN, over_18 BOOLEAN, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING"
+        COMMENTS: "id STRING, parent_id STRING, score INTEGER, link_id STRING, author STRING, subreddit STRING, body STRING, edited INTEGER, gilded STRING, controversiality INTEGER, created_utc STRING, distinguished STRING",
+        SUBMISSIONS: "author STRING, created_utc STRING, distinguished STRING, domain STRING, edited INTEGER, gilded STRING, id STRING, is_self BOOLEAN, over_18 BOOLEAN, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING"
         }
+
+def get_spark_session(quiet=False):
+    """Return a SparkSession configured for reading zstd json files for this module
+    :param quiet: True to print session configuration
+    """
+    hadoop_env = "HADOOP_HOME"
+    spark_builder = SparkSession.builder
+    if hadoop_env in os.environ:
+        hadoop_lib_path = os.path.join(os.environ[hadoop_env], "lib", "native")
+        spark_builder = spark_builder.config("spark.driver.extraLibraryPath", hadoop_lib_path).config("spark.executor.extraLibraryPath", hadoop_lib_path)
+    else:
+        print("WARNING: No HADOOP_HOME variable found, zstd decompression may not be available")
+
+    spark =  spark_builder.config("spark.executor.memory", "4G").appName("IHOP import data").getOrCreate()
+
+    #config("spark.io.compression.zstd.bufferSize", "2147483648K").config("spark.io.compression.zstd.level", "22").config("spark.shuffle.file.buffer", "2097151K").
+
+    if not quiet:
+        print("Spark configuration:")
+        print(spark.sparkContext.getConf().getAll())
+
+    return spark
 
 
 def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
@@ -57,13 +80,14 @@ def remove_deleted_authors(dataframe):
     return dataframe.where(dataframe.author != AUTHOR_DELETED)
 
 
-def print_comparison_stats(original_df, top_n_df):
+def print_comparison_stats(original_df, filtered_df, top_n_df):
     """Compares the number of unique subreddits and users in the original and filtered datasets.
     :param original_df: The full unfiltered Spark Dataframe
+    :param filtered_df: The original dataframe filtered to include only top
     :param top_n_df: The filtered SparkDataframe
     """
-    original_distinct_subreddits = original_df.agg(count_distinct(original_df.subreddit)).collect()[0].count
-    filtered_distinct_subreddits = top_n_df.agg(count_distinct(top_n_df.subreddit)).collect()[0].count
+    original_distinct_subreddits = original_df.agg(count_distinct(original_df.subreddit).alias('sr_count')).collect()[0].sr_count
+    filtered_distinct_subreddits = top_n_df.agg(count_distinct(top_n_df.subreddit).alias('sr_count')).collect()[0].sr_count
     print("Number of subreddits overall:", original_distinct_subreddits)
     print("Number of subreddits after filtering (sanity check, should match n):", filtered_distinct_subreddits)
 
@@ -73,8 +97,8 @@ def print_comparison_stats(original_df, top_n_df):
     print("Number comments after filtering:", comments_after_filtering)
     print("Percentage of original comments covered:", comments_after_filtering/original_comments)
 
-    original_users = original_df.agg(count_distinct(original_df.author)).collect()[0].count
-    filtered_users = top_n_df.agg(count_distinct(top_n_df.author)).collect()[0].count
+    original_users = original_df.agg(count_distinct(original_df.author).alias('author_count')).collect()[0].author_count
+    filtered_users = filtered_df.agg(count_distinct(filtered_df.author).alias('author_count')).collect()[0].author_count
     print("Number users before filtering:", original_users)
     print("Number users after filtering:", filtered_users)
     print("Percentage of original comments covered:", filtered_users/original_users)
@@ -86,7 +110,10 @@ def get_spark_dataframe(inputs, spark, reddit_type):
     :param spark: SparkSession
     :param reddit_type: "comments" or "submissions"
     """
-    return spark.read.format("json").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
+
+    #return spark.read.format("json").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
+
+    return spark.read.format("json").option("mode", "DROPMALFORMED").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
 
 
 def aggregate_for_vectorization(dataframe, context_col="author", word_col="subreddit"):
@@ -112,6 +139,9 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, quie
 
     if reddit_type in [COMMENTS, SUBMISSIONS]:
         spark_df = get_spark_dataframe(inputs, spark, reddit_type)
+        if not quiet:
+            print("Spark dataframe from json:")
+            spark_df.show()
         top_n_df = get_top_n_counts(spark_df, n=top_n)
         filtered_df = filter_top_n(spark_df, top_n_df)
         filtered_df = remove_deleted_authors(filtered_df)
@@ -119,10 +149,10 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, quie
         if not quiet:
             display_aggregate_counts(top_n_df)
             print("Filtered dataframe head snippet:")
-            top_n_df.head().show()
+            print(top_n_df.head(10))
             print("Filtered dataframe tail snippet:")
-            top_n_df.tail().show()
-            print_comparison_stats(spark_df, top_n_df)
+            print(top_n_df.tail(10))
+            print_comparison_stats(spark_df, filtered_df, top_n_df)
     else:
         raise ValueError(f"Reddit data type {reddit_type} is not valid.")
 
@@ -145,8 +175,7 @@ topic_modeling_parser = subparsers.add_parser('topic-model', help="Output data t
 if __name__ == "__main__":
     args = parser.parse_args()
     if args.subparser_name=='c2v':
-        print(args)
-        spark = SparkSession.builder.appName("IHOP import data").getOrCreate()
+        spark = get_spark_session(args.quiet)
         top_n_df, context_word_df = community2vec(args.input, spark,
                 reddit_type=args.type, top_n=args.top_n, quiet=args.quiet)
         top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)
