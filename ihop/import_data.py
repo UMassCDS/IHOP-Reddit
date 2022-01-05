@@ -18,7 +18,7 @@ AUTHOR_DELETED = "[deleted]"
 # See https://github.com/pushshift/api for details
 # TODO: subreddit ids aren't tracked, unclear if this is necessary
 SCHEMAS = {
-        COMMENTS: "id STRING, parent_id STRING, score INTEGER, link_id STRING, author STRING, subreddit STRING, body STRING, edited INTEGER, gilded STRING, controversiality INTEGER, created_utc STRING, distinguished STRING",
+        COMMENTS: "id STRING, parent_id STRING, score INTEGER, link_id STRING, author STRING, subreddit STRING, body STRING, created_utc INTEGER",
         SUBMISSIONS: "author STRING, created_utc STRING, distinguished STRING, domain STRING, edited INTEGER, gilded STRING, id STRING, is_self BOOLEAN, over_18 BOOLEAN, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING"
         }
 
@@ -110,10 +110,9 @@ def get_spark_dataframe(inputs, spark, reddit_type):
     :param spark: SparkSession
     :param reddit_type: "comments" or "submissions"
     """
-
-    #return spark.read.format("json").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
-
+    # This works with sample_data.json and compressed sample_data.zst
     return spark.read.format("json").option("mode", "DROPMALFORMED").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
+    #return spark.read.format("json").option("allowBackslashEscapingAnyCharacter", "true").option("mode", "DROPMALFORMED").load(inputs)
 
 
 def aggregate_for_vectorization(dataframe, context_col="author", word_col="subreddit"):

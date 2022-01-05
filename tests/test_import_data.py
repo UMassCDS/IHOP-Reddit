@@ -21,12 +21,12 @@ def submissions(spark):
 
 
 def test_get_spark_dataframe_comments(comments):
-    assert len(comments.columns) == 14
+    assert len(comments.columns) == 8
     assert comments.count() == 3
 
 
 def test_get_spark_dataframe_submissions(submissions):
-    assert len(submissions.columns) == 16
+    assert len(submissions.columns) == 14
     assert submissions.count() == 3
 
 
@@ -86,4 +86,4 @@ def test_community2vec(spark):
     assert user_contexts_list[0].author == "sampleauth1"
     assert user_contexts_list[0].subreddit == "NBA2k"
     assert user_contexts_list[1].author == "sampleauth2"
-    assert user_contexts_list[2].subreddit == "dndnext"
+    assert user_contexts_list[1].subreddit == "dndnext"
