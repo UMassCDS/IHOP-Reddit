@@ -64,12 +64,10 @@ def test_aggregate_for_vectorization(spark):
             {'author':'auth2', 'subreddit':"r/personalfinance"}
             ]
     df = spark.createDataFrame(data)
-    aggregate_result = sorted(aggregate_for_vectorization(df).collect(), key = lambda x: x.author)
+    aggregate_result = [x.subreddit for x in aggregate_for_vectorization(df).collect()]
     assert len(aggregate_result) == 2
-    assert aggregate_result[0].author == "auth1"
-    assert aggregate_result[0].subreddit == "r/scifi r/fantasy r/books r/fantasy"
-    assert aggregate_result[1].author == "auth2"
-    assert aggregate_result[1].subreddit == "r/movies r/personalfinance"
+    assert "r/scifi r/fantasy r/books r/fantasy" in aggregate_result
+    assert "r/movies r/personalfinance" in aggregate_result
 
 def test_community2vec(spark):
     top_n_subreddits, user_contexts = community2vec(COMMENTS_DIRS, spark)
@@ -81,9 +79,8 @@ def test_community2vec(spark):
     assert top_n_list[1].subreddit == "dndnext"
     assert top_n_list[1]['count'] == 2
 
-    user_contexts_list = sorted(user_contexts.collect(), key = lambda x: x.author)
+    user_contexts_list = [x.subreddit for x in user_contexts.collect()]
     assert len(user_contexts_list) == 2
-    assert user_contexts_list[0].author == "sampleauth1"
-    assert user_contexts_list[0].subreddit == "NBA2k"
-    assert user_contexts_list[1].author == "sampleauth2"
-    assert user_contexts_list[1].subreddit == "dndnext"
+
+    assert "NBA2k" in user_contexts_list
+    assert "dndnext" in user_contexts_list

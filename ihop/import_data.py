@@ -110,20 +110,18 @@ def get_spark_dataframe(inputs, spark, reddit_type):
     :param spark: SparkSession
     :param reddit_type: "comments" or "submissions"
     """
-    # This works with sample_data.json and compressed sample_data.zst
     return spark.read.format("json").option("mode", "DROPMALFORMED").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
-    #return spark.read.format("json").option("allowBackslashEscapingAnyCharacter", "true").option("mode", "DROPMALFORMED").load(inputs)
 
 
 def aggregate_for_vectorization(dataframe, context_col="author", word_col="subreddit"):
     """Aggregates data on the context col, using whitespace concatenation to combine the values in the word column.
-    Returns a dataframe with two columns, the context column and the aggregated word column.
+    Returns a dataframe with one column, the aggregated word column.
 
     :param dataframe: Spark dataframe
     :param context_col: str, column to group by
     :param word_col: str, column to concatenate together
     """
-    return dataframe.groupBy(context_col).agg(concat_ws(" ", collect_list(dataframe[word_col])).alias(word_col))
+    return dataframe.groupBy(context_col).agg(concat_ws(" ", collect_list(dataframe[word_col])).alias(word_col)).drop(context_col)
 
 
 def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, quiet=False):
@@ -163,7 +161,7 @@ parser.add_argument("-q", "--quiet", action='store_true', help="Use to turn off 
 subparsers = parser.add_subparsers(dest='subparser_name')
 c2v_parser = subparsers.add_parser('c2v', help="Output data as indexed subreddits for each user in a format that can be used for training community2vec models in Tensorflow")
 c2v_parser.add_argument("subreddit_counts_csv", help="Path to CSV file for counts of top N subreddits")
-c2v_parser.add_argument("context_word_csv_dir", help="Path to directory storing multiple CSVs with context/word data for training community2vec/word2vec models")
+c2v_parser.add_argument("context_word_dir", help="Path to directory for a compressed file with subreddits a user commented on, one user per line")
 c2v_parser.add_argument("input", nargs='+', help="Paths to input files. They should all be the same type ('comments' or 'submissions')")
 c2v_parser.add_argument("-t", "--type", choices=[COMMENTS, SUBMISSIONS], help = "Are these 'comments' or 'submissions' (posts)? Default to 'comments'", default=COMMENTS)
 c2v_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
@@ -178,7 +176,7 @@ if __name__ == "__main__":
         top_n_df, context_word_df = community2vec(args.input, spark,
                 reddit_type=args.type, top_n=args.top_n, quiet=args.quiet)
         top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)
-        context_word_df.write.csv(args.context_word_csv_dir)
+        context_word_df.coalesce(1).write.option("compression", "bzip2").csv(args.context_word_dir)
     elif args.subparser_name=='topic-model':
         # TODO
         print("Topic modeling format not implemented.")
