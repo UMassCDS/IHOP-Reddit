@@ -2,11 +2,11 @@
 SQL-like operations, operated on using Spark's ML library or exported to pandas/sklearn formats.
 """
 import argparse
-import os
 
-from pyspark.sql import SparkSession
 from pyspark.sql.functions import concat_ws, count_distinct, collect_list
 import seaborn as sns
+
+import ihop.utils
 
 COMMENTS="comments"
 SUBMISSIONS="submissions"
@@ -21,28 +21,6 @@ SCHEMAS = {
         COMMENTS: "id STRING, parent_id STRING, score INTEGER, link_id STRING, author STRING, subreddit STRING, body STRING, created_utc INTEGER",
         SUBMISSIONS: "author STRING, created_utc STRING, distinguished STRING, domain STRING, edited INTEGER, gilded STRING, id STRING, is_self BOOLEAN, over_18 BOOLEAN, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING"
         }
-
-def get_spark_session(quiet=False):
-    """Return a SparkSession configured for reading zstd json files for this module
-    :param quiet: True to print session configuration
-    """
-    hadoop_env = "HADOOP_HOME"
-    spark_builder = SparkSession.builder
-    if hadoop_env in os.environ:
-        hadoop_lib_path = os.path.join(os.environ[hadoop_env], "lib", "native")
-        spark_builder = spark_builder.config("spark.driver.extraLibraryPath", hadoop_lib_path).config("spark.executor.extraLibraryPath", hadoop_lib_path)
-    else:
-        print("WARNING: No HADOOP_HOME variable found, zstd decompression may not be available")
-
-    spark =  spark_builder.config("spark.executor.memory", "4G").appName("IHOP import data").getOrCreate()
-
-    #config("spark.io.compression.zstd.bufferSize", "2147483648K").config("spark.io.compression.zstd.level", "22").config("spark.shuffle.file.buffer", "2097151K").
-
-    if not quiet:
-        print("Spark configuration:")
-        print(spark.sparkContext.getConf().getAll())
-
-    return spark
 
 
 def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
@@ -172,7 +150,7 @@ topic_modeling_parser = subparsers.add_parser('topic-model', help="Output data t
 if __name__ == "__main__":
     args = parser.parse_args()
     if args.subparser_name=='c2v':
-        spark = get_spark_session(args.quiet)
+        spark = ihop.utils.get_spark_session("IHOP import data", args.quiet)
         top_n_df, context_word_df = community2vec(args.input, spark,
                 reddit_type=args.type, top_n=args.top_n, quiet=args.quiet)
         top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)

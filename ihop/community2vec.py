@@ -5,18 +5,15 @@ Inputs:
 
 2) Multiple CSVs with user,words used as document contexts
 
-.. TODO Implement community2vec as described in https://www.tensorflow.org/tutorials/text/word2vec with negative sampleing
+.. TODO Implement community2vec as described in https://www.tensorflow.org/tutorials/text/word2vec with negative sampling or using gensim
 
-.. TODO Account for downsampling of skipgrams as described in https://github.com/BIU-NLP/word2vecf/blob/master/word2vecf.c#L421 (I think this can be done in tensorflow with the sampling_table)
+.. TODO Account for downsampling of skipgrams as described in https://github.com/BIU-NLP/word2vecf/blob/master/word2vecf.c#L421 (I think this can be done in tensorflow with the sampling_table) or with the sample kw option in skipgrams
 
-.. TODO Incrementally read in data from CSV for efficient memory usage, see https://www.tensorflow.org/guide/data
+# TODO Considerations for cross validation
+
+
 """
 import csv
-
-import numpy as np
-import tensorflow as tf
-
-PAD_TOKEN = "<pad>"
 
 
 def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1):
@@ -34,13 +31,3 @@ def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1
 
     return vocab
 
-def process_for_community2vec(sequences, max_length, standardize=None, split='whitespace', vocabulary=None):
-    """
-    :param sequences:
-    :param standardize: str or Callable, passed to tf.keras.layers.TextVectorization
-    :param split: string or Callable, tokenization function passed to tf.keras.layers.TextVectorization
-    :param vocabulary: passed to tf.keras.layers.TextVectorization
-    """
-    pre_proc_model = tf.keras.model.Sequential(name="Community2Vec preprocessing")
-    text_vectorizer = tf.keras.layers.TextVectorization(standardize=standardize, split=split, output_mode='int', vocabulary=vocabulary)
-    pre_proc_model.add(text_vectorizer)
