@@ -32,14 +32,6 @@ def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
     return dataframe.groupBy(col).count().orderBy(['count', col], ascending=[0,1]).limit(n)
 
 
-def display_aggregate_counts(dataframe, cat_col='subreddit', num_col='count'):
-    """Displays a barplot of values from the dataframe
-    :param dataframe: Spark Dataframe
-    :param cat_col: str, column of dataframe containing categorical values
-    :param num_col: str, column of dataframe containing numerical values
-    """
-    sns.barplot(x=num_col, y=cat_col, data=dataframe.toPandas())
-
 
 def filter_top_n(dataframe, top_n_counts, col='subreddit'):
     """Filter the dataframe to only results with those values in top_n_counts.
@@ -122,7 +114,6 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, quie
         filtered_df = remove_deleted_authors(filtered_df)
         context_word_df = aggregate_for_vectorization(filtered_df)
         if not quiet:
-            display_aggregate_counts(top_n_df)
             print("Filtered dataframe head snippet:")
             print(top_n_df.head(10))
             print("Filtered dataframe tail snippet:")
@@ -157,4 +148,4 @@ if __name__ == "__main__":
         context_word_df.coalesce(1).write.option("compression", "bzip2").csv(args.context_word_dir)
     elif args.subparser_name=='topic-model':
         # TODO
-        print("Topic modeling format not implemented.")
+        print("Text-based topic modeling format not implemented.")

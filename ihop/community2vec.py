@@ -10,8 +10,6 @@ Inputs:
 .. TODO Account for downsampling of skipgrams as described in https://github.com/BIU-NLP/word2vecf/blob/master/word2vecf.c#L421 (I think this can be done in tensorflow with the sampling_table) or with the sample kw option in skipgrams
 
 # TODO Considerations for cross validation
-
-
 """
 import csv
 
