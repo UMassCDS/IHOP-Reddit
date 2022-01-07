@@ -32,7 +32,6 @@ def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
     return dataframe.groupBy(col).count().orderBy(['count', col], ascending=[0,1]).limit(n)
 
 
-
 def filter_top_n(dataframe, top_n_counts, col='subreddit'):
     """Filter the dataframe to only results with those values in top_n_counts.
     Returns a dataframe that's a subset of the original input dataframe.
@@ -71,7 +70,7 @@ def print_comparison_stats(original_df, filtered_df, top_n_df):
     filtered_users = filtered_df.agg(count_distinct(filtered_df.author).alias('author_count')).collect()[0].author_count
     print("Number users before filtering:", original_users)
     print("Number users after filtering:", filtered_users)
-    print("Percentage of original comments covered:", filtered_users/original_users)
+    print("Percentage of original users covered:", filtered_users/original_users)
 
 
 def get_spark_dataframe(inputs, spark, reddit_type):
@@ -129,10 +128,10 @@ parser = argparse.ArgumentParser(description="Parse Pushshift Reddit data to for
 parser.add_argument("-q", "--quiet", action='store_true', help="Use to turn off dataset descriptions and plots")
 subparsers = parser.add_subparsers(dest='subparser_name')
 c2v_parser = subparsers.add_parser('c2v', help="Output data as indexed subreddits for each user in a format that can be used for training community2vec models in Tensorflow")
-c2v_parser.add_argument("subreddit_counts_csv", help="Path to CSV file for counts of top N subreddits")
-c2v_parser.add_argument("context_word_dir", help="Path to directory for a compressed file with subreddits a user commented on, one user per line")
+c2v_parser.add_argument("subreddit_counts_csv", help="Desired output path to CSV file for counts of top N subreddits")
+c2v_parser.add_argument("context_word_dir", help="Desired output path to directory for a compressed file with subreddits a user commented on, one user per line")
 c2v_parser.add_argument("input", nargs='+', help="Paths to input files. They should all be the same type ('comments' or 'submissions')")
-c2v_parser.add_argument("-t", "--type", choices=[COMMENTS, SUBMISSIONS], help = "Are these 'comments' or 'submissions' (posts)? Default to 'comments'", default=COMMENTS)
+c2v_parser.add_argument("-t", "--type", choices=[COMMENTS, SUBMISSIONS], help = "Are these 'comments' or 'submissions' (posts)? Default is 'comments'.", default=COMMENTS)
 c2v_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
 
 topic_modeling_parser = subparsers.add_parser('topic-model', help="Output data to a format that can be used for training topic models in Mallet (or pre-trained WE clusters?)")

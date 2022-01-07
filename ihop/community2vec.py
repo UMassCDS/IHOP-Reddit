@@ -13,6 +13,7 @@ Inputs:
 """
 import csv
 import logging
+import pickle
 
 import gensim
 import pyspark.sql.functions as fn
@@ -86,5 +87,30 @@ class GensimCommunity2Vec:
         """
         train_result = self.w2v_model.train(gensim.models.word2vec.PathLineSentences(self.contexts_path), total_examples=self.num_users, epochs=self.epochs, **kwargs)
         return train_result
+
+    def save(self, save_path):
+        """Save the current model object to file
+        :param save_path: str or Path, file to save model to
+        """
+        with open(save_path, 'wb') as f:
+            pickle.dump(self, f)
+
+    def save_vectors(self, save_path):
+        """Save only the embeddings from this model as gensim KeyedVectors. These can't be used for further training of the Community2Vec model, but have smaller RAM footprint and are more efficient
+        """
+        self.w2v_model.wv.save(save_path)
+
+    def load(cls, load_path):
+        """Returns a GensimCommunity2Vec object that was pickled in the file.
+        :param load_path: str or Path, where to load the object from
+        """
+        with open(load_path, 'rb') as f:
+            return pickle.load(f)
+
+
+
+
+
+
 
 
