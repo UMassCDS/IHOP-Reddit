@@ -3,7 +3,7 @@ SQL-like operations, operated on using Spark's ML library or exported to pandas/
 """
 import argparse
 
-from pyspark.sql.functions import concat_ws, count_distinct, collect_list
+import pyspark.sql.functions as fn
 import seaborn as sns
 
 import ihop.utils
@@ -55,19 +55,19 @@ def print_comparison_stats(original_df, filtered_df, top_n_df):
     :param filtered_df: The original dataframe filtered to include only top
     :param top_n_df: The filtered SparkDataframe
     """
-    original_distinct_subreddits = original_df.agg(count_distinct(original_df.subreddit).alias('sr_count')).collect()[0].sr_count
-    filtered_distinct_subreddits = top_n_df.agg(count_distinct(top_n_df.subreddit).alias('sr_count')).collect()[0].sr_count
+    original_distinct_subreddits = original_df.agg(fn.count_distinct(original_df.subreddit).alias('sr_count')).collect()[0].sr_count
+    filtered_distinct_subreddits = top_n_df.agg(fn.count_distinct(top_n_df.subreddit).alias('sr_count')).collect()[0].sr_count
     print("Number of subreddits overall:", original_distinct_subreddits)
     print("Number of subreddits after filtering (sanity check, should match n):", filtered_distinct_subreddits)
 
     original_comments = original_df.count()
-    comments_after_filtering = top_n_df.count()
+    comments_after_filtering = filtered_df.count()
     print("Number comments before filtering:", original_comments)
     print("Number comments after filtering:", comments_after_filtering)
     print("Percentage of original comments covered:", comments_after_filtering/original_comments)
 
-    original_users = original_df.agg(count_distinct(original_df.author).alias('author_count')).collect()[0].author_count
-    filtered_users = filtered_df.agg(count_distinct(filtered_df.author).alias('author_count')).collect()[0].author_count
+    original_users = original_df.agg(fn.count_distinct(original_df.author).alias('author_count')).collect()[0].author_count
+    filtered_users = filtered_df.agg(fn.count_distinct(filtered_df.author).alias('author_count')).collect()[0].author_count
     print("Number users before filtering:", original_users)
     print("Number users after filtering:", filtered_users)
     print("Percentage of original users covered:", filtered_users/original_users)
@@ -82,27 +82,48 @@ def get_spark_dataframe(inputs, spark, reddit_type):
     return spark.read.format("json").option("mode", "DROPMALFORMED").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
 
 
-def aggregate_for_vectorization(dataframe, context_col="author", word_col="subreddit"):
-    """Aggregates data on the context col, using whitespace concatenation to combine the values in the word column.
-    Returns a dataframe with one column, the aggregated word column.
+def aggregate_for_vectorization(dataframe, context_col="author", word_col="subreddit", word_out_col="subreddit_concat", context_len_col="context_length", min_sentence_length=2):
+    """Returns a dataframe where each row represents a context with two columns:
+    - word_out_col: stores words for each context as white-space delmited string
+    - context_len_col: the number of words in each context
+
+    Aggregates data on the context col, using whitespace concatenation
+    to combine the values in the word column, dropping rows that
+    have contexts smaller than min_sentence_length.
 
     :param dataframe: Spark dataframe
     :param context_col: str, column to group by
     :param word_col: str, column to concatenate together
+    :param word_out_col: str, name of the output column where words for each context are concatenated
+    :param context_len_col: str, name of column that stores the number of words concatenated for each context
     """
-    return dataframe.groupBy(context_col).agg(concat_ws(" ", collect_list(dataframe[word_col])).alias(word_col)).drop(context_col)
+    agg_df = dataframe.groupBy(context_col).agg(
+        fn.concat_ws(" ", fn.collect_list(dataframe[word_col])).alias(word_out_col),
+        fn.count(context_col).alias(context_len_col))
+    agg_df = agg_df.where(fn.col(context_len_col) >= min_sentence_length)
+
+    return agg_df.drop(context_col)
 
 
-def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, quiet=False):
+def collect_max_context_length(aggregated_df, array_len_col="context_length"):
+    """Return the maximum context length according to the array_len_col in the aggregated df.
+    :param aggregated_df: Spark dataframe with a column array_len_col storing integers
+    :param array_len_col: str, the column to query for the maximum value
+    """
+    return aggregated_df.agg(fn.max(array_len_col)).head()[0]
+
+
+def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, min_sentence_length=2, quiet=False):
     """Returns data for training community2vec using skipgrams (users as 'documents/context', subreddits as 'words') as Spark dataframes. Deleted comments are counted when determining the top most frequent values.
     Returns 2 dataframes: counts of subreddits (vocabulary for community2vec), subreddit comments/submissions aggregated into a list for each author
 
     :param inputs: Paths to read JSON Reddit data from
     :param spark: SparkSession
     :param reddit_type: 'comments' or 'submissions'
-    :param quet: Boolean, true to skip statsitics and plots
+    :param top_n: int, how many subreddits to consider for c2v, vocab size
+    :param min_sentence_length: int, minimum size of context for c2v, min sentence length
+    :param quiet: Boolean, true to skip statsitics and plots
     """
-
     if reddit_type in [COMMENTS, SUBMISSIONS]:
         spark_df = get_spark_dataframe(inputs, spark, reddit_type)
         if not quiet:
@@ -111,13 +132,13 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, quie
         top_n_df = get_top_n_counts(spark_df, n=top_n)
         filtered_df = filter_top_n(spark_df, top_n_df)
         filtered_df = remove_deleted_authors(filtered_df)
-        context_word_df = aggregate_for_vectorization(filtered_df)
         if not quiet:
-            print("Filtered dataframe head snippet:")
-            print(top_n_df.head(10))
-            print("Filtered dataframe tail snippet:")
-            print(top_n_df.tail(10))
             print_comparison_stats(spark_df, filtered_df, top_n_df)
+
+        context_word_df = aggregate_for_vectorization(filtered_df, min_sentence_length=min_sentence_length)
+        if not quiet:
+            max_sentence_length = collect_max_context_length(context_word_df)
+            print("Maximum sentence length in data:", max_sentence_length)
     else:
         raise ValueError(f"Reddit data type {reddit_type} is not valid.")
 
@@ -125,7 +146,7 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, quie
 
 
 parser = argparse.ArgumentParser(description="Parse Pushshift Reddit data to formats for community2vec and topic modeling.")
-parser.add_argument("-q", "--quiet", action='store_true', help="Use to turn off dataset descriptions and plots")
+parser.add_argument("-q", "--quiet", action='store_true', help="Use to turn off dataset descriptions and extra statistics. This will make pre-processing faster, but skips useful statistics about the datasets.")
 subparsers = parser.add_subparsers(dest='subparser_name')
 c2v_parser = subparsers.add_parser('c2v', help="Output data as indexed subreddits for each user in a format that can be used for training community2vec models in Tensorflow")
 c2v_parser.add_argument("subreddit_counts_csv", help="Desired output path to CSV file for counts of top N subreddits")
@@ -143,8 +164,12 @@ if __name__ == "__main__":
         spark = ihop.utils.get_spark_session("IHOP import data", args.quiet)
         top_n_df, context_word_df = community2vec(args.input, spark,
                 reddit_type=args.type, top_n=args.top_n, quiet=args.quiet)
+        if not args.quiet:
+            print("Writing subreddit counts to", args.subreddit_counts_csv)
         top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)
-        context_word_df.coalesce(1).write.option("compression", "bzip2").csv(args.context_word_dir)
+        if not args.quiet:
+            print("Writing user contexts to bzip2 in", args.context_word_dir)
+        context_word_df.write.option("compression", "bzip2").csv(args.context_word_dir)
     elif args.subparser_name=='topic-model':
         # TODO
         print("Text-based topic modeling format not implemented.")

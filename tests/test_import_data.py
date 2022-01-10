@@ -3,7 +3,7 @@
 import os
 import pytest
 
-from ihop.import_data import aggregate_for_vectorization, community2vec, get_spark_dataframe, filter_top_n, remove_deleted_authors
+from ihop.import_data import aggregate_for_vectorization, community2vec, get_spark_dataframe, filter_top_n, remove_deleted_authors, collect_max_context_length
 
 FIXTURE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files')
 
@@ -18,6 +18,17 @@ def comments(spark):
 @pytest.fixture
 def submissions(spark):
     return get_spark_dataframe(SUBMISSIONS_DIR, spark, "submissions")
+
+@pytest.fixture
+def context_dataframe(spark):
+    data = [{'author':'auth1', 'subreddit':"scifi"},
+            {'author':'auth1', 'subreddit':"fantasy"},
+            {'author':'auth1', 'subreddit':"books"},
+            {'author':'auth1', 'subreddit':"fantasy"},
+            {'author':'auth2', 'subreddit':"movies"},
+            {'author':'auth2', 'subreddit':"personalfinance"}
+            ]
+    return spark.createDataFrame(data)
 
 
 def test_get_spark_dataframe_comments(comments):
@@ -55,22 +66,21 @@ def test_remove_deleted_authors(comments):
     assert filtered[1].author == 'sampleauth2'
 
 
-def test_aggregate_for_vectorization(spark):
-    data = [{'author':'auth1', 'subreddit':"r/scifi"},
-            {'author':'auth1', 'subreddit':"r/fantasy"},
-            {'author':'auth1', 'subreddit':"r/books"},
-            {'author':'auth1', 'subreddit':"r/fantasy"},
-            {'author':'auth2', 'subreddit':"r/movies"},
-            {'author':'auth2', 'subreddit':"r/personalfinance"}
-            ]
-    df = spark.createDataFrame(data)
-    aggregate_result = [x.subreddit for x in aggregate_for_vectorization(df).collect()]
+def test_aggregate_for_vectorization(context_dataframe):
+    agg_df = aggregate_for_vectorization(context_dataframe)
+    assert agg_df.columns == ["subreddit_concat", "context_length"]
+    aggregate_result = [x.subreddit_concat for x in agg_df.collect()]
     assert len(aggregate_result) == 2
-    assert "r/scifi r/fantasy r/books r/fantasy" in aggregate_result
-    assert "r/movies r/personalfinance" in aggregate_result
+    assert "scifi fantasy books fantasy" in aggregate_result
+    assert "movies personalfinance" in aggregate_result
+
+
+def test_collect_max_context_length(context_dataframe):
+    assert collect_max_context_length(aggregate_for_vectorization(context_dataframe)) == 4
+
 
 def test_community2vec(spark):
-    top_n_subreddits, user_contexts = community2vec(COMMENTS_DIRS, spark)
+    top_n_subreddits, user_contexts = community2vec(COMMENTS_DIRS, spark, min_sentence_length=0)
     top_n_list = sorted(top_n_subreddits.collect(), key=lambda x: x.subreddit)
     print(top_n_list)
     assert len(top_n_list) == 2
@@ -79,7 +89,7 @@ def test_community2vec(spark):
     assert top_n_list[1].subreddit == "dndnext"
     assert top_n_list[1]['count'] == 2
 
-    user_contexts_list = [x.subreddit for x in user_contexts.collect()]
+    user_contexts_list = [x.subreddit_concat for x in user_contexts.collect()]
     assert len(user_contexts_list) == 2
 
     assert "NBA2k" in user_contexts_list
