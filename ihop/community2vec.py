@@ -17,7 +17,9 @@ import logging
 import os
 
 import gensim
+import pandas as pd
 import pyspark.sql.functions as fn
+from sklearn.manifold import TSNE
 
 # TODO Logging should be configurable, but for now just turn it on for Gensim
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -38,6 +40,21 @@ def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1
 
     return vocab
 
+class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
+    """Callback to print loss after each epoch.
+    See https://stackoverflow.com/questions/54888490/gensim-word2vec-print-log-loss
+    """
+
+    def __init__(self):
+        self.epoch = 0
+        self.loss_to_be_subed = 0
+
+    def on_epoch_end(self, model):
+        loss = model.get_latest_training_loss()
+        loss_now = loss - self.loss_to_be_subed
+        self.loss_to_be_subed = loss
+        logging.info(f'Loss after epoch {self.epoch}: {loss_now}')
+        self.epoch += 1
 
 class GensimCommunity2Vec:
     """Implements Community2Vec Skip-gram with negative sampling (SGNS) using the gensim Word2Vec model.
@@ -83,7 +100,7 @@ class GensimCommunity2Vec:
         """Trains the word2vec model. Returns the result from gensim.
         :param **kwargs: passed to gensim Word2Vec.train()
         """
-        train_result = self.w2v_model.train(gensim.models.word2vec.PathLineSentences(self.contexts_path), total_examples=self.num_users, epochs=self.epochs, **kwargs)
+        train_result = self.w2v_model.train(gensim.models.word2vec.PathLineSentences(self.contexts_path), total_examples=self.num_users, epochs=self.epochs, callbacks=[EpochLossCallback()], **kwargs)
         return train_result
 
     def save(self, save_dir):
@@ -104,6 +121,33 @@ class GensimCommunity2Vec:
         """Save only the embeddings from this model as gensim KeyedVectors. These can't be used for further training of the Community2Vec model, but have smaller RAM footprint and are more efficient
         """
         self.w2v_model.wv.save(save_path)
+
+    def get_normed_vectors(self):
+        """Returns the normed embedding weights for the Gensim Keyed Vectors
+        """
+        return self.w2v_model.wv.get_normed_vectors()
+
+    def get_tsne_dataframe(self, key_col="subreddit", **kwargs):
+        """Fits a TSNE representation of the dataframe.
+        Returns the results as both a pandas dataframe and the resulting TSNE projection as a numpy array
+
+        :param kwargs: dict params passed to sklearn's TNSE model
+        """
+        tsne_fitter = TSNE(**kwargs, init="pca", metric="cosine", learning_rate="auto")
+        tsne_projection = tsne_fitter.fit_transform(self.get_normed_vectors())
+        dataframe_elements = list()
+        for i, vocab_elem in enumerate(self.w2v_model.wv.index_to_key):
+            elem_proj = tsne_projection[i]
+            dataframe_elements.append((vocab_elem, elem_proj[0], elem_proj[1]))
+
+        dataframe = pd.DataFrame.from_records(dataframe_elements, columns=[key_col, "tsne_x", "tsne_y"])
+        return dataframe, tsne_projection
+
+    def get_index_to_key(self):
+        """Returns the vocab of the Word2Vec embeddings as an indexed list of strings.
+        """
+        return self.w2v_model.wv.index_to_key
+
 
 
     @classmethod

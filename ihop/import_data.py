@@ -4,7 +4,6 @@ SQL-like operations, operated on using Spark's ML library or exported to pandas/
 import argparse
 
 import pyspark.sql.functions as fn
-import seaborn as sns
 
 import ihop.utils
 
