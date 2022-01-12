@@ -51,6 +51,21 @@ def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1
 
     return vocab
 
+class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
+    """Callback to print loss after each epoch.
+    See https://stackoverflow.com/questions/54888490/gensim-word2vec-print-log-loss
+    """
+
+    def __init__(self):
+        self.epoch = 0
+        self.loss_to_be_subed = 0
+
+    def on_epoch_end(self, model):
+        loss = model.get_latest_training_loss()
+        loss_now = loss - self.loss_to_be_subed
+        self.loss_to_be_subed = loss
+        logging.info(f'Loss after epoch {self.epoch}: {loss_now}')
+        self.epoch += 1
 
 def generate_analogies(seed_terms):
     """Generates 4-tuples of analogies that can be fed to Gensim KeyedVector
