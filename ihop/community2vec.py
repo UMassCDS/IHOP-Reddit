@@ -51,13 +51,14 @@ def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1
 
     return vocab
 
+
 class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback to print loss after each epoch.
     See https://stackoverflow.com/questions/54888490/gensim-word2vec-print-log-loss
     """
 
     def __init__(self):
-        self.epoch = 0
+        self.epoch = 1
         self.loss_to_be_subed = 0
 
     def on_epoch_end(self, model):
@@ -317,7 +318,6 @@ class GensimCommunity2Vec:
                 return self.w2v_model.wv.evaluate_word_analogies(default_analogies, restrict_vocab = max_vocab,
                                                                  case_insensitive = case_insensitive)
 
-
     @classmethod
     def init_with_spark(cls, spark, vocab_dict, contexts_path, vector_size=150, negative=20, sample=0, alpha=0.025, min_alpha=0.0001, seed=1, epochs=5, batch_words=10000, workers=3):
         """Instantiates a community2vec model using max_comments and num_users determined the contexts_path file using Spark.
@@ -339,6 +339,7 @@ class GensimCommunity2Vec:
         return cls(vocab_dict, contexts_path, max_comments, num_users,
             vector_size, negative, sample, alpha, min_alpha,
             seed, epochs, batch_words, workers)
+
 
     @classmethod
     def load(cls, load_dir):
