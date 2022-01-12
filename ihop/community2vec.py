@@ -40,13 +40,14 @@ def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1
 
     return vocab
 
+
 class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback to print loss after each epoch.
     See https://stackoverflow.com/questions/54888490/gensim-word2vec-print-log-loss
     """
 
     def __init__(self):
-        self.epoch = 0
+        self.epoch = 1
         self.loss_to_be_subed = 0
 
     def on_epoch_end(self, model):
@@ -55,6 +56,21 @@ class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
         self.loss_to_be_subed = loss
         logging.info(f'Loss after epoch {self.epoch}: {loss_now}')
         self.epoch += 1
+
+
+class SaveVectorsCallback(gensim.models.callbacks.CallbackAny2Vec):
+    """Callback to save embeddings for a model after each epoch
+    """
+    def __init__(self, save_vector_prefix):
+        self.save_vector_prefix = save_vector_prefix
+        self.epoch = 1
+
+    def on_epoch_end(self, w2v_model):
+        vector_out = self.save_vector_prefix + f"_epoch_{self.epoch}"
+        logging.info(f'Saving vectors for epoch {self.epoch} to {vector_out}')
+        w2v_model.wv.save(vector_out)
+        self.epoch += 1
+
 
 class GensimCommunity2Vec:
     """Implements Community2Vec Skip-gram with negative sampling (SGNS) using the gensim Word2Vec model.
@@ -96,11 +112,15 @@ class GensimCommunity2Vec:
                 "epochs": self.epochs
                 }
 
-    def train(self, **kwargs):
+    def train(self, save_vectors_prefix=None, **kwargs):
         """Trains the word2vec model. Returns the result from gensim.
+        :param save_vectors_prefix: str or None, use set this to save vectors after each epoch. The epoch will be appended to the filename.
         :param **kwargs: passed to gensim Word2Vec.train()
         """
-        train_result = self.w2v_model.train(gensim.models.word2vec.PathLineSentences(self.contexts_path), total_examples=self.num_users, epochs=self.epochs, callbacks=[EpochLossCallback()], **kwargs)
+        callbacks = [EpochLossCallback()]
+        if save_vectors_prefix:
+            callbacks.append(SaveVectorsCallback(save_vectors_prefix))
+        train_result = self.w2v_model.train(gensim.models.word2vec.PathLineSentences(self.contexts_path), total_examples=self.num_users, epochs=self.epochs, callbacks=callbacks, **kwargs)
         return train_result
 
     def save(self, save_dir):
@@ -149,7 +169,6 @@ class GensimCommunity2Vec:
         return self.w2v_model.wv.index_to_key
 
 
-
     @classmethod
     def init_with_spark(cls, spark, vocab_dict, contexts_path, vector_size=150, negative=20, sample=0, alpha=0.025, min_alpha=0.0001, seed=1, epochs=5, batch_words=10000, workers=3):
         """Instantiates a community2vec model using max_comments and num_users determined the contexts_path file using Spark.
@@ -172,6 +191,7 @@ class GensimCommunity2Vec:
         return cls(vocab_dict, contexts_path, max_comments, num_users,
             vector_size, negative, sample, alpha, min_alpha,
             seed, epochs, batch_words, workers)
+
 
     @classmethod
     def load(cls, load_dir):
