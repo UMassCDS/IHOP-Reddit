@@ -340,7 +340,6 @@ class GensimCommunity2Vec:
             vector_size, negative, sample, alpha, min_alpha,
             seed, epochs, batch_words, workers)
 
-
     @classmethod
     def load(cls, load_dir):
         """Returns a GensimCommunity2Vec object that was pickled in the file.
