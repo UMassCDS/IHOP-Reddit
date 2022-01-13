@@ -1,6 +1,7 @@
 import os
 
 import gensim
+import numpy as np
 
 import ihop.community2vec as c2v
 
@@ -54,7 +55,7 @@ def test_save_load_trained_community2vec_model(tmp_path):
     assert loaded_model.max_comments == 9
     assert loaded_model.epochs == 2
     assert loaded_model.w2v_model.alpha == 0.05
-    assert loaded_model.w2v_model.wv["AskReddit"] == vector
+    assert np.all(loaded_model.w2v_model.wv["AskReddit"] == vector)
 
 
 def test_save_vectors(tmp_path):
@@ -68,4 +69,4 @@ def test_save_vectors(tmp_path):
 
     assert loaded_vectors.vector_size == 25
     assert len(loaded_vectors.key_to_index) == 10
-    assert loaded_vectors["AskReddit"] == random_vector
+    assert np.all(loaded_vectors["AskReddit"] == random_vector)

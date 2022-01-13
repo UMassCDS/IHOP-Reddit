@@ -81,7 +81,7 @@ class GensimCommunity2Vec:
     MODEL_SAVE_NAME = "word2vec.pickle"
     PARAM_SAVE_NAME = "parameters.json"
 
-    def __init__(self, vocab_dict, contexts_path, max_comments, num_users, vector_size=150, negative=20, sample=0, alpha=0.025, min_alpha=0.0001, seed=1, epochs=5, batch_words=10000, workers=3):
+    def __init__(self, vocab_dict, contexts_path, max_comments=0, num_users=0, vector_size=150, negative=20, sample=0, alpha=0.025, min_alpha=0.0001, seed=1, epochs=5, batch_words=10000, workers=3):
         """
         Instantiates a gensim Word2Vec model for Community2Vec
         :param vocab_dict: dict, str->int storing frequency counts of the vocab elements.
@@ -128,7 +128,7 @@ class GensimCommunity2Vec:
 
         :param save_dir: str, path of directory to save model and parameters
         """
-        if not os.path.exists(save_dir) and os.path.exists(save_dir):
+        if not os.path.exists(save_dir) and os.path.isdir(save_dir):
             os.mkdir(save_dir)
         w2v_path = os.path.join(save_dir, self.MODEL_SAVE_NAME)
         self.w2v_model.save(w2v_path)
@@ -192,15 +192,20 @@ class GensimCommunity2Vec:
             vector_size, negative, sample, alpha, min_alpha,
             seed, epochs, batch_words, workers)
 
-
     @classmethod
     def load(cls, load_dir):
         """Returns a GensimCommunity2Vec object that was pickled in the file.
         :param load_dir: str, directory to load the objects from
         """
-        # TODO Finish method and tests for serializing/deserializing
-        with open(load_path, 'rb') as f:
-            return pickle.load(f)
+        json_file = os.path.join(load_dir, GensimCommunity2Vec.PARAM_SAVE_NAME)
+        w2v_file = os.path.join(load_dir, GensimCommunity2Vec.MODEL_SAVE_NAME)
+        with open(json_file, 'r') as j:
+            json_params = json.load(j)
+        model = GensimCommunity2Vec({}, json_params["contexts_path"],
+                        json_params["max_comments"], json_params["num_users"],
+                        epochs=json_params["epochs"])
+        model.w2v_model = gensim.models.Word2Vec.load(w2v_file)
+        return model
 
 
 
