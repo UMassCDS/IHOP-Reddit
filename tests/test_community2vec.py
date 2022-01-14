@@ -17,7 +17,6 @@ def test_get_vocab():
     vocab = c2v.get_vocabulary(VOCAB_CSV)
     assert vocab == expected_vocab
 
-
 def test_default_analogies():
     analogies = c2v.get_analogies()
     assert len(analogies) == 113842
@@ -26,7 +25,6 @@ def test_default_analogies():
     assert ("Buffalo", "buffalobills", "sanfrancisco", "49ers") in analogies
     assert ("montreal","Habs", "phoenix", "Coyotes") in analogies
     assert ("Drexel", "philadelphia","umass", "amherst")
-
 
 def test_generate_analogies():
     analogies = c2v.get_analogies([os.path.join(FIXTURE_DIR, "test_analogies.csv")])
