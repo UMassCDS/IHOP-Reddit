@@ -17,6 +17,20 @@ def test_get_vocab():
     vocab = c2v.get_vocabulary(VOCAB_CSV)
     assert vocab == expected_vocab
 
+def test_default_analogies():
+    analogies = c2v.get_analogies()
+    assert len(analogies) == 113842
+    assert ("boston", "redsox", "toronto", "Torontobluejays") in analogies
+    assert ("philadelphia", "sixers", "tulsa", "Thunder") in analogies
+    assert ("Buffalo", "buffalobills", "sanfrancisco", "49ers") in analogies
+    assert ("montreal","Habs", "phoenix", "Coyotes") in analogies
+    assert ("Drexel", "philadelphia","umass", "amherst")
+
+def test_generate_analogies():
+    analogies = c2v.get_analogies([os.path.join(FIXTURE_DIR, "test_analogies.csv")])
+    assert analogies == [("a","b","c","d"), ("a","b", "e","f"), ("c","d","e","f")]
+
+
 def test_init_gensim_community2vec(spark):
     c2v_model = c2v.GensimCommunity2Vec.init_with_spark(spark, c2v.get_vocabulary(VOCAB_CSV), SAMPLE_SENTENCES, vector_size = 25, epochs=2, batch_words=100, alpha=0.04)
     assert c2v_model.num_users == 4

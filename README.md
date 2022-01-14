@@ -4,7 +4,7 @@ The `ihop` directory is a python module with submodules that can also be run as 
 - `ihop.import_data`: Uses Spark to import Reddit data from the Pushshift json dumps to formats more easily used for topic modeling. Run `python -m ihop.import_data --help` for details
 - `ihop.community2vec`: Wrappers for training and tuning word2vec to implement community2vec on the Reddit datasets.
 - `ihop.resources`: Data resources
-	- `ihop.resources.analogies`: Subreddit algebra analogies for tuning community2vec, taken from [social-dimensions](https://github.com/CSSLab/social-dimensions)
+	- `ihop.resources.analogies`: Subreddit algebra analogies for tuning community2vec, taken from [social-dimensions](https://github.com/CSSLab/social-dimensions) with minor updates
 
 
 # External Dependencies
