@@ -51,6 +51,10 @@ def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1
 
     return vocab
 
+def get_analogies():
+    """Returns analogies to solve
+    """
+
 
 class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback to print loss after each epoch.
