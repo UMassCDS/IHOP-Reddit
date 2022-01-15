@@ -24,7 +24,10 @@ import pyspark.sql.functions as fn
 from pyspark.sql.types import StructType, StructField, StringType
 from sklearn.manifold import TSNE
 
+<<<<<<< HEAD
 import ihop.utils
+=======
+>>>>>>> Subreddit analogy solving methods and callbacks added
 
 # TODO Logging should be configurable, but for now just turn it on for Gensim
 logging.basicConfig(format='%(name)s : %(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -86,7 +89,6 @@ def get_analogies(csv_path_list=None):
             analogy_reader = csv.reader(importlib.resources.open_text('ihop.resources.analogies', analogy_file))
             current_file_analogies = generate_analogies([row for row in analogy_reader])
             analogies.extend(current_file_analogies)
-
     else:
         for analogy_file in csv_path_list:
             with open(analogy_file) as analogies_f:
@@ -101,7 +103,6 @@ class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback to print loss after each epoch.
     See https://stackoverflow.com/questions/54888490/gensim-word2vec-print-log-loss
     """
-
     def __init__(self):
         self.epoch = 1
         self.loss_to_be_subed = 0
