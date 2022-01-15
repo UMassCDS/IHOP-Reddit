@@ -22,7 +22,6 @@ import pandas as pd
 import pyspark.sql.functions as fn
 from sklearn.manifold import TSNE
 
-import ihop.resources.analogies
 
 # TODO Logging should be configurable, but for now just turn it on for Gensim
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -78,7 +77,6 @@ def get_analogies(csv_path_list=None):
             analogy_reader = csv.reader(importlib.resources.open_text('ihop.resources.analogies', analogy_file))
             current_file_analogies = generate_analogies([row for row in analogy_reader])
             analogies.extend(current_file_analogies)
-
     else:
         for analogy_file in csv_path_list:
             with open(analogy_file) as analogies_f:
@@ -93,7 +91,6 @@ class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback to print loss after each epoch.
     See https://stackoverflow.com/questions/54888490/gensim-word2vec-print-log-loss
     """
-
     def __init__(self):
         self.epoch = 1
         self.loss_to_be_subed = 0
@@ -110,6 +107,9 @@ class SaveVectorsCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback to save embeddings for a model after each epoch
     """
     def __init__(self, save_vector_prefix):
+        """
+        :param save_vector_prefix: str, directory and basename for the path for saving vectors, epoch will be appended
+        """
         self.save_vector_prefix = save_vector_prefix
         self.epoch = 1
 
@@ -123,8 +123,20 @@ class SaveVectorsCallback(gensim.models.callbacks.CallbackAny2Vec):
 class AnalogyAccuracyCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback for reporting analogy accuracy after each epoch
     """
-    # TODO
-    pass
+    def __init__(self, analogies_path, case_insensitive=False):
+        """
+        :param analogies_path: str, path to the analogies file for Gensim's KeyedVectors
+        :param case_insensitive: boolean, set to True to deal with case mismatch in analogy pairs. For Reddit, this should typically be False.
+        """
+        self.analogies_path = analogies_path
+        self.epoch = 1
+        self.case_insensitive = case_insensitive
+
+    def on_epoch_end(self, w2v_model):
+        max_vocab = len(w2v_model.wv.index_to_key) + 1
+        score, _ = w2v_model.wv.evaluate_word_analogies(self.analogies_path, restrict_vocab=max_vocab, case_insensitive=self.case_insensitive)
+        logging.info(f'Analogy score after epoch {self.epoch}: {score}')
+        self.epoch += 1
 
 
 class GensimCommunity2Vec:
@@ -167,14 +179,24 @@ class GensimCommunity2Vec:
                 "epochs": self.epochs
                 }
 
-    def train(self, save_vectors_prefix=None, **kwargs):
+    def train(self, save_vectors_prefix=None, analogies_path=None, epoch_analogies=True, **kwargs):
         """Trains the word2vec model. Returns the result from gensim.
         :param save_vectors_prefix: str or None, use set this to save vectors after each epoch. The epoch will be appended to the filename.
+        :param analogies_path: str, optional. If specified use this file to report analogy performance after each epoch
+        :param epoch_analogies: boolean, True if you want report performance on the default subreddit analogies after each epoch
         :param **kwargs: passed to gensim Word2Vec.train()
         """
         callbacks = [EpochLossCallback()]
         if save_vectors_prefix:
             callbacks.append(SaveVectorsCallback(save_vectors_prefix))
+
+        # Solve given analogies after each epoch or use default
+        if analogies_path:
+            callbacks.append(AnalogyAccuracyCallback(analogies_path))
+        elif epoch_analogies:
+            with importlib.resources.path("ihop.resources.analogies","subreddit_analogies.txt") as default_analogies:
+                callbacks.append(AnalogyAccuracyCallback(str(default_analogies)))
+
         train_result = self.w2v_model.train(gensim.models.word2vec.PathLineSentences(self.contexts_path), total_examples=self.num_users, epochs=self.epochs, callbacks=callbacks, **kwargs)
         return train_result
 
@@ -222,6 +244,21 @@ class GensimCommunity2Vec:
         """Returns the vocab of the Word2Vec embeddings as an indexed list of strings.
         """
         return self.w2v_model.wv.index_to_key
+
+    def score_analogies(self, analogies_path=None, case_insensitive=False):
+        """"Returns the trained embedding's accuracy for solving subreddit algebra analogies and detailed section results. If not file path is specified, return results on the default sports and university-city analogies from ihop.resources.analogies.
+
+        :param analogies_path: str, optional. Define to use a particular analogies file where lines are whitespace separated 4-tuples and split into sections by ': SECTION NAME' lines
+        :param case_insensitive: boolean, set to True to deal with case mismatch in analogy pairs. For Reddit, this should typically be False.
+        """
+        max_vocab = len(self.get_index_to_key()) + 1
+        if analogies_path:
+            return self.w2v_model.wv.evaluate_word_analogies(analogies_path, restrict_vocab = max_vocab,
+                                                             case_insensitive = case_insensitive)
+        else:
+            with importlib.resources.path("ihop.resources.analogies","subreddit_analogies.txt") as default_analogies:
+                return self.w2v_model.wv.evaluate_word_analogies(default_analogies, restrict_vocab = max_vocab,
+                                                                 case_insensitive = case_insensitive)
 
 
     @classmethod
