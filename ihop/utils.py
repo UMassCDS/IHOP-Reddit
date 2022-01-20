@@ -19,7 +19,6 @@ def get_spark_session(name, driver_mem="8G", quiet=False):
     :param quiet: True to print session configuration
     """
 
-
     if HADOOP_ENV in os.environ:
         hadoop_lib_path = os.path.join(os.environ[HADOOP_ENV], "lib", "native")
         spark = SparkSession.builder \
