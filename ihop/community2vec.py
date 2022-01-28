@@ -24,10 +24,7 @@ import pyspark.sql.functions as fn
 from pyspark.sql.types import StructType, StructField, StringType
 from sklearn.manifold import TSNE
 
-<<<<<<< HEAD
 import ihop.utils
-=======
->>>>>>> Subreddit analogy solving methods and callbacks added
 
 # TODO Logging should be configurable, but for now just turn it on for Gensim
 logging.basicConfig(format='%(name)s : %(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
