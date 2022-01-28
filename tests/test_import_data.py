@@ -3,7 +3,7 @@
 import os
 import pytest
 
-from ihop.import_data import aggregate_for_vectorization, community2vec, get_spark_dataframe, filter_top_n, remove_deleted_authors, collect_max_context_length
+from ihop.import_data import aggregate_for_vectorization, community2vec, exclude_top_percentage_of_users, get_spark_dataframe, filter_top_n, remove_deleted_authors, collect_max_context_length
 
 FIXTURE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files')
 
@@ -66,8 +66,21 @@ def test_remove_deleted_authors(comments):
     assert filtered[1].author == 'sampleauth2'
 
 
+def test_exclude_top_percentage_of_users(spark):
+    data = [{'subreddit_concat':'AskReddit', 'context_length':1},
+            {'subreddit_concat':'aww pictures', 'context_length':2},
+            {'subreddit_concat':'nba nba celtics', 'context_length':3},
+            {'subreddit_concat':'books books fantasy movies', 'context_length':4},
+            {'subreddit_concat':'wallstreetbets stonks personalfinance wallstreetbets wallstreetbets', 'context_length':5},
+            ]
+    agg_df = spark.createDataFrame(data)
+    result_list = exclude_top_percentage_of_users(agg_df, exclude_top_perc=0.2).collect()
+    result_counts = [x.context_length for x in result_list]
+    assert list(range(1, 5)) == sorted(result_counts)
+
+
 def test_aggregate_for_vectorization(context_dataframe):
-    agg_df = aggregate_for_vectorization(context_dataframe)
+    agg_df = aggregate_for_vectorization(context_dataframe, exclude_top_perc=0.0)
     assert agg_df.columns == ["subreddit_concat", "context_length"]
     aggregate_result = [x.subreddit_concat for x in agg_df.collect()]
     assert len(aggregate_result) == 2
@@ -76,11 +89,11 @@ def test_aggregate_for_vectorization(context_dataframe):
 
 
 def test_collect_max_context_length(context_dataframe):
-    assert collect_max_context_length(aggregate_for_vectorization(context_dataframe)) == 4
+    assert collect_max_context_length(aggregate_for_vectorization(context_dataframe, exclude_top_perc=0.0)) == 4
 
 
 def test_community2vec(spark):
-    top_n_subreddits, user_contexts = community2vec(COMMENTS_DIRS, spark, min_sentence_length=0)
+    top_n_subreddits, user_contexts = community2vec(COMMENTS_DIRS, spark, min_sentence_length=0, exclude_top_perc=0.0)
     top_n_list = sorted(top_n_subreddits.collect(), key=lambda x: x.subreddit)
     print(top_n_list)
     assert len(top_n_list) == 2
@@ -94,3 +107,5 @@ def test_community2vec(spark):
 
     assert "NBA2k" in user_contexts_list
     assert "dndnext" in user_contexts_list
+
+

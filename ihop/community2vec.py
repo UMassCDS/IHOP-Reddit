@@ -20,8 +20,12 @@ import os
 import gensim
 import pandas as pd
 import pyspark.sql.functions as fn
+from pyspark.sql.types import StructType, StructField, IntegerType, StringType
 from sklearn.manifold import TSNE
 
+INPUT_CSV_SCHEMA = StructType([
+    StructField("subreddit_list", StringType(), False)
+])
 
 # TODO Logging should be configurable, but for now just turn it on for Gensim
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
@@ -276,9 +280,13 @@ class GensimCommunity2Vec:
         :param batch_words: int, Target size (in words) for batches of examples passed to worker threads
         :param workers: int, number of worker threads for training
         """
-        context_df = spark.read.csv(contexts_path)
-        max_comments = context_df.select(fn.split("_c0", " ").alias("subreddit_list")).select("subreddit_list", fn.size("subreddit_list").alias("num_comments")).agg(fn.max("num_comments")).head()[0]
+        context_df = spark.read.csv(contexts_path, header=False, schema=INPUT_CSV_SCHEMA)
+
         num_users = context_df.count()
+
+        max_comments = context_df.select(fn.split("subreddit_list", " ").alias("subreddit_list")).\
+            select(fn.size("subreddit_list").alias("num_comments")).\
+            agg(fn.max("num_comments")).head()[0]
 
         return cls(vocab_dict, contexts_path, max_comments, num_users,
             vector_size, negative, sample, alpha, min_alpha,
