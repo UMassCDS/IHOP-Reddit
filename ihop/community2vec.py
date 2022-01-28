@@ -20,7 +20,7 @@ import os
 import gensim
 import pandas as pd
 import pyspark.sql.functions as fn
-from pyspark.sql.types import StructType, StructField, IntegerType, StringType
+from pyspark.sql.types import StructType, StructField, StringType
 from sklearn.manifold import TSNE
 
 INPUT_CSV_SCHEMA = StructType([

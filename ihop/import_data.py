@@ -56,8 +56,8 @@ def print_comparison_stats(original_df, filtered_df, top_n_df):
     :param filtered_df: The original dataframe filtered to include only top
     :param top_n_df: The filtered SparkDataframe
     """
-    original_distinct_subreddits = original_df.agg(fn.count_distinct(original_df.subreddit).alias('sr_count')).collect()[0].sr_count
-    filtered_distinct_subreddits = top_n_df.agg(fn.count_distinct(top_n_df.subreddit).alias('sr_count')).collect()[0].sr_count
+    original_distinct_subreddits = original_df.agg(fn.countDistinct(original_df.subreddit).alias('sr_count')).collect()[0].sr_count
+    filtered_distinct_subreddits = top_n_df.agg(fn.countDistinct(top_n_df.subreddit).alias('sr_count')).collect()[0].sr_count
     print("Number of subreddits overall:", original_distinct_subreddits)
     print("Number of subreddits after filtering (sanity check, should match n):", filtered_distinct_subreddits)
 
@@ -67,8 +67,8 @@ def print_comparison_stats(original_df, filtered_df, top_n_df):
     print("Number comments after filtering:", comments_after_filtering)
     print("Percentage of original comments covered:", comments_after_filtering/original_comments)
 
-    original_users = original_df.agg(fn.count_distinct(original_df.author).alias('author_count')).collect()[0].author_count
-    filtered_users = filtered_df.agg(fn.count_distinct(filtered_df.author).alias('author_count')).collect()[0].author_count
+    original_users = original_df.agg(fn.countDistinct(original_df.author).alias('author_count')).collect()[0].author_count
+    filtered_users = filtered_df.agg(fn.countDistinct(filtered_df.author).alias('author_count')).collect()[0].author_count
     print("Number users before filtering:", original_users)
     print("Number users after filtering:", filtered_users)
     print("Percentage of original users covered:", filtered_users/original_users)
