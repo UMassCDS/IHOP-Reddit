@@ -96,6 +96,24 @@ def get_analogies(csv_path_list=None):
     return analogies
 
 
+def get_w2v_params_from_spark_df(spark, contexts_path):
+    """Returns number of contexts and longest context size from a spark dataframe.
+    In the community2vec setting this corresponds to the number of users and largest number of comments for a single user
+
+    :param spark: Spark context
+    :param contexts_path: str, path to a csv dataframe matching the input schema
+    """
+    context_df = spark.read.csv(contexts_path, header=False, schema=INPUT_CSV_SCHEMA)
+
+    num_users = context_df.count()
+
+    max_comments = context_df.select(fn.split("subreddit_list", " ").alias("subreddit_list")).\
+        select(fn.size("subreddit_list").alias("num_comments")).\
+        agg(fn.max("num_comments")).head()[0]
+
+    return num_users, max_comments
+
+
 class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback to print loss after each epoch.
     See https://stackoverflow.com/questions/54888490/gensim-word2vec-print-log-loss
