@@ -5,7 +5,7 @@ Inputs:
 
 2) Multiple CSVs with user,words used as document contexts
 
-# TODO Considerations for cross validation
+.. TODO Logging clean up
 """
 import csv
 import functools
@@ -107,6 +107,19 @@ def get_w2v_params_from_spark_df(spark, contexts_path):
         agg(fn.max("num_comments")).head()[0]
 
     return num_users, max_comments
+
+
+def analogy_sections_to_str(detailed_accs):
+    """Parses the sectional analogy results from Gensim to a string for logging, displays, etc...
+    :param detailed_accs: list of dict with 'correct', 'incorrect' and 'section' keys
+    """
+    section_strings = []
+    for dr in detailed_accs:
+        section_correct = len(dr['correct'])
+        total_section_examples = section_correct + len(dr['incorrect'])
+        section_strings.append(f"{dr['section']}:{section_correct}/{total_section_examples}")
+
+    return ",".join(section_strings)
 
 
 class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
@@ -229,8 +242,7 @@ class GensimCommunity2Vec:
 
         :param save_dir: str, path of directory to save model and parameters
         """
-        if not os.path.exists(save_dir) and os.path.isdir(save_dir):
-            os.mkdir(save_dir)
+        os.makedirs(save_dir, exist_ok=True)
         w2v_path = os.path.join(save_dir, self.MODEL_SAVE_NAME)
         self.w2v_model.save(w2v_path)
         parameters_path = os.path.join(save_dir, self.PARAM_SAVE_NAME)
@@ -328,7 +340,7 @@ class GridSearchTrainer:
 
     .. TODO: define instance params
     """
-    def __init__(self, vocab_dict, contexts_path, num_contexts, max_context_window, model_output_dir, param_grid, analogies_path=None, case_insensitive=False):
+    def __init__(self, vocab_csv, contexts_path, num_contexts, max_context_window, model_output_dir, param_grid, analogies_path=None, case_insensitive=False):
         """
         :param vocab_csv:
         :param contexts_path:
@@ -339,23 +351,73 @@ class GridSearchTrainer:
         :param analogies_path: str, optional. Define to use a particular analogies file where lines are whitespace separated 4-tuples and split into sections by ': SECTION NAME' lines
         :param case_insensitive: boolean, set to True to deal with case mismatch in analogy pairs. For Reddit c2v, this should typically be False.
         """
-        self.vocab_dict = vocab_dict
+        self.vocab_csv = vocab_csv
+        self.vocab_dict = get_vocabulary(vocab_csv)
         self.contexts_path = contexts_path
         self.num_contexts = num_contexts
         self.max_context_window = max_context_window
         self.model_output_dir = model_output_dir
         self.param_grid = param_grid
         self.best_acc = 0.0
-        self.best_model = None
+        self.best_model_path = None
         self.num_models = functools.reduce(operator.mul, [len(x) for x in param_grid.values()])
         self.analogy_results = list()
-        self.analogies_path=analogies_path
-        self.case_insensitive=case_insensitive
+        self.analogies_path = analogies_path
+        self.case_insensitive = case_insensitive
 
-    def train(self, epochs=5, workers=3, **kwargs):
+    def train(self, epochs=5, workers=3, analogies_path=None, **kwargs):
+        """Train models according to the param grid defined for this object. Saves each model and analogy results after training, updating the best analogy accuracy and best model parameters
+        as needed.
+
+        Returns the best_acc and the unique identifier for the best model upon completion.
+
+        :param epochs: int, number of epochs to train each model
+        :param workers: int, number of threads used for training each individual model, passed to Gensim
+        :param analogies_path: str, optional. Specific analogies file to evalute models on.
+        :param **kwargs: any additional parameters that need to be passed to GensimCommunity2Vec that aren't defined in the param grid
+
+        """
+        if os.path.exists(self.model_output_dir):
+            logging.warning("Specified model directory %s already exists", self.model_output_dir)
+
+        for i, param_dict in enumerate(self.expand_param_grid_to_list()):
+            model_id = self.get_model_id(param_dict)
+            model_output_path = os.path.join(self.model_output_dir, model_id)
+            os.makedirs(self.model_output_path, exist_ok=True)
+            logging.info("Training model %s of %s: %s", i , self.num_models, model_id)
+            save_vectors_prefix = os.path.join(model_id, "keyedVectors")
+
+            c2v_model = GensimCommunity2Vec(self.vocab, self.contexts_path,
+                            self.max_context_window, self.num_contexts,
+                            epochs=epochs, workers=workers,
+                            **param_dict)
+            c2v_model.train(analogies_path=analogies_path,
+                            save_vectors_prefix=save_vectors_prefix, **kwargs)
+            c2v_model.save(model_output_path)
+            c2v_model.save_vectors(save_vectors_prefix)
+
+            acc, detailed_accs = c2v_model.score_analogies(analogies_path)
+
+            results_dict = {"model_id":model_id, "model_path": model_output_path, "contexts_path":
+            .update(param_dict)
+
+            analogy
+
+            if acc >= self.best_acc:
+                logging.info("New best model %s with analogy accuracy %s", model_id, acc)
+                self.best_acc = acc
+                self.best_model_path = model_output_path
+
+        return self.best_acc, self.best_model_path
+
+
+    def get_model_id(self, grid_param_dict):
+        """Returns a string that uniquely names the model within this
+        grid search setting.
+        """
+        # Sort keys alphabetically, remove any underscores from keys and camel case
         # TODO
         pass
-
 
     def expand_param_grid_to_list(self):
         """Returns the parameter grid to a list of dicts to iterate over when training.
@@ -366,7 +428,7 @@ class GridSearchTrainer:
         return result
 
 
-    def model_acc_results_as_dataframe(self):
+    def model_analogy_results_as_dataframe(self):
         return pd.DataFrame.from_records(self.analogy_results)
 
 
