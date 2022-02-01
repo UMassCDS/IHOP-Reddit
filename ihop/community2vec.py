@@ -5,16 +5,15 @@ Inputs:
 
 2) Multiple CSVs with user,words used as document contexts
 
-.. TODO Implement community2vec as described in https://www.tensorflow.org/tutorials/text/word2vec with negative sampling or using gensim
-
-.. TODO Account for downsampling of skipgrams as described in https://github.com/BIU-NLP/word2vecf/blob/master/word2vecf.c#L421 (I think this can be done in tensorflow with the sampling_table) or with the sample kw option in skipgrams
-
 # TODO Considerations for cross validation
 """
 import csv
+import functools
 import importlib.resources
+import itertools
 import json
 import logging
+import operator
 import os
 
 import gensim
@@ -23,6 +22,7 @@ import pyspark.sql.functions as fn
 from pyspark.sql.types import StructType, StructField, StringType
 from sklearn.manifold import TSNE
 
+# NB documents don't really need to be
 INPUT_CSV_SCHEMA = StructType([
     StructField("subreddit_list", StringType(), False)
 ])
@@ -91,6 +91,24 @@ def get_analogies(csv_path_list=None):
     return analogies
 
 
+def get_w2v_params_from_spark_df(spark, contexts_path):
+    """Returns number of contexts and longest context size from a spark dataframe.
+    In the community2vec setting this corresponds to the number of users and largest number of comments for a single user
+
+    :param spark: Spark context
+    :param contexts_path: str, path to a csv dataframe matching the input schema
+    """
+    context_df = spark.read.csv(contexts_path, header=False, schema=INPUT_CSV_SCHEMA)
+
+    num_users = context_df.count()
+
+    max_comments = context_df.select(fn.split("subreddit_list", " ").alias("subreddit_list")).\
+        select(fn.size("subreddit_list").alias("num_comments")).\
+        agg(fn.max("num_comments")).head()[0]
+
+    return num_users, max_comments
+
+
 class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback to print loss after each epoch.
     See https://stackoverflow.com/questions/54888490/gensim-word2vec-print-log-loss
@@ -157,6 +175,8 @@ class GensimCommunity2Vec:
         Instantiates a gensim Word2Vec model for Community2Vec
         :param vocab_dict: dict, str->int storing frequency counts of the vocab elements.
         :param contexts_path: Path to a text file storing the subreddits a user commented on, one user per line. Can be compressed as a bzip2 or gzip.
+        :param max_comments: int, maximum window for skip grams (for c2v this should be 'infinity' or the largest number of comments for a single user in the data)
+        :param num_users: int, number of contexts/users
         :param vector_size: int, embedding size, passed to gensim Word2Vec
         :param negative: int, how many 'noise words' should be drawn, passed to gensim Word2Vec
         :param sample: float, the threshold for configuring which higher-frequency words are randomly downsampled, useful range is (0, 1e-5), passed to gensim Word2Vec, defaults to 0
@@ -268,6 +288,7 @@ class GensimCommunity2Vec:
     @classmethod
     def init_with_spark(cls, spark, vocab_dict, contexts_path, vector_size=150, negative=20, sample=0, alpha=0.025, min_alpha=0.0001, seed=1, epochs=5, batch_words=10000, workers=3):
         """Instantiates a community2vec model using max_comments and num_users determined the contexts_path file using Spark.
+        :param spark: Spark context
         :param vocab_dict: dict, str->int storing frequency counts of the vocab elements.
         :param contexts_path: Path to a text file storing the subreddits a user commented on, one user per line. Can be compressed as a bzip2 or gzip.
         :param vector_size: int, embedding size, passed to gensim Word2Vec
@@ -280,13 +301,7 @@ class GensimCommunity2Vec:
         :param batch_words: int, Target size (in words) for batches of examples passed to worker threads
         :param workers: int, number of worker threads for training
         """
-        context_df = spark.read.csv(contexts_path, header=False, schema=INPUT_CSV_SCHEMA)
-
-        num_users = context_df.count()
-
-        max_comments = context_df.select(fn.split("subreddit_list", " ").alias("subreddit_list")).\
-            select(fn.size("subreddit_list").alias("num_comments")).\
-            agg(fn.max("num_comments")).head()[0]
+        num_users, max_comments = get_w2v_params_from_spark_df(spark, contexts_path)
 
         return cls(vocab_dict, contexts_path, max_comments, num_users,
             vector_size, negative, sample, alpha, min_alpha,
@@ -307,10 +322,51 @@ class GensimCommunity2Vec:
         model.w2v_model = gensim.models.Word2Vec.load(w2v_file)
         return model
 
+class GridSearchTrainer:
+    """Trains multiple community2vec models, storing model results and vectors as
+    it goes. There is no held out test set, performance is determined by accuracy on solving analogies.
+
+    .. TODO: define instance params
+    """
+    def __init__(self, vocab_dict, contexts_path, num_contexts, max_context_window, model_output_dir, param_grid, analogies_path=None, case_insensitive=False):
+        """
+        :param vocab_csv:
+        :param contexts_path:
+        :param num_contexts: int, the number of contexts/users/documents
+        :param max_context_window: int, the largest context window/number of comments by a user
+        :param model_output_dir: str/Path to directory, where to save model results during training
+        :param param_grid: dict, keys match paramters to GensimCommunity2Vec models, values are lists over which to iterate for grid search
+        :param analogies_path: str, optional. Define to use a particular analogies file where lines are whitespace separated 4-tuples and split into sections by ': SECTION NAME' lines
+        :param case_insensitive: boolean, set to True to deal with case mismatch in analogy pairs. For Reddit c2v, this should typically be False.
+        """
+        self.vocab_dict = vocab_dict
+        self.contexts_path = contexts_path
+        self.num_contexts = num_contexts
+        self.max_context_window = max_context_window
+        self.model_output_dir = model_output_dir
+        self.param_grid = param_grid
+        self.best_acc = 0.0
+        self.best_model = None
+        self.num_models = functools.reduce(operator.mul, [len(x) for x in param_grid.values()])
+        self.analogy_results = list()
+        self.analogies_path=analogies_path
+        self.case_insensitive=case_insensitive
+
+    def train(self, epochs=5, workers=3, **kwargs):
+        # TODO
+        pass
 
 
+    def expand_param_grid_to_list(self):
+        """Returns the parameter grid to a list of dicts to iterate over when training.
+        """
+        result = list()
+        for v in itertools.product(*self.param_grid.values()):
+            result.append(dict(zip(self.param_grid.keys(), v)))
+        return result
 
 
-
+    def model_acc_results_as_dataframe(self):
+        return pd.DataFrame.from_records(self.analogy_results)
 
 
