@@ -114,6 +114,19 @@ def get_w2v_params_from_spark_df(spark, contexts_path):
     return num_users, max_comments
 
 
+def analogy_sections_to_str(detailed_accs):
+    """Parses the sectional analogy results from Gensim to a string for logging, displays, etc...
+    :param detailed_accs: list of dict with 'correct', 'incorrect' and 'section' keys
+    """
+    section_strings = []
+    for dr in detailed_accs:
+        section_correct = len(dr['correct'])
+        total_section_examples = section_correct + len(dr['incorrect'])
+        section_strings.append(f"{dr['section']}:{section_correct}/{total_section_examples}")
+
+    return ",".join(section_strings)
+
+
 class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
     """Callback to print loss after each epoch.
     See https://stackoverflow.com/questions/54888490/gensim-word2vec-print-log-loss
