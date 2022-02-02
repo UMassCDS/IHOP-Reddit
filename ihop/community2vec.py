@@ -360,7 +360,12 @@ class GridSearchTrainer:
         self.param_grid = param_grid
         self.best_acc = 0.0
         self.best_model_path = None
-        self.num_models = functools.reduce(operator.mul, [len(x) for x in param_grid.values()])
+
+        if len(param_grid) == 0:
+            self.num_models = 0
+        else:
+            self.num_models = functools.reduce(operator.mul, [len(x) for x in param_grid.values()])
+
         self.analogy_results = list()
         self.analogies_path = analogies_path
         self.case_insensitive = case_insensitive
@@ -382,31 +387,35 @@ class GridSearchTrainer:
 
         for i, param_dict in enumerate(self.expand_param_grid_to_list()):
             model_id = self.get_model_id(param_dict)
-            model_output_path = os.path.join(self.model_output_dir, model_id)
-            os.makedirs(self.model_output_path, exist_ok=True)
+            curr_model_path = os.path.join(self.model_output_dir, model_id)
+            os.makedirs(curr_model_path, exist_ok=True)
             logging.info("Training model %s of %s: %s", i , self.num_models, model_id)
-            save_vectors_prefix = os.path.join(model_id, "keyedVectors")
+            save_vectors_prefix = os.path.join(curr_model_path, "keyedVectors")
 
-            c2v_model = GensimCommunity2Vec(self.vocab, self.contexts_path,
+            c2v_model = GensimCommunity2Vec(self.vocab_dict, self.contexts_path,
                             self.max_context_window, self.num_contexts,
                             epochs=epochs, workers=workers,
                             **param_dict)
             c2v_model.train(analogies_path=analogies_path,
                             save_vectors_prefix=save_vectors_prefix, **kwargs)
-            c2v_model.save(model_output_path)
+            c2v_model.save(curr_model_path)
             c2v_model.save_vectors(save_vectors_prefix)
 
             acc, detailed_accs = c2v_model.score_analogies(analogies_path)
 
-            results_dict = {"model_id":model_id, "model_path": model_output_path, "contexts_path":
-            .update(param_dict)
+            results_dict = {"model_id":model_id,
+                            "model_path": curr_model_path,
+                            "contexts_path": self.contexts_path,
+                            "analogy_accuracy": acc,
+                            "detailed_analogy_results": analogy_sections_to_str(detailed_accs)}
+            results_dict.update(param_dict)
 
-            analogy
+            self.analogy_results.append(results_dict)
 
             if acc >= self.best_acc:
                 logging.info("New best model %s with analogy accuracy %s", model_id, acc)
                 self.best_acc = acc
-                self.best_model_path = model_output_path
+                self.best_model_path = curr_model_path
 
         return self.best_acc, self.best_model_path
 
@@ -415,9 +424,14 @@ class GridSearchTrainer:
         """Returns a string that uniquely names the model within this
         grid search setting.
         """
+        model_id_elems = list()
         # Sort keys alphabetically, remove any underscores from keys and camel case
-        # TODO
-        pass
+        for k, v in sorted(grid_param_dict.items()):
+            k_split = k.split("_")
+            updated_key = "".join([k_split[0], *[x.title() for x in k_split[1:]]])
+            model_id_elems.append(f"{updated_key}{v}")
+
+        return "_".join(model_id_elems)
 
     def expand_param_grid_to_list(self):
         """Returns the parameter grid to a list of dicts to iterate over when training.

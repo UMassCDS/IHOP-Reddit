@@ -95,7 +95,7 @@ def test_grid_search_init():
     assert grid_trainer.num_models == 8
 
 
-def test_grid_search_model_id()
+def test_grid_search_model_id():
     grid_trainer = c2v.GridSearchTrainer(VOCAB_CSV, "dummy_context_path", 2, 10, "dummy_model_out", {})
     model_id = grid_trainer.get_model_id({'alpha':0.02, 'vector_size':25, 'sample':0.002})
     assert model_id == 'alpha0.02_sample0.002_vectorSize25'
@@ -127,4 +127,4 @@ def test_grid_search_train(tmp_path):
     assert len(output_models) == 2
 
     model_df = grid_trainer.model_analogy_results_as_dataframe()
-    assert model_df.shape == (2, 9)
+    assert model_df.shape == (2, 8)
