@@ -19,7 +19,6 @@ import operator
 import os
 
 import gensim
-from matplotlib.pyplot import grid
 import pandas as pd
 import pyspark.sql.functions as fn
 from pyspark.sql.types import StructType, StructField, StringType
@@ -140,7 +139,7 @@ class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
         loss = model.get_latest_training_loss()
         loss_now = loss - self.loss_to_be_subed
         self.loss_to_be_subed = loss
-        logging.info(f'Loss after epoch {self.epoch}: {loss_now}')
+        logger.info(f'Loss after epoch {self.epoch}: {loss_now}')
         self.epoch += 1
 
 def generate_analogies(seed_terms):
