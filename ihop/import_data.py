@@ -4,11 +4,14 @@ SQL-like operations, operated on using Spark's ML library or exported to pandas/
 .. TODO: Remove print statements in favor of logging
 """
 import argparse
+import logging
 
 import pyspark.sql.functions as fn
 from pyspark.sql.window import Window
 
 import ihop.utils
+
+logger = logging.getLogger(__name__)
 
 COMMENTS="comments"
 SUBMISSIONS="submissions"

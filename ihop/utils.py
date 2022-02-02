@@ -3,7 +3,11 @@
 # TODO Eventually, we may need to be more careful with Spark configuration, especially if we want to submit jobs to a cluster.
 """
 import os
+import logging
+
 from pyspark.sql import SparkSession
+
+logger = logging.getLogger(__name__)
 
 HADOOP_ENV = "HADOOP_HOME"
 
@@ -15,7 +19,7 @@ def get_spark_session(name, driver_mem="8G", quiet=False):
     :param quiet: True to print session configuration
     """
 
-    
+
     if HADOOP_ENV in os.environ:
         hadoop_lib_path = os.path.join(os.environ[HADOOP_ENV], "lib", "native")
         spark = SparkSession.builder \

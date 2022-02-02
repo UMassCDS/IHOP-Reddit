@@ -19,7 +19,6 @@ import operator
 import os
 
 import gensim
-from matplotlib.pyplot import grid
 import pandas as pd
 import pyspark.sql.functions as fn
 from pyspark.sql.types import StructType, StructField, StringType
@@ -28,7 +27,9 @@ from sklearn.manifold import TSNE
 import ihop.utils
 
 # TODO Logging should be configurable, but for now just turn it on for Gensim
-logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(name)s : %(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 # NB documents don't really need to be Reddit users, could be other text
 INPUT_CSV_SCHEMA = StructType([
@@ -138,7 +139,7 @@ class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
         loss = model.get_latest_training_loss()
         loss_now = loss - self.loss_to_be_subed
         self.loss_to_be_subed = loss
-        logging.info(f'Loss after epoch {self.epoch}: {loss_now}')
+        logger.info(f'Loss after epoch {self.epoch}: {loss_now}')
         self.epoch += 1
 
 
@@ -154,7 +155,7 @@ class SaveVectorsCallback(gensim.models.callbacks.CallbackAny2Vec):
 
     def on_epoch_end(self, w2v_model):
         vector_out = self.save_vector_prefix + f"_epoch_{self.epoch}"
-        logging.info(f'Saving vectors for epoch {self.epoch} to {vector_out}')
+        logger.info(f'Saving vectors for epoch {self.epoch} to {vector_out}')
         w2v_model.wv.save(vector_out)
         self.epoch += 1
 
@@ -174,7 +175,7 @@ class AnalogyAccuracyCallback(gensim.models.callbacks.CallbackAny2Vec):
     def on_epoch_end(self, w2v_model):
         max_vocab = len(w2v_model.wv.index_to_key) + 1
         score, _ = w2v_model.wv.evaluate_word_analogies(self.analogies_path, restrict_vocab=max_vocab, case_insensitive=self.case_insensitive)
-        logging.info(f'Analogy score after epoch {self.epoch}: {score}')
+        logger.info(f'Analogy score after epoch {self.epoch}: {score}')
         self.epoch += 1
 
 
@@ -342,8 +343,6 @@ class GensimCommunity2Vec:
 class GridSearchTrainer:
     """Trains multiple community2vec models, storing model results and vectors as
     it goes. There is no held out test set, performance is determined by accuracy on solving analogies.
-
-    .. TODO: Define instance params
     """
     # If the user doesn't give a param grid, just train a single default model
     DEFAULT_PARAM_GRID = {'vector_size':[150], 'negative':[20], 'sample':[0],
@@ -396,13 +395,13 @@ class GridSearchTrainer:
 
         """
         if os.path.exists(self.model_output_dir):
-            logging.warning("Specified model directory %s already exists", self.model_output_dir)
+            logger.warning("Specified model directory %s already exists", self.model_output_dir)
 
         for i, param_dict in enumerate(self.expand_param_grid_to_list()):
             model_id = self.get_model_id(param_dict)
             curr_model_path = os.path.join(self.model_output_dir, model_id)
             os.makedirs(curr_model_path, exist_ok=True)
-            logging.info("Training model %s of %s: %s", i , self.num_models, model_id)
+            logger.info("Training model %s of %s: %s", i , self.num_models, model_id)
             save_vectors_prefix = os.path.join(curr_model_path, "keyedVectors")
 
             c2v_model = GensimCommunity2Vec(self.vocab_dict, self.contexts_path,
@@ -427,7 +426,7 @@ class GridSearchTrainer:
             self.analogy_results.append(results_dict)
 
             if acc >= self.best_acc:
-                logging.info("New best model %s with analogy accuracy %s", model_id, acc)
+                logger.info("New best model %s with analogy accuracy %s", model_id, acc)
                 self.best_acc = acc
                 self.best_model_path = curr_model_path
 
@@ -463,7 +462,7 @@ class GridSearchTrainer:
     def write_performance_results(self):
         """Writes analogy accuracy results to a csv file in the model_otuput_directory
         """
-        self.model_analogy_results_as_dataframe().to_csv(os.path.join(self.model_output_dir, self.PERFORMANCE_CSV_NAME))
+        self.model_analogy_results_as_dataframe().to_csv(os.path.join(self.model_output_dir, self.PERFORMANCE_CSV_NAME), index=False)
 
 
 def train_with_hyperparam_tuning(vocab_csv, contexts, param_grid,
@@ -481,10 +480,11 @@ def train_with_hyperparam_tuning(vocab_csv, contexts, param_grid,
     :param case_insensitive: boolean, whether analogies should be done case insensitive or not, for Reddit typically False.
     :param kwargs: Passed to the Gensim Model at training time
     """
+    logger.info("Param grid: %s", param_grid)
     grid_trainer = GridSearchTrainer(vocab_csv, contexts, num_users,
                      max_comments, model_output_dir, param_grid,
                      analogies_path=analogies, case_insensitive=case_insensitive)
-    grid_trainer.train(epochs, workers, kwargs)
+    grid_trainer.train(epochs, workers, **kwargs)
     grid_trainer.write_performance_results()
 
 
@@ -494,21 +494,21 @@ parser.add_argument("--contexts", "-c", help="Path to context training data. Can
 parser.add_argument("--vocab_csv", "-v", help="CSV file with vocabulary items and their counts in the corpus", required=True)
 parser.add_argument("--output_dir", "-o", help="Directory to store model files and peformance results", required=True)
 parser.add_argument("--param_grid", "-p", nargs='?', type=json.loads, default="{}",
-            help="JSON defining the parameter grid. Keys are strings corresponding to the GensimCommunity2Vec params, values are lists of values to try.")
+            help="JSON defining the parameter grid. Keys are strings corresponding to the GensimCommunity2Vec params, values are lists of values to try. Defaults to a single model using the GensimCommunity2Vec default params.")
 parser.add_argument("--workers", "-w", type=int, default=3,
-        help="Number of workers for Gensim training")
+        help="Number of workers for Gensim training. Defaults to 3.")
 parser.add_argument("--epochs", "-e", type=int, default=5,
-        help="Number of epochs to train each model")
+        help="Number of epochs to train each model. Defaults to 5.")
 parser.add_argument("--analogies", "-a", nargs='?',
-            help="Path to an anlogies file for evaluating performance")
+            help="Path to an anlogies file for evaluating performance. Optional, if unspecified a default consisting of sports and university towns will be used.")
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
     spark = ihop.utils.get_spark_session("IHOP Community2Vec")
     num_users, max_comments = get_w2v_params_from_spark_df(spark, args.contexts)
-    spark.close()
-    train_with_hyperparam_tuning(args.vocab_csv, args.contexts, num_users,
-        max_comments, args.output, args.param_grid, args.workers, args.epochs,
-        args.analogies, )
+    spark.stop()
+    train_with_hyperparam_tuning(args.vocab_csv, args.contexts,
+        args.param_grid, num_users, max_comments, args.output_dir,
+        args.workers, args.epochs, args.analogies, )
 
