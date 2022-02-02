@@ -6,7 +6,9 @@ Inputs:
 2) Multiple CSVs with user,words used as document contexts
 
 .. TODO Logging clean up
+.. TODO Code cleanup: introduce an additional class/mixin for embedding operations post-training that don't need to be tied to Gensim and training (e.g. tsne, distance operations, etc...)
 """
+import argparse
 import csv
 import functools
 import importlib.resources
@@ -17,19 +19,21 @@ import operator
 import os
 
 import gensim
+from matplotlib.pyplot import grid
 import pandas as pd
 import pyspark.sql.functions as fn
 from pyspark.sql.types import StructType, StructField, StringType
 from sklearn.manifold import TSNE
 
-# NB documents don't really need to be
-INPUT_CSV_SCHEMA = StructType([
-    StructField("subreddit_list", StringType(), False)
-])
+import ihop.utils
 
 # TODO Logging should be configurable, but for now just turn it on for Gensim
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
+# NB documents don't really need to be Reddit users, could be other text
+INPUT_CSV_SCHEMA = StructType([
+    StructField("subreddit_list", StringType(), False)
+])
 
 def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1):
     """Return vocabulary as dictionary str->int of frequency counts
@@ -216,11 +220,12 @@ class GensimCommunity2Vec:
                 "epochs": self.epochs
                 }
 
-    def train(self, save_vectors_prefix=None, analogies_path=None, epoch_analogies=True, **kwargs):
+    def train(self, save_vectors_prefix=None, analogies_path=None, epoch_analogies=True, case_insensitive=False, **kwargs):
         """Trains the word2vec model. Returns the result from gensim.
         :param save_vectors_prefix: str or None, use set this to save vectors after each epoch. The epoch will be appended to the filename.
         :param analogies_path: str, optional. If specified use this file to report analogy performance after each epoch
         :param epoch_analogies: boolean, True if you want report performance on the default subreddit analogies after each epoch
+        :param case_insensitive: boolean, set to True to deal with case mismatch in analogy pairs. For Reddit, this should typically be False.
         :param **kwargs: passed to gensim Word2Vec.train()
         """
         callbacks = [EpochLossCallback()]
@@ -229,10 +234,10 @@ class GensimCommunity2Vec:
 
         # Solve given analogies after each epoch or use default
         if analogies_path:
-            callbacks.append(AnalogyAccuracyCallback(analogies_path))
+            callbacks.append(AnalogyAccuracyCallback(analogies_path, case_insensitive))
         elif epoch_analogies:
             with importlib.resources.path("ihop.resources.analogies","subreddit_analogies.txt") as default_analogies:
-                callbacks.append(AnalogyAccuracyCallback(str(default_analogies)))
+                callbacks.append(AnalogyAccuracyCallback(str(default_analogies), case_insensitive))
 
         train_result = self.w2v_model.train(gensim.models.word2vec.PathLineSentences(self.contexts_path), total_examples=self.num_users, epochs=self.epochs, callbacks=callbacks, **kwargs)
         return train_result
@@ -338,12 +343,18 @@ class GridSearchTrainer:
     """Trains multiple community2vec models, storing model results and vectors as
     it goes. There is no held out test set, performance is determined by accuracy on solving analogies.
 
-    .. TODO: define instance params
+    .. TODO: Define instance params
     """
-    def __init__(self, vocab_csv, contexts_path, num_contexts, max_context_window, model_output_dir, param_grid, analogies_path=None, case_insensitive=False):
+    # If the user doesn't give a param grid, just train a single default model
+    DEFAULT_PARAM_GRID = {'vector_size':[150], 'negative':[20], 'sample':[0],
+                          'alpha':[0.025], 'min_alpha': [0.0001]}
+
+    PERFORMANCE_CSV_NAME="analogy_accuracy_results.csv"
+
+    def __init__(self, vocab_csv, contexts_path, num_contexts, max_context_window, model_output_dir, param_grid=None, analogies_path=None, case_insensitive=False):
         """
-        :param vocab_csv:
-        :param contexts_path:
+        :param vocab_csv: Path to csv storing vocab with counts in the corpus
+        :param contexts_path: Path to a text file storing the subreddits a user commented on, one user per line. Can be compressed as a bzip2 or gzip.
         :param num_contexts: int, the number of contexts/users/documents
         :param max_context_window: int, the largest context window/number of comments by a user
         :param model_output_dir: str/Path to directory, where to save model results during training
@@ -357,20 +368,23 @@ class GridSearchTrainer:
         self.num_contexts = num_contexts
         self.max_context_window = max_context_window
         self.model_output_dir = model_output_dir
-        self.param_grid = param_grid
+
         self.best_acc = 0.0
         self.best_model_path = None
 
-        if len(param_grid) == 0:
+        if param_grid is None or len(param_grid) == 0:
+            self.param_grid = GridSearchTrainer.DEFAULT_PARAM_GRID
             self.num_models = 0
         else:
-            self.num_models = functools.reduce(operator.mul, [len(x) for x in param_grid.values()])
+            self.param_grid = param_grid
+
+        self.num_models = functools.reduce(operator.mul, [len(x) for x in self.param_grid.values()])
 
         self.analogy_results = list()
         self.analogies_path = analogies_path
         self.case_insensitive = case_insensitive
 
-    def train(self, epochs=5, workers=3, analogies_path=None, **kwargs):
+    def train(self, epochs=5, workers=3, **kwargs):
         """Train models according to the param grid defined for this object. Saves each model and analogy results after training, updating the best analogy accuracy and best model parameters
         as needed.
 
@@ -378,7 +392,6 @@ class GridSearchTrainer:
 
         :param epochs: int, number of epochs to train each model
         :param workers: int, number of threads used for training each individual model, passed to Gensim
-        :param analogies_path: str, optional. Specific analogies file to evalute models on.
         :param **kwargs: any additional parameters that need to be passed to GensimCommunity2Vec that aren't defined in the param grid
 
         """
@@ -396,12 +409,13 @@ class GridSearchTrainer:
                             self.max_context_window, self.num_contexts,
                             epochs=epochs, workers=workers,
                             **param_dict)
-            c2v_model.train(analogies_path=analogies_path,
+            c2v_model.train(analogies_path=self.analogies_path,
+                            case_insensitive=self.case_insensitive,
                             save_vectors_prefix=save_vectors_prefix, **kwargs)
             c2v_model.save(curr_model_path)
             c2v_model.save_vectors(save_vectors_prefix)
 
-            acc, detailed_accs = c2v_model.score_analogies(analogies_path)
+            acc, detailed_accs = c2v_model.score_analogies(self.analogies_path, )
 
             results_dict = {"model_id":model_id,
                             "model_path": curr_model_path,
@@ -418,7 +432,6 @@ class GridSearchTrainer:
                 self.best_model_path = curr_model_path
 
         return self.best_acc, self.best_model_path
-
 
     def get_model_id(self, grid_param_dict):
         """Returns a string that uniquely names the model within this
@@ -441,8 +454,61 @@ class GridSearchTrainer:
             result.append(dict(zip(self.param_grid.keys(), v)))
         return result
 
-
     def model_analogy_results_as_dataframe(self):
+        """Returns the training results as rows in a pandas DataFrame with columns
+        for model id, analogy accuracy and parameters defined for grid search
+        """
         return pd.DataFrame.from_records(self.analogy_results)
 
+    def write_performance_results(self):
+        """Writes analogy accuracy results to a csv file in the model_otuput_directory
+        """
+        self.model_analogy_results_as_dataframe().to_csv(os.path.join(self.model_output_dir, self.PERFORMANCE_CSV_NAME))
+
+
+def train_with_hyperparam_tuning(vocab_csv, contexts, param_grid,
+    num_users, max_comments, model_output_dir, workers, epochs, analogies, case_insensitive=False, **kwargs):
+    """
+    Trains models using grid search, then saves results to the specified
+    output directory.
+    :param vocab_csv: Path to csv storing vocab with counts in the corpus
+    :param contexts_path: Path to a text file storing the subreddits a user commented on, one user per line. Can be compressed as a bzip2 or gzip.
+    :param num_users: int, the number of contexts/users/documents
+    :param max_comments: int, the largest context window/number of comments by a user
+    :param model_output_dir: str/Path to directory, where to save model results during training
+    :param param_grid: dict, keys match paramters to GensimCommunity2Vec models, values are lists over which to iterate for grid search
+    :param analogies: str, optional. Define to use a particular analogies file where lines are whitespace separated 4-tuples and split into sections by ': SECTION NAME' lines
+    :param case_insensitive: boolean, whether analogies should be done case insensitive or not, for Reddit typically False.
+    :param kwargs: Passed to the Gensim Model at training time
+    """
+    grid_trainer = GridSearchTrainer(vocab_csv, contexts, num_users,
+                     max_comments, model_output_dir, param_grid,
+                     analogies_path=analogies, case_insensitive=case_insensitive)
+    grid_trainer.train(epochs, workers, kwargs)
+    grid_trainer.write_performance_results()
+
+
+parser = argparse.ArgumentParser(description="Training community2vec models from pre-processed data using a grid search to optimize performance on analogies.")
+
+parser.add_argument("--contexts", "-c", help="Path to context training data. Can be raw text or a directory of raw text, optionally compressed.", required=True)
+parser.add_argument("--vocab_csv", "-v", help="CSV file with vocabulary items and their counts in the corpus", required=True)
+parser.add_argument("--output_dir", "-o", help="Directory to store model files and peformance results", required=True)
+parser.add_argument("--param_grid", "-p", nargs='?', type=json.loads, default="{}",
+            help="JSON defining the parameter grid. Keys are strings corresponding to the GensimCommunity2Vec params, values are lists of values to try.")
+parser.add_argument("--workers", "-w", type=int, default=3,
+        help="Number of workers for Gensim training")
+parser.add_argument("--epochs", "-e", type=int, default=5,
+        help="Number of epochs to train each model")
+parser.add_argument("--analogies", "-a", nargs='?',
+            help="Path to an anlogies file for evaluating performance")
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    spark = ihop.utils.get_spark_session("IHOP Community2Vec")
+    num_users, max_comments = get_w2v_params_from_spark_df(spark, args.contexts)
+    spark.close()
+    train_with_hyperparam_tuning(args.vocab_csv, args.contexts, num_users,
+        max_comments, args.output, args.param_grid, args.workers, args.epochs,
+        args.analogies, )
 

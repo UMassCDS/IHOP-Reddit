@@ -91,8 +91,12 @@ def test_save_vectors(tmp_path):
 def test_grid_search_init():
     grid_trainer = c2v.GridSearchTrainer(VOCAB_CSV, "dummy_context_path", 2, 10, "dummy_model_out",
         {'alpha':[0.02, 0.05], 'vector_size':[150, 200], 'negative':[20, 40], 'sample':[0.002]})
-
     assert grid_trainer.num_models == 8
+
+def test_empty_grid_init():
+    grid_trainer = c2v.GridSearchTrainer(VOCAB_CSV, "dummy_context_path", 2, 10, "dummy_model_out", {})
+    assert grid_trainer.num_models == 1
+    assert grid_trainer.param_grid == c2v.GridSearchTrainer.DEFAULT_PARAM_GRID
 
 
 def test_grid_search_model_id():
