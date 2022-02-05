@@ -19,6 +19,26 @@ Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create 
 
 To install the `ihop` package as importable for testing and development, run `pip install -e .`. See [this article](https://godatadriven.com/blog/a-practical-guide-to-using-setup-py/) for more details on using `setup.py`.
 
+## Unity
+To install the packages on [Unity](https://unity.rc.umass.edu/docs/#modules/using/), you will need to load the python and miniconda modules, then install the package as usual with conda:
+```
+module load miniconda/4.8.3
+
+conda create --yes --name ihop python=3.8
+conda activate ihop
+pip install -r requirements.txt
+pip install .
+```
+
+In order to use the packages on Unity, you will load the miniconda and java modules, then activate the conda environment you created earlier:
+```
+module load miniconda/4.8.3
+module load java/11.0.2
+conda activate ihop
+```
+
+An example of using these modules to submit community2vec jobs to slurm on Unity is given in `scripts/hyperparam_tune_c2v_slurm.sh`
+
 # Testing
 Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x/).
 
