@@ -18,8 +18,13 @@ SUBMISSIONS="submissions"
 DEFAULT_TOP_N=10000
 DEFAULT_USER_EXCLUDE=0.02
 
-# How deleted authors are indicated in json
-AUTHOR_DELETED = "[deleted]"
+# How deleted authors or posts are indicated in json (user removed)
+DELETED = "[deleted]"
+# How posts removed by moderators/filters are indicated in json
+REMOVED = "[removed]"
+
+# The timestamp column
+CREATED_UTC = "created_utc"
 
 # See https://github.com/pushshift/api for details
 # TODO: subreddit ids aren't tracked, unclear if this is necessary
@@ -27,6 +32,8 @@ SCHEMAS = {
     COMMENTS: "id STRING, parent_id STRING, score INTEGER, link_id STRING, author STRING, subreddit STRING, body STRING, created_utc INTEGER",
     SUBMISSIONS: "author STRING, created_utc STRING, id STRING, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING"
 }
+
+MAIN_TEXT_FIELD = {COMMENTS: 'body', SUBMISSIONS:'selftext'}
 
 
 def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
@@ -40,9 +47,9 @@ def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
 
 def filter_top_n(dataframe, top_n_counts, col='subreddit'):
     """Filter the dataframe to only results with those values in top_n_counts.
-    Returns a dataframe that's a subset of the original input dataframe.
+    Returns a Spark DataFrame that's a subset of the original input dataframe.
 
-    :param dataframe: Spark dataframe to be filtered
+    :param dataframe: Spark DataFrame to be filtered
     :param top_n_counts: Spark dataframe with values to be filtered
     :param col: str, Column to use for top n elements
     """
@@ -50,9 +57,22 @@ def filter_top_n(dataframe, top_n_counts, col='subreddit'):
 
 
 def remove_deleted_authors(dataframe):
-    """Filters out comments or submissions that have had the author deleted
+    """Filters out comments or submissions that have had the author deleted.
+    Returns a Spark DataFrame
+
+    :param dataframe: Spark DataFrame to be filtered
     """
-    return dataframe.where(dataframe.author != AUTHOR_DELETED)
+    return dataframe.where(dataframe.author != DELETED)
+
+def remove_rows_with_deleted_text(dataframe, reddit_type):
+    """Filters out comments or submissions that have had their text deleted or removed.
+    Returns a Spark DataFrame
+
+    :param dataframe: Spark DataFrame to be filtered
+    :param reddit_type: str, 'comments' or 'submissions'
+    """
+    # TODO
+    pass
 
 
 def print_comparison_stats(original_df, filtered_df, top_n_df):
@@ -83,7 +103,7 @@ def get_spark_dataframe(inputs, spark, reddit_type):
     """
     :param inputs: Paths to Reddit json data
     :param spark: SparkSession
-    :param reddit_type: "comments" or "submissions"
+    :param reddit_type: 'comments' or 'submissions'
     """
     return spark.read.format("json").option("mode", "DROPMALFORMED").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
 
@@ -151,7 +171,7 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, min_
     """Returns data for training community2vec using skipgrams (users as 'documents/context', subreddits as 'words') as Spark dataframes. Deleted comments are counted when determining the top most frequent values.
     Returns 2 dataframes: counts of subreddits (vocabulary for community2vec), subreddit comments/submissions aggregated into a list for each author
 
-    :param inputs: Paths to read JSON Reddit data from
+    :param inputs: list of Paths to read JSON Reddit data from
     :param spark: SparkSession
     :param reddit_type: 'comments' or 'submissions'
     :param top_n: int, how many subreddits to consider for c2v, vocab size
@@ -180,6 +200,27 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, min_
 
     return top_n_df, context_word_df.drop("context_lenth")
 
+def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, top_n=DEFAULT_TOP_N, type_for_top_n=COMMENTS):
+    """Returns the data for training bag of words models in a dataframe.
+
+    :param spark: SparkSession
+    :param comments_paths: list of Paths to read JSON Reddit comments from
+    :param submissions_paths: list of Paths to read JSON Reddit submissions/posts from
+    :param max_time_delta: TODO
+    :param top_n: int, how many of the top most popular subreddits to keep
+    :param type_for_top_n: 'comments' or 'submissions'
+    """
+    comments_df = get_spark_dataframe(comments_paths, spark, COMMENTS)
+    submissions_df = get_spark_dataframe(submissions_paths, spark, SUBMISSIONS)
+    if type_for_top_n == COMMENTS:
+        top_n_df = get_top_n_counts(comments_df)
+    else:
+        top_n_df = get_top_n_counts(submissions_df)
+
+    filtered_comments = remove_deleted_authors(remove_rows_with_deleted_text(filter_top_n(comments_df, top_n_df), COMMENTS))
+    filtered_submissions = remove_deleted_authors(remove_rows_with_deleted_text(filter_top_n(submissions_df, top_n_df), SUBMISSIONS))
+
+
 
 parser = argparse.ArgumentParser(description="Parse Pushshift Reddit data to formats for community2vec and topic modeling.")
 parser.add_argument("-q", "--quiet", action='store_true', help="Use to turn off dataset descriptions and extra statistics. This will make pre-processing faster, but skips useful statistics about the datasets.")
@@ -192,13 +233,20 @@ c2v_parser.add_argument("-t", "--type", choices=[COMMENTS, SUBMISSIONS], help = 
 c2v_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
 c2v_parser.add_argument("-p", "--exclude_top_user_perc", type=float, default=DEFAULT_USER_EXCLUDE, help="The percentage of top most active users to exclude by number of comments over the time period")
 
-topic_modeling_parser = subparsers.add_parser('topic-model', help="Output data to a format that can be used for training topic models in Mallet (or pre-trained WE clusters?)")
+topic_modeling_parser = subparsers.add_parser('bow', help="Output data to a format that can be used for training topic models based on bag of words methods (LDA, tf-idf, etc...)")
+topic_modeling_parser.add_argument("--submissions", "-s", nargs="+", help="Path to submissions input data in json format.")
+topic_modeling_parser.add_argument("--comments", "-c", nargs="+", help="Path to comments input in json format.")
+# TODO: Figure out how ot parse timestamp
+topic_modeling_parser.add_argument("--max_time_delta", "-d", help="TODO")
+topic_modeling_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
+topic_modeling_parser.add_argument('--type_for_top_n', '-t', default=COMMENTS, choices=[COMMENTS, SUBMISSIONS], help="Is the number of 'comments' or 'submissions' used to determine the top n most popular subreddits?")
+
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    spark = ihop.utils.get_spark_session("IHOP import data", args.quiet)
     if args.subparser_name=='c2v':
-        spark = ihop.utils.get_spark_session("IHOP import data", args.quiet)
         top_n_df, context_word_df = community2vec(args.input, spark,
                 reddit_type=args.type, top_n=args.top_n,
                 exclude_top_perc=args.exclude_top_user_perc, quiet=args.quiet)
