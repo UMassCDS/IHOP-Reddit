@@ -35,6 +35,9 @@ SCHEMAS = {
 
 MAIN_TEXT_FIELD = {COMMENTS: 'body', SUBMISSIONS:'selftext'}
 
+# The Reddit API prefixes IDs to distinguish links to different kinds of objects
+ID_PREFIX = {COMMENTS: 't1_', SUBMISSIONS: 't3_'}
+
 
 def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
     """Determine the top n most frequent values in a column. Return a dataframe of those values with their counts. Results are ordered by counts, then alphabetical ordering of the values in the column, to break ties at the lower end.
@@ -64,6 +67,7 @@ def remove_deleted_authors(dataframe):
     """
     return dataframe.where(dataframe.author != DELETED)
 
+
 def remove_rows_with_deleted_text(dataframe, reddit_type):
     """Filters out comments or submissions that have had their text deleted or removed.
     Returns a Spark DataFrame
@@ -71,8 +75,7 @@ def remove_rows_with_deleted_text(dataframe, reddit_type):
     :param dataframe: Spark DataFrame to be filtered
     :param reddit_type: str, 'comments' or 'submissions'
     """
-    # TODO
-    pass
+    return dataframe.filter(~dataframe[MAIN_TEXT_FIELD[reddit_type]].isin(REMOVED, DELETED))
 
 
 def print_comparison_stats(original_df, filtered_df, top_n_df):
@@ -105,7 +108,7 @@ def get_spark_dataframe(inputs, spark, reddit_type):
     :param spark: SparkSession
     :param reddit_type: 'comments' or 'submissions'
     """
-    return spark.read.format("json").option("mode", "DROPMALFORMED").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
+    return spark.read.format("json").option("mode", "PERMISSIVE").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
 
 
 def exclude_top_percentage_of_users(user_df, count_col="context_length",  exclude_top_perc=DEFAULT_USER_EXCLUDE):
@@ -158,6 +161,16 @@ def aggregate_for_vectorization(dataframe, context_col="author", word_col="subre
 
     return agg_df.drop(context_col)
 
+def prefix_id_column(dataframe, reddit_type=SUBMISSIONS, id_col="id", output_col="fullname_id"):
+    """Adds a new column in the dataframe with the appropriate
+    Reddit API prefix added.
+    :param dataframe: Spark DataFrame to add the columns to
+    :param reddit_type: str, 'comments' or 'submissions'
+    :param id_col: str, the name of the original unprefixed id column
+    :param output_col: str, the name of the column to add
+    """
+    return dataframe.withColumn(output_col, fn.concat_ws('', fn.lit(ID_PREFIX[reddit_type]), dataframe[id_col]))
+
 
 def collect_max_context_length(aggregated_df, array_len_col="context_length"):
     """Return the maximum context length according to the array_len_col in the aggregated df.
@@ -165,6 +178,26 @@ def collect_max_context_length(aggregated_df, array_len_col="context_length"):
     :param array_len_col: str, the column to query for the maximum value
     """
     return aggregated_df.agg(fn.max(array_len_col)).head()[0]
+
+
+def join_submissions_and_comments(submissions_df, comments_df, submission_id_col='fullname_id', comments_link_col='link_id', max_time_delta=None):
+    """Returns a DataFrame with comments paired up with their submission using an inner join.
+
+    :param submissions_df: Spark DataFrame containing submissions
+    :param comments_df: Spark DataFrame containing comments
+    :param submission_id_col: The id column in submissions to use for the join
+    :param comments_link_col: The column in the comments dataframe that identifies submissions
+    :param max_time_delta: TODO
+    """
+    #TODO Drop or rename columns?
+    #TODO What to do with columns that appear in both: author, id, subreddit, etc...
+    result_df = submissions_df.join(comments_df, submissions_df[submission_id_col] == comments_df[comments_link_col])
+
+    if max_time_delta:
+        #TODO restict results to
+        pass
+
+    return result_df
 
 
 def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, min_sentence_length=2, exclude_top_perc=DEFAULT_USER_EXCLUDE, quiet=False):
@@ -200,7 +233,8 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, min_
 
     return top_n_df, context_word_df.drop("context_lenth")
 
-def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, top_n=DEFAULT_TOP_N, type_for_top_n=COMMENTS):
+
+def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, top_n=DEFAULT_TOP_N, type_for_top_n=COMMENTS, quiet=False):
     """Returns the data for training bag of words models in a dataframe.
 
     :param spark: SparkSession
@@ -209,16 +243,28 @@ def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, 
     :param max_time_delta: TODO
     :param top_n: int, how many of the top most popular subreddits to keep
     :param type_for_top_n: 'comments' or 'submissions'
+    :param quiet: boolean, set to True for verbose & computationally expensive dataframe comparisons
     """
     comments_df = get_spark_dataframe(comments_paths, spark, COMMENTS)
     submissions_df = get_spark_dataframe(submissions_paths, spark, SUBMISSIONS)
     if type_for_top_n == COMMENTS:
-        top_n_df = get_top_n_counts(comments_df)
+        top_n_df = get_top_n_counts(comments_df, top_n)
     else:
-        top_n_df = get_top_n_counts(submissions_df)
+        top_n_df = get_top_n_counts(submissions_df, top_n)
 
     filtered_comments = remove_deleted_authors(remove_rows_with_deleted_text(filter_top_n(comments_df, top_n_df), COMMENTS))
     filtered_submissions = remove_deleted_authors(remove_rows_with_deleted_text(filter_top_n(submissions_df, top_n_df), SUBMISSIONS))
+
+    if not quiet:
+        print("Submissions stats after filtering")
+        print_comparison_stats(submissions_df, filtered_submissions, top_n_df)
+
+    filtered_submissions = prefix_id_column(filtered_submissions)
+    joined_df = join_submissions_and_comments(filtered_submissions, filtered_comments, max_time_delta=max_time_delta)
+
+    # TODO Preprocess text by replacing tabs & newlines with single whitespace? (Double check if needed, depends on Gensim formats)
+    # TODO Group by submission, order comments by creation time, concatenate aggregated comment text
+    # TODO Add submission title and selftext to text aggregation
 
 
 
@@ -236,11 +282,10 @@ c2v_parser.add_argument("-p", "--exclude_top_user_perc", type=float, default=DEF
 topic_modeling_parser = subparsers.add_parser('bow', help="Output data to a format that can be used for training topic models based on bag of words methods (LDA, tf-idf, etc...)")
 topic_modeling_parser.add_argument("--submissions", "-s", nargs="+", help="Path to submissions input data in json format.")
 topic_modeling_parser.add_argument("--comments", "-c", nargs="+", help="Path to comments input in json format.")
-# TODO: Figure out how ot parse timestamp
+# TODO: Figure out how to parse timestamp
 topic_modeling_parser.add_argument("--max_time_delta", "-d", help="TODO")
 topic_modeling_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
 topic_modeling_parser.add_argument('--type_for_top_n', '-t', default=COMMENTS, choices=[COMMENTS, SUBMISSIONS], help="Is the number of 'comments' or 'submissions' used to determine the top n most popular subreddits?")
-
 
 
 if __name__ == "__main__":
@@ -248,14 +293,20 @@ if __name__ == "__main__":
     spark = ihop.utils.get_spark_session("IHOP import data", args.quiet)
     if args.subparser_name=='c2v':
         top_n_df, context_word_df = community2vec(args.input, spark,
-                reddit_type=args.type, top_n=args.top_n,
-                exclude_top_perc=args.exclude_top_user_perc, quiet=args.quiet)
+                                        reddit_type=args.type, top_n=args.top_n,
+                                        exclude_top_perc=args.exclude_top_user_perc,
+                                        quiet=args.quiet)
+
         if not args.quiet:
             print("Writing subreddit counts to", args.subreddit_counts_csv)
         top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)
+
         if not args.quiet:
             print("Writing user contexts to bzip2 in", args.context_word_dir)
         context_word_df.write.option("compression", "bzip2").csv(args.context_word_dir)
-    elif args.subparser_name=='topic-model':
-        # TODO
-        print("Text-based topic modeling format not implemented.")
+
+    elif args.subparser_name=='bow':
+        # TODO Write dataframe to Gensim compatible format
+        bag_of_words_df = bag_of_words(spark, args.comments, args.submissions,
+                                args.max_time_delta, args.top_n, args.type_for_top_n,
+                                args.quiet)

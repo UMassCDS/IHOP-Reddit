@@ -3,7 +3,7 @@
 import os
 import pytest
 
-from ihop.import_data import aggregate_for_vectorization, community2vec, exclude_top_percentage_of_users, get_spark_dataframe, filter_top_n, remove_deleted_authors, collect_max_context_length
+from ihop.import_data import *
 
 FIXTURE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files')
 
@@ -109,3 +109,46 @@ def test_community2vec(spark):
     assert "dndnext" in user_contexts_list
 
 
+def test_remove_deleted_comments(spark):
+    data = [{'author':'a1', 'body':'[removed]'},
+            {'author':'a2', 'body':'[deleted]'},
+            {'author':'a3', 'body': "This wasn't deleted"}]
+    df = spark.createDataFrame(data)
+    result = remove_rows_with_deleted_text(df, 'comments').collect()
+    assert len(result) == 1
+    assert result[0].author == 'a3'
+
+
+def test_remove_deleted_submissions(spark):
+    data = [{'author':'a1', 'selftext':'[removed]'},
+            {'author':'a2', 'selftext':'[deleted]'},
+            {'author':'a3', 'selftext': "This wasn't deleted"}]
+    df = spark.createDataFrame(data)
+    result = remove_rows_with_deleted_text(df, 'submissions').collect()
+    assert len(result) == 1
+    assert result[0].author == 'a3'
+
+
+def test_prefix_id_column(submissions):
+    df = prefix_id_column(submissions)
+    ids_list = [x.fullname_id for x in df.collect()]
+    assert len(ids_list) == 3
+    assert set(ids_list) == set(['t3_6xauyf', 't3_6xauys', 't3_6xauyh'])
+
+def test_join_submissions_and_comments(spark):
+    submissions_data = [{'id': 'a12', 'fullname_id':'t3_a12', 'selftext':'This is my first post!', 'title':'Saying hi!'},
+        {'id':'b12', 'fullname_id':'t3_b12', 'selftext':"It's very cute", 'title':'Check out this dog video'},
+        {'id': 'c12', 'fullname_id': 't3_c12', 'selftext':'', 'title':'Another tiktok video'}]
+    submissions_df = spark.createDataFrame(submissions_data)
+    comments_data = [{'link_id':'t3_b12', 'body':'so cute much wow', 'id':'abc'},
+                     {'link_id':'t3_b12', 'body':'what kind of dog is it', 'id':'efg'},
+                     {'link_id':'t3_z89', 'body':'some comment on a random submission', 'id':'hij'},
+                     {'link_id':'t3_c12', 'body':'tiktok dances are the best', 'id':'klm'}]
+    comments_df = spark.createDataFrame(comments_data)
+    joined = join_submissions_and_comments(submissions_df, comments_df).collect()
+    assert len(joined) == 3
+
+
+def test_join_submissions_and_comments_with_timestamp(spark):
+    # TODO
+    pass
