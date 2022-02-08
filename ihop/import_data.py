@@ -1,5 +1,6 @@
 """Loads Reddit json data to a Spark dataframe, which can be filtered using
-SQL-like operations, operated on using Spark's ML library or exported to pandas/sklearn formats.
+SQL-like operations, operated on using Spark's ML library or exported to pandas,
+sklearn, and gensim formats.
 
 .. TODO: Remove print statements in favor of logging
 """
@@ -25,6 +26,7 @@ DELETED = "[deleted]"
 REMOVED = "[removed]"
 
 # The timestamp column
+# Note that the Reddit timestamps are in unix timestamp format, see https://www.unixtimestamp.com/index.php
 CREATED_UTC = "created_utc"
 
 # See https://github.com/pushshift/api for details
@@ -116,9 +118,7 @@ def get_spark_dataframe(inputs, spark, reddit_type):
             option("mode", "PERMISSIVE"). \
             option("encoding", "UTF-8"). \
             schema(SCHEMAS[reddit_type]). \
-            load(inputs). \
-            withColumn(CREATED_UTC, fn.to_timestamp(fn.col(CREATED_UTC)))
-
+            load(inputs)
 
 
 def exclude_top_percentage_of_users(user_df, count_col="context_length",  exclude_top_perc=DEFAULT_USER_EXCLUDE):
@@ -209,7 +209,7 @@ def rename_columns(dataframe, columns=None, prefix=COMMENTS):
 
 def join_submissions_and_comments(submissions_df, comments_df, submission_id_col='fullname_id',
         comments_link_col='link_id', comments_duplicate_col_prefix=COMMENTS,
-        time_delta_col='time_comment_after_submission',
+        time_delta_col='time_to_comment_in_seconds',
         timestamp_col=CREATED_UTC, max_time_delta=None):
     """Returns a DataFrame with comments paired up with their submission using an inner join and computing the time delta between each submission and comment creation time.
     In the output, duplicate column names for the comments will be renamed using a prefix.
@@ -227,9 +227,9 @@ def join_submissions_and_comments(submissions_df, comments_df, submission_id_col
     comments_timestamp_col = f'{COMMENTS}_{timestamp_col}'
     result_df = submissions_df.join(renamed_comments, submissions_df[submission_id_col] == renamed_comments[comments_link_col])
 
-    # Compute time deltea between comment and submissions if timestamp_col is present
+    # Compute time delta in sections between comment and submissions if timestamp_col is present
     if timestamp_col in result_df.columns and comments_timestamp_col in result_df.columns:
-        result_df[time_delta_col] = result_df[CREATED_UTC] - result_df[f'{COMMENTS}_{CREATED_UTC}']
+        result_df = result_df.withColumn(time_delta_col, result_df[f'{COMMENTS}_{CREATED_UTC}'] - result_df[CREATED_UTC])
 
         if max_time_delta:
             result_df = result_df.where(result_df[time_delta_col] <= max_time_delta)
