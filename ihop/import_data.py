@@ -38,6 +38,9 @@ MAIN_TEXT_FIELD = {COMMENTS: 'body', SUBMISSIONS:'selftext'}
 # The Reddit API prefixes IDs to distinguish links to different kinds of objects
 ID_PREFIX = {COMMENTS: 't1_', SUBMISSIONS: 't3_'}
 
+# List of columns which overlap between comment and submission data, use for renaming
+OVERLAPPING_COLS = ['id', 'author', 'subreddit', 'created_utc']
+
 
 def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
     """Determine the top n most frequent values in a column. Return a dataframe of those values with their counts. Results are ordered by counts, then alphabetical ordering of the values in the column, to break ties at the lower end.
@@ -108,7 +111,13 @@ def get_spark_dataframe(inputs, spark, reddit_type):
     :param spark: SparkSession
     :param reddit_type: 'comments' or 'submissions'
     """
-    return spark.read.format("json").option("mode", "PERMISSIVE").option("encoding", "UTF-8").schema(SCHEMAS[reddit_type]).load(inputs)
+    return spark.read.format("json"). \
+            option("mode", "PERMISSIVE"). \
+            option("encoding", "UTF-8"). \
+            schema(SCHEMAS[reddit_type]). \
+            load(inputs). \
+            withColumn(CREATED_UTC, fn.to_timestamp(fn.col(CREATED_UTC)))
+
 
 
 def exclude_top_percentage_of_users(user_df, count_col="context_length",  exclude_top_perc=DEFAULT_USER_EXCLUDE):
@@ -180,6 +189,23 @@ def collect_max_context_length(aggregated_df, array_len_col="context_length"):
     return aggregated_df.agg(fn.max(array_len_col)).head()[0]
 
 
+def rename_columns(dataframe, columns=None, prefix=COMMENTS):
+    """Return a Dataframe of Reddit with the specified columns renamed with the given prefix joined to the original column name with an underscore
+
+    :param dataframe: Spark DataFrame with columns to rename
+    :param columns: list of str for column name or defaults to OVERLAPPING_COLS
+    :param prefix: str, prefix to prepend to column name
+    """
+    if columns is None:
+        columns = OVERLAPPING_COLS
+
+    result = dataframe
+    for c in columns:
+        result = result.withColumnRenamed(c, f'{prefix}_{c}')
+
+    return result
+
+
 def join_submissions_and_comments(submissions_df, comments_df, submission_id_col='fullname_id', comments_link_col='link_id', max_time_delta=None):
     """Returns a DataFrame with comments paired up with their submission using an inner join.
 
@@ -189,9 +215,8 @@ def join_submissions_and_comments(submissions_df, comments_df, submission_id_col
     :param comments_link_col: The column in the comments dataframe that identifies submissions
     :param max_time_delta: TODO
     """
-    #TODO Drop or rename columns?
-    #TODO What to do with columns that appear in both: author, id, subreddit, etc...
-    result_df = submissions_df.join(comments_df, submissions_df[submission_id_col] == comments_df[comments_link_col])
+    renamed_comments = rename_columns(comments_df)
+    result_df = submissions_df.join(renamed_comments, submissions_df[submission_id_col] == renamed_comments[comments_link_col])
 
     if max_time_delta:
         #TODO restict results to

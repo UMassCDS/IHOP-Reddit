@@ -135,6 +135,12 @@ def test_prefix_id_column(submissions):
     assert len(ids_list) == 3
     assert set(ids_list) == set(['t3_6xauyf', 't3_6xauys', 't3_6xauyh'])
 
+
+def test_rename_columns(comments):
+    renamed = rename_columns(comments)
+    assert renamed.columns == ['comments_id', 'parent_id', 'score', 'link_id', 'comments_author', 'comments_subreddit', 'body', 'comments_created_utc']
+
+
 def test_join_submissions_and_comments(spark):
     submissions_data = [{'id': 'a12', 'fullname_id':'t3_a12', 'selftext':'This is my first post!', 'title':'Saying hi!'},
         {'id':'b12', 'fullname_id':'t3_b12', 'selftext':"It's very cute", 'title':'Check out this dog video'},
@@ -146,6 +152,8 @@ def test_join_submissions_and_comments(spark):
                      {'link_id':'t3_c12', 'body':'tiktok dances are the best', 'id':'klm'}]
     comments_df = spark.createDataFrame(comments_data)
     joined = join_submissions_and_comments(submissions_df, comments_df).collect()
+    expected_joins = set([('b12', 'abc'), ('b12', 'efg'), ('c12', 'klm')])
+    assert set([(r.id, r.comments_id) for r in joined]) == expected_joins
     assert len(joined) == 3
 
 
