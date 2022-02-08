@@ -8,6 +8,7 @@ import logging
 
 import pyspark.sql.functions as fn
 from pyspark.sql.window import Window
+import pytimeparse
 
 import ihop.utils
 
@@ -206,21 +207,32 @@ def rename_columns(dataframe, columns=None, prefix=COMMENTS):
     return result
 
 
-def join_submissions_and_comments(submissions_df, comments_df, submission_id_col='fullname_id', comments_link_col='link_id', max_time_delta=None):
-    """Returns a DataFrame with comments paired up with their submission using an inner join.
+def join_submissions_and_comments(submissions_df, comments_df, submission_id_col='fullname_id',
+        comments_link_col='link_id', comments_duplicate_col_prefix=COMMENTS,
+        time_delta_col='time_comment_after_submission',
+        timestamp_col=CREATED_UTC, max_time_delta=None):
+    """Returns a DataFrame with comments paired up with their submission using an inner join and computing the time delta between each submission and comment creation time.
+    In the output, duplicate column names for the comments will be renamed using a prefix.
 
     :param submissions_df: Spark DataFrame containing submissions
     :param comments_df: Spark DataFrame containing comments
-    :param submission_id_col: The id column in submissions to use for the join
-    :param comments_link_col: The column in the comments dataframe that identifies submissions
-    :param max_time_delta: TODO
+    :param submission_id_col: str, the id column in submissions to use for the join
+    :param comments_link_col: str, the column in the comments dataframe that identifies submissions
+    :param comments_duplicate_col_prefix: str, prefix used to rename comments_df columns that overlap with submissions_df columns
+    :param time_delta_col: str, the output column where timedelta between submission and comment will be stored
+    :param timestamp_col: str, the name of the input column storing timestamps, assumed to be the same for both submissions and comment
+    :param max_time_delta: int or None, maximum time in seconds allowed between submission creation and creation of its comments
     """
-    renamed_comments = rename_columns(comments_df)
+    renamed_comments = rename_columns(comments_df, prefix=comments_duplicate_col_prefix)
+    comments_timestamp_col = f'{COMMENTS}_{timestamp_col}'
     result_df = submissions_df.join(renamed_comments, submissions_df[submission_id_col] == renamed_comments[comments_link_col])
 
-    if max_time_delta:
-        #TODO restict results to
-        pass
+    # Compute time deltea between comment and submissions if timestamp_col is present
+    if timestamp_col in result_df.columns and comments_timestamp_col in result_df.columns:
+        result_df[time_delta_col] = result_df[CREATED_UTC] - result_df[f'{COMMENTS}_{CREATED_UTC}']
+
+        if max_time_delta:
+            result_df = result_df.where(result_df[time_delta_col] <= max_time_delta)
 
     return result_df
 
@@ -265,7 +277,7 @@ def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, 
     :param spark: SparkSession
     :param comments_paths: list of Paths to read JSON Reddit comments from
     :param submissions_paths: list of Paths to read JSON Reddit submissions/posts from
-    :param max_time_delta: TODO
+    :param max_time_delta: int or None, maximum time in seconds allowed between submission creation and creation of its comments
     :param top_n: int, how many of the top most popular subreddits to keep
     :param type_for_top_n: 'comments' or 'submissions'
     :param quiet: boolean, set to True for verbose & computationally expensive dataframe comparisons
@@ -308,7 +320,7 @@ topic_modeling_parser = subparsers.add_parser('bow', help="Output data to a form
 topic_modeling_parser.add_argument("--submissions", "-s", nargs="+", help="Path to submissions input data in json format.")
 topic_modeling_parser.add_argument("--comments", "-c", nargs="+", help="Path to comments input in json format.")
 # TODO: Figure out how to parse timestamp
-topic_modeling_parser.add_argument("--max_time_delta", "-d", help="TODO")
+topic_modeling_parser.add_argument("--max_time_delta", "-d", type=pytimeparse.parse, help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
 topic_modeling_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
 topic_modeling_parser.add_argument('--type_for_top_n', '-t', default=COMMENTS, choices=[COMMENTS, SUBMISSIONS], help="Is the number of 'comments' or 'submissions' used to determine the top n most popular subreddits?")
 

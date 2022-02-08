@@ -3,6 +3,8 @@
 import os
 import pytest
 
+import pyspark.sql.functions as fn
+
 from ihop.import_data import *
 
 FIXTURE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files')
@@ -143,8 +145,8 @@ def test_rename_columns(comments):
 
 def test_join_submissions_and_comments(spark):
     submissions_data = [{'id': 'a12', 'fullname_id':'t3_a12', 'selftext':'This is my first post!', 'title':'Saying hi!'},
-        {'id':'b12', 'fullname_id':'t3_b12', 'selftext':"It's very cute", 'title':'Check out this dog video'},
-        {'id': 'c12', 'fullname_id': 't3_c12', 'selftext':'', 'title':'Another tiktok video'}]
+        {'id':'b12', 'fullname_id':'t3_b12', 'selftext':"It's very cute", 'title':'Check out this dog video', },
+        {'id': 'c12', 'fullname_id': 't3_c12', 'selftext':'', 'title':'Another tiktok video', }]
     submissions_df = spark.createDataFrame(submissions_data)
     comments_data = [{'link_id':'t3_b12', 'body':'so cute much wow', 'id':'abc'},
                      {'link_id':'t3_b12', 'body':'what kind of dog is it', 'id':'efg'},
@@ -157,6 +159,6 @@ def test_join_submissions_and_comments(spark):
     assert len(joined) == 3
 
 
-def test_join_submissions_and_comments_with_timestamp(spark):
-    # TODO
-    pass
+def test_join_submissions_and_comments_with_timestamp(spark, comments):
+    comments.show()
+    assert False

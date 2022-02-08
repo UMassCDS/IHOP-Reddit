@@ -9,6 +9,7 @@ setup(
         'numpy==1.21.2',
         'pandas==1.3.4',
         'pyspark==3.2.0',
+        'pytimeparse==1.1.8',
         'scikit-learn==1.0.1'
     ],
     setup_requires=['pytest-runner'],
