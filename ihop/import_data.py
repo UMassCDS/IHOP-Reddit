@@ -6,6 +6,7 @@ sklearn, and gensim formats.
 """
 import argparse
 import logging
+from this import d
 
 import pyspark.sql.functions as fn
 from pyspark.sql.window import Window
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 COMMENTS="comments"
 SUBMISSIONS="submissions"
 DEFAULT_TOP_N=10000
-DEFAULT_USER_EXCLUDE=0.02
+DEFAULT_USER_EXCLUDE=0.05
 
 # How deleted authors or posts are indicated in json (user removed)
 DELETED = "[deleted]"
@@ -171,6 +172,22 @@ def aggregate_for_vectorization(dataframe, context_col="author", word_col="subre
 
     return agg_df.drop(context_col)
 
+
+def filter_out_top_users(dataframe, author_col="author", exclude_top_perc=DEFAULT_USER_EXCLUDE):
+    """Returns a dataframe with the top most active users by number of rows removed.
+    """
+    if exclude_top_perc == 0.0:
+        return dataframe
+
+    count_col = "count"
+    agg_df = dataframe.groupBy(author_col) \
+        .agg(
+            fn.count(count_col).alias(count_col)
+        )
+    keep_users_df = exclude_top_percentage_of_users(agg_df, count_col, exclude_top_perc)
+    return dataframe.join(keep_users_df, dataframe[author_col] == keep_users_df[author_col], 'leftsemi')
+
+
 def prefix_id_column(dataframe, reddit_type=SUBMISSIONS, id_col="id", output_col="fullname_id"):
     """Adds a new column in the dataframe with the appropriate
     Reddit API prefix added.
@@ -206,11 +223,19 @@ def rename_columns(dataframe, columns=None, prefix=COMMENTS):
 
     return result
 
+def filter_by_time_between_submission_and_comment(dataframe, max_time_delta,
+    time_delta_col='time_to_comment_in_seconds'):
+    """
+    :param dataframe: Spark DataFrame to filter
+    :param max_time_delta: int or None, maximum time in seconds allowed between submission creation and creation of its comments
+    :param time_delta_col: str, the output column where number of seconds between submission and comment is stored
+    """
+    return dataframe.where(dataframe[time_delta_col] <= max_time_delta)
+
 
 def join_submissions_and_comments(submissions_df, comments_df, submission_id_col='fullname_id',
         comments_link_col='link_id', comments_duplicate_col_prefix=COMMENTS,
-        time_delta_col='time_to_comment_in_seconds',
-        timestamp_col=CREATED_UTC, max_time_delta=None):
+        timestamp_col=CREATED_UTC, time_delta_col='time_to_comment_in_seconds'):
     """Returns a DataFrame with comments paired up with their submission using an inner join and computing the time delta between each submission and comment creation time.
     In the output, duplicate column names for the comments will be renamed using a prefix.
 
@@ -219,9 +244,8 @@ def join_submissions_and_comments(submissions_df, comments_df, submission_id_col
     :param submission_id_col: str, the id column in submissions to use for the join
     :param comments_link_col: str, the column in the comments dataframe that identifies submissions
     :param comments_duplicate_col_prefix: str, prefix used to rename comments_df columns that overlap with submissions_df columns
-    :param time_delta_col: str, the output column where timedelta between submission and comment will be stored
     :param timestamp_col: str, the name of the input column storing timestamps, assumed to be the same for both submissions and comment
-    :param max_time_delta: int or None, maximum time in seconds allowed between submission creation and creation of its comments
+    :param time_delta_col: str, the output column where timedelta between submission and comment will be stored
     """
     renamed_comments = rename_columns(comments_df, prefix=comments_duplicate_col_prefix)
     comments_timestamp_col = f'{COMMENTS}_{timestamp_col}'
@@ -230,9 +254,6 @@ def join_submissions_and_comments(submissions_df, comments_df, submission_id_col
     # Compute time delta in sections between comment and submissions if timestamp_col is present
     if timestamp_col in result_df.columns and comments_timestamp_col in result_df.columns:
         result_df = result_df.withColumn(time_delta_col, result_df[f'{COMMENTS}_{CREATED_UTC}'] - result_df[CREATED_UTC])
-
-        if max_time_delta:
-            result_df = result_df.where(result_df[time_delta_col] <= max_time_delta)
 
     return result_df
 
@@ -246,6 +267,7 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, min_
     :param reddit_type: 'comments' or 'submissions'
     :param top_n: int, how many subreddits to consider for c2v, vocab size
     :param min_sentence_length: int, minimum size of context for c2v, min sentence length
+    :param exclude_top_perc: float, the percentage of top most active users by number of comments to exclude from the final dataset
     :param quiet: Boolean, true to skip statsitics and plots
     """
     if reddit_type in [COMMENTS, SUBMISSIONS]:
@@ -268,11 +290,12 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, min_
     else:
         raise ValueError(f"Reddit data type {reddit_type} is not valid.")
 
-    return top_n_df, context_word_df.drop("context_lenth")
+    return top_n_df, context_word_df.drop("context_length")
 
 
-def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, top_n=DEFAULT_TOP_N, type_for_top_n=COMMENTS, quiet=False):
-    """Returns the data for training bag of words models in a dataframe.
+def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, top_n=DEFAULT_TOP_N, type_for_top_n=COMMENTS,
+    exclude_top_perc=DEFAULT_USER_EXCLUDE,  quiet=False):
+    """Returns the data for training bag of words models in a Spark DataFrame.
 
     :param spark: SparkSession
     :param comments_paths: list of Paths to read JSON Reddit comments from
@@ -280,6 +303,7 @@ def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, 
     :param max_time_delta: int or None, maximum time in seconds allowed between submission creation and creation of its comments
     :param top_n: int, how many of the top most popular subreddits to keep
     :param type_for_top_n: 'comments' or 'submissions'
+    :param exclude_top_perc: float, the percentage of top most active users by number of comments to exclude from the final dataset. Note that only comments are filtered, not submissions
     :param quiet: boolean, set to True for verbose & computationally expensive dataframe comparisons
     """
     comments_df = get_spark_dataframe(comments_paths, spark, COMMENTS)
@@ -290,6 +314,9 @@ def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, 
         top_n_df = get_top_n_counts(submissions_df, top_n)
 
     filtered_comments = remove_deleted_authors(remove_rows_with_deleted_text(filter_top_n(comments_df, top_n_df), COMMENTS))
+    if exclude_top_perc > 0.0:
+        filtered_comments = filter_out_top_users(filtered_comments, exclude_top_perc=exclude_top_perc)
+
     filtered_submissions = remove_deleted_authors(remove_rows_with_deleted_text(filter_top_n(submissions_df, top_n_df), SUBMISSIONS))
 
     if not quiet:
@@ -297,12 +324,11 @@ def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, 
         print_comparison_stats(submissions_df, filtered_submissions, top_n_df)
 
     filtered_submissions = prefix_id_column(filtered_submissions)
-    joined_df = join_submissions_and_comments(filtered_submissions, filtered_comments, max_time_delta=max_time_delta)
+    joined_df = join_submissions_and_comments(filtered_submissions, filtered_comments)
+    if max_time_delta:
+        joined_df = filter_by_time_between_submission_and_comment(joined_df, max_time_delta)
 
-    # TODO Preprocess text by replacing tabs & newlines with single whitespace? (Double check if needed, depends on Gensim formats)
-    # TODO Group by submission, order comments by creation time, concatenate aggregated comment text
-    # TODO Add submission title and selftext to text aggregation
-
+    return joined_df
 
 
 parser = argparse.ArgumentParser(description="Parse Pushshift Reddit data to formats for community2vec and topic modeling.")
@@ -310,19 +336,21 @@ parser.add_argument("-q", "--quiet", action='store_true', help="Use to turn off 
 subparsers = parser.add_subparsers(dest='subparser_name')
 c2v_parser = subparsers.add_parser('c2v', help="Output the subreddits a user has commented on, one user per line, in a compressed CSV format that can be used for training Community2Vec using Gensim's Word2Vec implementation.")
 c2v_parser.add_argument("subreddit_counts_csv", help="Desired output path to CSV file for counts of top N subreddits")
-c2v_parser.add_argument("context_word_dir", help="Desired output path to directory for a compressed file with subreddits a user commented on, one user per line")
+c2v_parser.add_argument("context_word_dir", help="Desired output path to directory of compressed CSV files with subreddits a user commented on, one user per line. This is gensim's PathLineSentences format.")
 c2v_parser.add_argument("input", nargs='+', help="Paths to input files. They should all be the same type ('comments' or 'submissions')")
 c2v_parser.add_argument("-t", "--type", choices=[COMMENTS, SUBMISSIONS], help = "Are these 'comments' or 'submissions' (posts)? Default is 'comments'.", default=COMMENTS)
 c2v_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
 c2v_parser.add_argument("-p", "--exclude_top_user_perc", type=float, default=DEFAULT_USER_EXCLUDE, help="The percentage of top most active users to exclude by number of comments over the time period")
 
-topic_modeling_parser = subparsers.add_parser('bow', help="Output data to a format that can be used for training topic models based on bag of words methods (LDA, tf-idf, etc...)")
+topic_modeling_parser = subparsers.add_parser('bow', help="Output data to parquet with joined submissions and comments. This format that can be used for training topic models based on bag of words methods using ihop.topic_model (LDA, tf-idf, etc...). The data is filtered to keep only the specified top most popular subreddits by number of comments and removes deleted or removed posts/comments.")
+topic_modeling_parser.add_argument('output', help="Destination pat of resulting parquet dataset.")
 topic_modeling_parser.add_argument("--submissions", "-s", nargs="+", help="Path to submissions input data in json format.")
 topic_modeling_parser.add_argument("--comments", "-c", nargs="+", help="Path to comments input in json format.")
-# TODO: Figure out how to parse timestamp
-topic_modeling_parser.add_argument("--max_time_delta", "-d", type=pytimeparse.parse, help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
+topic_modeling_parser.add_argument("--max_time_delta", "-d", type=pytimeparse.parse, help="Optionally specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
 topic_modeling_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
 topic_modeling_parser.add_argument('--type_for_top_n', '-t', default=COMMENTS, choices=[COMMENTS, SUBMISSIONS], help="Is the number of 'comments' or 'submissions' used to determine the top n most popular subreddits?")
+topic_modeling_parser.add_argument("-p", "--exclude_top_user_perc", type=float, default=DEFAULT_USER_EXCLUDE, help="The percentage of top most active users to exclude by number of comments over the time period")
+
 
 
 if __name__ == "__main__":
@@ -343,7 +371,10 @@ if __name__ == "__main__":
         context_word_df.write.option("compression", "bzip2").csv(args.context_word_dir)
 
     elif args.subparser_name=='bow':
-        # TODO Write dataframe to Gensim compatible format
         bag_of_words_df = bag_of_words(spark, args.comments, args.submissions,
-                                args.max_time_delta, args.top_n, args.type_for_top_n,
-                                args.quiet)
+                                max_time_delta=args.max_time_delta,
+                                top_n=args.top_n,
+                                type_for_top_n=args.type_for_top_n,
+                                exclude_top_perc=args.exclude_top_user_perc,
+                                quiet=args.quiet)
+        bag_of_words_df.write.parquet(args.output)

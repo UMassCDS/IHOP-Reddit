@@ -159,12 +159,12 @@ def test_join_submissions_and_comments(spark):
     assert len(joined) == 3
 
 
-def test_join_submissions_and_comments_with_timestamp(spark, comments):
+def test_filter_time_stamp(spark, comments):
     submissions_data = [{'id': '73hbg4', 'fullname_id':'t3_73hbg4', 'selftext':'A question about world building', 'title':'D&D world creation question!', 'created_utc':1506815950},
         {'id':'73gee6', 'fullname_id':'t3_73gee6', 'selftext':"An opinion about basketball", 'title':'Basketball', 'created_utc':1506815600 }]
     submissions_df = spark.createDataFrame(submissions_data)
-    joined = join_submissions_and_comments(submissions_df, comments, max_time_delta=100).collect()
-    assert len(joined) == 1
-    assert joined[0].id == '73hbg4'
-    assert joined[0].comments_id == '98765a'
-    assert joined[0].time_to_comment_in_seconds == 50
+    joined_with_filter = filter_by_time_between_submission_and_comment(join_submissions_and_comments(submissions_df, comments), max_time_delta=100).collect()
+    assert len(joined_with_filter) == 1
+    assert joined_with_filter[0].id == '73hbg4'
+    assert joined_with_filter[0].comments_id == '98765a'
+    assert joined_with_filter[0].time_to_comment_in_seconds == 50

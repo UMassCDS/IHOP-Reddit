@@ -1,7 +1,8 @@
 """Train clusters on community2vec embeddings and other embedding data.
 
-.. TODO: Determine best design pattern for cluster model wrapper and update params accordingly
 
+.. TODO: Determine best design pattern for cluster model wrapper and update params accordingly
+.. TODO: Support clustering of documents based on TF-IDF, not just c2v embeddings
 .. TODO: Figure out how to get AffinityPropagation to use appropriately precomputed distances
 """
 import numpy as np
@@ -38,7 +39,7 @@ class ClusteringModel:
         :param vocab_col_name: How to identify the data points
         :param join_df: Pandas DataFrame, optionally inner join this dataframe in the returned results
         """
-        # TODO Choose how to assing cluster column name
+        # TODO Choose how to assign cluster column name
         vocab_list = self.embeddings.index_to_key
         cluster_df = pd.DataFrame(
             {vocab_col_name:vocab_list,
