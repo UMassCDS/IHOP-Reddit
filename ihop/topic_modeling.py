@@ -45,10 +45,10 @@ class SparkRedditCorpus:
             yield zip(v.indices, v.values)
 
 
-class SparkPreprocessingPipeline:
+class SparkTextPreprocessingPipeline:
     """A text pre-processing pipeline that prepares text data for topic modeling
     """
-    def __init__(self, input_col, output_col, tokens_col = "tokenized", **kwargs):
+    def __init__(self, input_col, output_col, tokens_col="tokenized", **kwargs):
         """Initializes a text preprocessing pipeline with Spark
 
         :param input_col: str, the name of the column to be input to the pipeline

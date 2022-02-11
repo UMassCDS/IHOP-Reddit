@@ -42,7 +42,7 @@ MAIN_TEXT_FIELD = {COMMENTS: 'body', SUBMISSIONS:'selftext'}
 ID_PREFIX = {COMMENTS: 't1_', SUBMISSIONS: 't3_'}
 
 # List of columns which overlap between comment and submission data, use for renaming
-OVERLAPPING_COLS = ['id', 'author', 'subreddit', 'created_utc']
+OVERLAPPING_COLS = ['id', 'author', 'subreddit', 'created_utc', 'score']
 
 
 def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
@@ -184,6 +184,7 @@ def filter_out_top_users(dataframe, author_col="author", exclude_top_perc=DEFAUL
             fn.count(count_col).alias(count_col)
         )
     keep_users_df = exclude_top_percentage_of_users(agg_df, count_col, exclude_top_perc)
+    keep_users_df.drop(count_col)
     return dataframe.join(keep_users_df, dataframe[author_col] == keep_users_df[author_col], 'leftsemi')
 
 
