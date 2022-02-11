@@ -6,7 +6,6 @@ sklearn, and gensim formats.
 """
 import argparse
 import logging
-from this import d
 
 import pyspark.sql.functions as fn
 from pyspark.sql.window import Window
