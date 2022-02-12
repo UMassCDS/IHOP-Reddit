@@ -10,6 +10,15 @@ import seaborn as sns
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
 from sklearn import metrics
 
+class ClusteringModelFactory:
+    """Return appropriate
+    """
+    KMEANS = "kmeans"
+    AFFINITY_PROP = "affinity propagation"
+    AGGLOMERATIVE = "agglomerative clustering"
+    VALID_CLUSTERING_ALGORITHMS = [KMEANS, AFFINITY_PROP,
+                                   ]
+
 class ClusteringModel:
     """Wrapper around sklearn clustering models
     """
