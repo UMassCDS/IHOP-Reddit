@@ -9,6 +9,7 @@ such as LDA and clusters of documents based on tf-idf
 import argparse
 import logging
 
+from gensim.models.ldamulticore import LdaMulticore
 import pyspark.sql.functions as fn
 from pyspark.ml import Pipeline
 from pyspark.ml.feature import CountVectorizer, CountVectorizerModel, RegexTokenizer
@@ -52,7 +53,7 @@ class SparkRedditCorpus:
     @classmethod
     def init_from_joined_dataframe(cls, raw_dataframe, submission_id_col="id",
         submission_text_col="selftext", submission_title_col="title" ,
-        comments_text_col="body", time_delta_col='time_to_comment_in_seconds',
+        comments_text_col="body", category_col="subreddit", time_delta_col='time_to_comment_in_seconds',
         max_time_delta=None, min_time_delta=None):
         """Instantiate a SparkRedditCorpus using the a DataFrame of submission, comment pairs
 
@@ -61,6 +62,7 @@ class SparkRedditCorpus:
         :param submission_text_col: str, text on the submission appears in this column
         :param submission_title_col: str, column containing submission title text
         :param comments_text_col: str, column containing comment text
+        :param category_col:, str, column for categorical grouping of documents, useful to keep around for entropy metrics,etc..
         :param time_delta_col: str, the column storing the time a comment occured after a submission in
         :param max_time_delta: int, the maximum time (typically in seconds) a comment is allowed to occur after a submission
         :param time_time_delta: int, the minimum time (typically in seconds) a comment is allowed to occur after a submission
@@ -71,6 +73,7 @@ class SparkRedditCorpus:
             orderBy(time_delta_col).\
             groupBy(submission_id_col).\
             agg(
+                fn.first(category_col).alias(category_col),
                 fn.first(submission_text_col).alias(submission_text_col),
                 fn.first(submission_title_col).alias(submission_title_col),
                 fn.concat_ws(" ", fn.collect_list(comments_text_col)).alias(DEFAULT_DOC_COL_NAME)
@@ -91,7 +94,6 @@ class SparkRedditCorpus:
     def load(cls, spark, df_path, document_col=DEFAULT_DOC_COL_NAME):
         # TODO
         pass
-
 
 
 class SparkTextPreprocessingPipeline:
@@ -145,7 +147,54 @@ class SparkTextPreprocessingPipeline:
 
 
 class GensimLDAModel:
-    pass
+    """Wrapper around the gensim LdaMulticore model to train on SparkRedditCorpus object
+    See http://dirichlet.net/pdf/wallach09rethinking.pdf for notes on alpha and eta priors, where it was found an asymmetric prior on doc-topic dist and symmetric prior on topic-word dist performs best.
+    """
+    def __init__(self, id2word, num_topics=100, alpha='asymmetric', eta='symmetric', iterations=1000, **kwargs):
+        """Initializes an LDA model in gensim
+        :param id2word: dict, {int -> str}, indexes the words in the vocabulary
+        :param num_topics: int, number of topics to use for this model
+        :param alpha: str, opinionated choice about doc-topic prior passed to Gensim LDA model
+        :param eta: str, opinionated choice about topic-word prior passed to Gensim LDA model
+        :param iterations: int, maximum number of iterations when infering the model
+        :param kwargs: Any other LDA params that should be set, especially consider setting and workers
+        """
+        self.num_topics = num_topics
+        self.iterations = iterations
+        self.lda_model = LdaMulticore(num_topics=num_topics, id2word=id2word, alpha=alpha, eta=eta, **kwargs)
+
+    def train(self, corpus):
+        """
+        :param corpus: iterable of list of (int, float)
+        """
+        self.lda_model.update(corpus, iterations=self.iterations)
+
+    def get_topic_scores(self, corpus):
+        """Returns a dataframe of coherence scores and other scoring metrics for the model
+        """
+        # TODO
+        pass
+
+    def get_top_words(self):
+        """Returns the top words for each learned topic
+        """
+        # TODO
+        pass
+
+    def get_top_words_as_dataframe(self):
+        """Returns the top words for each learned topic as a pandas dataframe
+        """
+
+
+    def save(self, path):
+        # TODO
+        pass
+
+    @classmethod
+    def load(cls, load_path):
+        """TODO
+        """
+
 
 class SparkTFIDFModel:
     pass

@@ -7,9 +7,9 @@ from ihop.topic_modeling import SparkRedditCorpus, SparkTextPreprocessingPipelin
 @pytest.fixture
 def joined_reddit_dataframe(spark):
     test_data = [
-        {'id':'s1', 'selftext':'Post 1 text.', 'title':'MY FIRST POST!!!!', 'comments_id': 'c1', 'body': "Ain't this hard to tokenize: #hashtag, yo-yo www.reddit.com?", 'time_to_comment_in_seconds': 600},
-        {'id':'s1', 'selftext':'Post 1 text.', 'title':'MY FIRST POST!!!!', 'comments_id': 'c2', 'body': "@someone some.one@email.com", 'time_to_comment_in_seconds': 10},
-        {'id':'s2', 'selftext':'', 'title':'Look @ this cute animal!', 'comments_id': 'c3', 'body': "aww- - adorable...", 'time_to_comment_in_seconds': 100}
+        {'id':'s1', 'selftext':'Post 1 text.', 'title':'MY FIRST POST!!!!', 'comments_id': 'c1', 'body': "Ain't this hard to tokenize: #hashtag, yo-yo www.reddit.com?", 'time_to_comment_in_seconds': 600, 'subreddit':'AskReddit'},
+        {'id':'s1', 'selftext':'Post 1 text.', 'title':'MY FIRST POST!!!!', 'comments_id': 'c2', 'body': "@someone some.one@email.com", 'time_to_comment_in_seconds': 10, 'subreddit':'AskReddit'},
+        {'id':'s2', 'selftext':'', 'title':'Look @ this cute animal!', 'comments_id': 'c3', 'body': "aww- - adorable...", 'time_to_comment_in_seconds': 100, 'subreddit':'aww'}
     ]
 
     return spark.createDataFrame(test_data)
