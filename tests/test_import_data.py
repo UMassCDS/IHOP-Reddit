@@ -3,8 +3,6 @@
 import os
 import pytest
 
-import pyspark.sql.functions as fn
-
 from ihop.import_data import *
 
 FIXTURE_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'test_files')
@@ -53,7 +51,7 @@ def get_top_n_counts(comments):
 def test_filter_top_n(comments, spark):
     top_n_counts = spark.createDataFrame([{'subreddit':'dndnext','count':1}])
     filtered_df = filter_top_n(comments, top_n_counts)
-    as_list = sorted(filtered_df.collect(), key = lambda x: x.subreddit)
+    as_list = sorted(filtered_df.collect(), key = lambda x: x.author)
     assert len(as_list) == 2
     assert as_list[0].subreddit == 'dndnext'
     assert as_list[1].subreddit == 'dndnext'
@@ -116,7 +114,7 @@ def test_remove_deleted_comments(spark):
             {'author':'a2', 'body':'[deleted]'},
             {'author':'a3', 'body': "This wasn't deleted"}]
     df = spark.createDataFrame(data)
-    result = remove_rows_with_deleted_text(df, 'comments').collect()
+    result = remove_deleted_text(df, 'comments').collect()
     assert len(result) == 1
     assert result[0].author == 'a3'
 
@@ -126,7 +124,7 @@ def test_remove_deleted_submissions(spark):
             {'author':'a2', 'selftext':'[deleted]'},
             {'author':'a3', 'selftext': "This wasn't deleted"}]
     df = spark.createDataFrame(data)
-    result = remove_rows_with_deleted_text(df, 'submissions').collect()
+    result = remove_deleted_text(df, 'submissions').collect()
     assert len(result) == 1
     assert result[0].author == 'a3'
 
@@ -140,7 +138,7 @@ def test_prefix_id_column(submissions):
 
 def test_rename_columns(comments):
     renamed = rename_columns(comments)
-    assert renamed.columns == ['comments_id', 'parent_id', 'score', 'link_id', 'comments_author', 'comments_subreddit', 'body', 'comments_created_utc']
+    assert renamed.columns == ['comments_id', 'parent_id', 'comments_score', 'link_id', 'comments_author', 'comments_subreddit', 'body', 'comments_created_utc']
 
 
 def test_join_submissions_and_comments(spark):
@@ -168,3 +166,24 @@ def test_filter_time_stamp(spark, comments):
     assert joined_with_filter[0].id == '73hbg4'
     assert joined_with_filter[0].comments_id == '98765a'
     assert joined_with_filter[0].time_to_comment_in_seconds == 50
+
+
+def test_filter_out_top_users(spark):
+    test_df = spark.createDataFrame(
+        [{'author':'author1'},
+         {'author':'author1'},
+         {'author':'top'},
+         {'author':'top'},
+         {'author':'top'},
+         {'author':'author2'},
+         {'author':'author3'}])
+    filtered = filter_out_top_users(test_df, exclude_top_perc=0.25)
+    filtered.show()
+    assert filtered.columns == ['author']
+    results_list= sorted(filtered.collect(), key=lambda x: x.author)
+    assert len(results_list) == 4
+    results_list[0] == "author1"
+    results_list[1] == "author1"
+    results_list[2] == "author2"
+    results_list[3] == "author3"
+

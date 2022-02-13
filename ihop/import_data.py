@@ -74,7 +74,7 @@ def remove_deleted_authors(dataframe):
     return dataframe.where(dataframe.author != DELETED)
 
 
-def remove_rows_with_deleted_text(dataframe, reddit_type):
+def remove_deleted_text(dataframe, reddit_type):
     """Filters out comments or submissions that have had their text deleted or removed.
     Returns a Spark DataFrame
 
@@ -313,11 +313,11 @@ def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, 
     else:
         top_n_df = get_top_n_counts(submissions_df, top_n)
 
-    filtered_comments = remove_deleted_authors(remove_rows_with_deleted_text(filter_top_n(comments_df, top_n_df), COMMENTS))
+    filtered_comments = remove_deleted_authors(remove_deleted_text(filter_top_n(comments_df, top_n_df), COMMENTS))
     if exclude_top_perc > 0.0:
         filtered_comments = filter_out_top_users(filtered_comments, exclude_top_perc=exclude_top_perc)
 
-    filtered_submissions = remove_deleted_authors(remove_rows_with_deleted_text(filter_top_n(submissions_df, top_n_df), SUBMISSIONS))
+    filtered_submissions = remove_deleted_authors(remove_deleted_text(filter_top_n(submissions_df, top_n_df), SUBMISSIONS))
 
     if not quiet:
         print("Submissions stats after filtering")
