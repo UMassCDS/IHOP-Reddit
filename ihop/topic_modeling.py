@@ -11,23 +11,36 @@ from pyspark.ml import Pipeline
 from pyspark.ml.feature import CountVectorizer, RegexTokenizer
 import pytimeparse
 
+import ihop.import_data
+
 class SparkRedditCorpus:
     """Performs the necessary filtering, grouping and concatenation of columns to produce
     a DataFrame of documents used to train topic models.
     Allows for iterating over documents for training models with Gensim.
     """
+    DOC_COL_NAME="document_text"
 
-    def __init__(self, joined_dataset_path, spark, max_time_delta=None, submission_id_col="id", comments_id_col="comments_id", submission_text_col="selftext", comments_text_col="body"):
+    def __init__(self, joined_dataset_path, spark, submission_id_col="id",
+        submission_text_col="selftext", comments_text_col="body", time_delta_col='time_to_comment_in_seconds',
+        max_time_delta=None, min_time_delta=None):
         """
         :param joined_dataset_path: str, path to read csv format dataset with Spark
         :param spark: Spark Session
 
         """
-        self.raw_dataframe = spark.read(joined_dataset_path)
-        # TODO Group by submission, order comments by creation time, concatenate aggregated comment text
-        # TODO Add submission title and selftext to text aggregationgroupby
-        self.document_dataframe
-        self.max_time_delta=max_time_delta
+        raw_dataframe = spark.read(joined_dataset_path)
+
+        filtered_df = ihop.import_data.filter_by_time_between_submission_and_comment(raw_dataframe, max_time_delta, min_time_delta, time_delta_col)
+
+        grouped_submissions = filtered_df.groupBy(submission_id_col).agg(
+            fn.first(submission_text_col).alias(submission_text_col),
+            fn.concat_ws(" ", comments_text_col).alias(SparkRedditCorpus.DOC_COL_NAME)
+        )
+
+        self.document_dataframe = grouped_submissions.select(
+            grouped_submissions[submission_id_col],
+            fn.concat_ws(" ", grouped_submissions[submission_text_col], SparkRedditCorpus.DOC_COL_NAME).alias(SparkRedditCorpus.DOC_COL_NAME)
+        )
 
     def iterate_over_documents(self, column_name):
         """Yields the values in a particular column for documents
@@ -48,15 +61,20 @@ class SparkRedditCorpus:
 class SparkTextPreprocessingPipeline:
     """A text pre-processing pipeline that prepares text data for topic modeling
     """
-    def __init__(self, input_col, output_col, tokens_col="tokenized", **kwargs):
+
+    def __init__(self, input_col, output_col, tokens_col="tokenized", tokenization_pattern="([\p{L}\p{N}#][\p{L}\p{N}\p{Pd}\p{Pc}\p{Pd}.:@]*[\p{L}\p{N}])|[\p{L}\p{N}]", match_gaps=False, **kwargs):
         """Initializes a text preprocessing pipeline with Spark
 
         :param input_col: str, the name of the column to be input to the pipeline
         :param output_col: str, the name of the column to be output by the pipeline
         :param tokens_col: str, the name for the intermediate column
+        :param tokenization_pattern: regex pattern passed to tokenizer
+        :param match_gaps: boolean, True if your regex matches gaps between words, False to match tokens
         :param **kwargs: Any arguments to be passed to Spark transformers in the pipeline
         """
-        self.tokenizer = RegexTokenizer(inputCol = input_col, outputCol=tokens_col, **kwargs)
+        self.tokenizer = RegexTokenizer(inputCol=input_col, outputCol=tokens_col, **kwargs).\
+                            setPattern(tokenization_pattern).\
+                            setGaps(match_gaps)
         self.count_vectorizer = CountVectorizer(inputCol=tokens_col, outputCol=output_col, **kwargs)
         self.pipeline = Pipeline(stages = [self.tokenizer, self.count_vectorizer])
 
@@ -74,10 +92,6 @@ class SparkTextPreprocessingPipeline:
         """Returns dictionary mapping indices to word types
         """
         return {i: word for i, word in enumerate(self.count_vectorizer.vocabulary)}
-
-
-
-
 
 
 parser = argparse.ArgumentParser(description="Train Gensim topic models from Reddit submission and comment data")
