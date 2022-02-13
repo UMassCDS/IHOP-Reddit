@@ -50,3 +50,23 @@ def test_spark_text_processing_pipeline(corpus):
     assert set(index.values()) == vocabulary
     assert set(index.keys()) == set(range(len(vocabulary)))
 
+
+def test_index_words(spark):
+    simple_input = [{"id":"a1", "document_text":"a a a"},
+                    {"id":"b2", "document_text":"b b b"},
+                    {"id":"c3", "document_text":"a b"}
+                    ]
+    df = spark.createDataFrame(simple_input)
+    pipeline = SparkTextPreprocessingPipeline("document_text", "vectorized")
+    corpus = SparkRedditCorpus(pipeline.fit_transform(df))
+
+    vector_docs = list(corpus.iterate_over_doc_vectors("vectorized"))
+    inv_index = pipeline.get_word_to_id()
+    a_id = inv_index['a']
+    b_id = inv_index['b']
+    assert list(vector_docs[0]) == [(a_id, 3)]
+    assert list(vector_docs[1]) == [(b_id, 3)]
+    assert set(vector_docs[2]) == set([(a_id, 1), (b_id, 1)])
+
+
+

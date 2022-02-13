@@ -1,6 +1,7 @@
 """Supports training topic models based on the text of Reddit submissions and comments,
 such as LDA and clusters of documents based on tf-idf
 
+.. TODO: set submission timeframe start and end dates
 .. TODO: serialize pipeline
 .. TODO: Implement training of topic models on text: tf-idf-> KMeans, LDA, Hierarchical Dirichlet Processes
 .. TODO: Base topic model interface/abstract class defining necessary behaviours
@@ -44,7 +45,7 @@ class SparkRedditCorpus:
         for v in self.iterate_over_documents(column_name):
             yield zip(v.indices, v.values)
 
-    def save(self, output_path):
+    def save(self, output_path, spark):
         # TODO
         pass
 
@@ -114,24 +115,24 @@ class SparkTextPreprocessingPipeline:
         self.pipeline = Pipeline(stages = [self.tokenizer, self.count_vectorizer])
 
         self.model = None
+        self.vocabulary = None
 
     def fit_transform(self, docs_dataframe):
         """Fit the pipeline, then return results of the running transform on the docs_dataframe
         :param docs_dataframe: Spark DataFrame
         """
         self.model = self.pipeline.fit(docs_dataframe)
+        vectorizers = [s for s in self.model.stages if isinstance(s, CountVectorizerModel)]
+        self.vocabulary = {i: word for i, word in enumerate(vectorizers[0].vocabulary)}
         return self.model.transform(docs_dataframe)
 
     def get_id_to_word(self):
         """Returns dictionary mapping indices to word types
         """
-        results = {}
-        if self.model is not None:
-            vectorizers = [s for s in self.model.stages if isinstance(s, CountVectorizerModel)]
-            if len(vectorizers) > 0:
-                results = {i: word for i, word in enumerate(vectorizers[0].vocabulary)}
+        return self.vocabulary
 
-        return results
+    def get_word_to_id(self):
+        return {v:k for k,v in self.vocabulary.items()}
 
     def save(self, save_path):
         # TODO
@@ -141,6 +142,13 @@ class SparkTextPreprocessingPipeline:
     def load(cls, load_path):
         # TODO
         pass
+
+
+class GensimLDAModel:
+    pass
+
+class SparkTFIDFModel:
+    pass
 
 
 
