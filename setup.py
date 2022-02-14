@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='ihop',
-    version='0.0.0',
+    version='0.1.0',
     packages=find_packages(include=['ihop', 'ihop.*']),
     install_requires=[
         'gensim==4.1.2',

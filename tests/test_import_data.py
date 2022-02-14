@@ -37,7 +37,7 @@ def test_get_spark_dataframe_comments(comments):
 
 
 def test_get_spark_dataframe_submissions(submissions):
-    assert len(submissions.columns) == 14
+    assert len(submissions.columns) == 8
     assert submissions.count() == 3
 
 
