@@ -24,9 +24,9 @@ AUTHOR_DELETED = "[deleted]"
 # See https://github.com/pushshift/api for details
 # TODO: subreddit ids aren't tracked, unclear if this is necessary
 SCHEMAS = {
-        COMMENTS: "id STRING, parent_id STRING, score INTEGER, link_id STRING, author STRING, subreddit STRING, body STRING, created_utc INTEGER",
-        SUBMISSIONS: "author STRING, created_utc STRING, distinguished STRING, domain STRING, edited INTEGER, gilded STRING, id STRING, is_self BOOLEAN, over_18 BOOLEAN, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING"
-        }
+    COMMENTS: "id STRING, parent_id STRING, score INTEGER, link_id STRING, author STRING, subreddit STRING, body STRING, created_utc INTEGER",
+    SUBMISSIONS: "author STRING, created_utc STRING, id STRING, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING"
+}
 
 
 def get_top_n_counts(dataframe, col='subreddit', n=DEFAULT_TOP_N):
