@@ -181,10 +181,9 @@ def filter_out_top_users(dataframe, author_col="author", exclude_top_perc=DEFAUL
     count_col = "count"
     agg_df = dataframe.groupBy(author_col) \
         .agg(
-            fn.count(count_col).alias(count_col)
+            fn.count('*').alias(count_col)
         )
     keep_users_df = exclude_top_percentage_of_users(agg_df, count_col, exclude_top_perc)
-    keep_users_df.drop(count_col)
     return dataframe.join(keep_users_df, dataframe[author_col] == keep_users_df[author_col], 'leftsemi')
 
 
@@ -223,14 +222,21 @@ def rename_columns(dataframe, columns=None, prefix=COMMENTS):
 
     return result
 
-def filter_by_time_between_submission_and_comment(dataframe, max_time_delta,
+
+def filter_by_time_between_submission_and_comment(dataframe, max_time_delta=None, min_time_delta=None,
     time_delta_col='time_to_comment_in_seconds'):
     """
     :param dataframe: Spark DataFrame to filter
-    :param max_time_delta: int or None, maximum time in seconds allowed between submission creation and creation of its comments
+    :param max_time_delta: int or None, maximum time in seconds (exclusive) allowed between submission creation and creation of its comments
+    :param min_time_delta: int or None, minimum time in seconds (exclusive) allowed between submission creation and creation of its comments
     :param time_delta_col: str, the output column where number of seconds between submission and comment is stored
     """
-    return dataframe.where(dataframe[time_delta_col] <= max_time_delta)
+    result_df = dataframe
+    if max_time_delta:
+        result_df = result_df.where(result_df[time_delta_col] < max_time_delta)
+    if min_time_delta:
+        result_df = result_df.where(result_df[time_delta_col] > min_time_delta)
+    return result_df
 
 
 def join_submissions_and_comments(submissions_df, comments_df, submission_id_col='fullname_id',
