@@ -9,9 +9,12 @@
 .. TODO: Lift document level clusters to subreddit level (will we need spark again or will pandas be sufficient?)
 """
 import argparse
+import json
 import logging
+import os
 
 import gensim.models as gm
+import joblib
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
@@ -39,9 +42,8 @@ class ClusteringModelFactory:
     }
 
     @classmethod
-    def train_clustering_model(cls, choice, data, index, model_name=None, **kwargs):
-        """
-
+    def init_clustering_model(cls, choice, data, index, model_name=None, **kwargs):
+        """Returns a ClusteringModel instance instantiated with the appropirate parameters and ready to train on the given data.
         """
         if model_name is None:
             model_id = choice
@@ -71,13 +73,17 @@ class ClusteringModelFactory:
         elif choice == cls.LDA:
             return GensimLDAModel(data, model_id, index, **parameters)
         else:
-            raise ValueError("Model type")
+            raise ValueError(f"Model type '{choice}' is not supported")
 
 
 class ClusteringModel:
     """Wrapper around sklearn clustering models
     # TODO generify - allow to pass in tf-idf documents as well as
     """
+    MODEL_NAME_KEY = "model_name"
+    PARAMETERS_JSON = "parameters.json"
+    INDEX_JSON = "index.json"
+    MODEL_FILE = "sklearn_cluster_model.joblib"
 
     def __init__(self, data, clustering_model, model_name, index_to_key):
         """
@@ -86,12 +92,24 @@ class ClusteringModel:
         :param model_name:
         :param index_to_key: dict, int -> str, how to name each data point, important for exporting data for users and visualizations
         """
-        # TODO
         self.data = data
         self.index_to_key = index_to_key
         self.clustering_model = clustering_model
         self.model_name = model_name
-        self.clusters = self.clustering_model.fit_predict(data)
+        self.clusters = None
+
+    def train(self):
+        """Fits the model to data and predicts the cluster labels for each data point.
+        Returns the predicted clusters
+        """
+        self.clusters = self.clustering_model.fit_predict(self.data)
+        return self.clusters
+
+    def predict(self, new_data):
+        """Returns cluster assignments for the given data
+        :param new_data: numpy array
+        """
+        return self.clustering_model.predict(new_data)
 
     def get_cluster_results_as_df(self, datapoint_col_name="subreddit", join_df=None):
         """Returns the cluster results as a Pandas DataFrame that can be used to easily display or plot metrics.
@@ -115,15 +133,67 @@ class ClusteringModel:
         labels = self.clustering_model.labels_
         if len(set(labels)) > 1:
             silhouette = metrics.silhouette_score(
-                self.embeddings, labels, metric="cosine")
+                self.data, labels, metric="cosine")
             ch_index = metrics.calinski_harabasz_scores(
-                self.embeddings, labels)
+                self.data, labels)
             db_index = metrics.davies_bouldin_score(self.embeddings, labels)
             return {'Silhouette': silhouette,
                     'Calinski Harabasz': ch_index,
-                    'Davies Bouldin': db_index}
+                    'Davies-Bouldin': db_index}
         else:
             return {}
+
+    def get_parameters(self):
+        """Returns the model name and salient parameters as a dictionary
+        """
+        param_dict = {}
+        param_dict.update(self.clustering_model.get_params())
+        param_dict[self.MODEL_NAME_KEY] = self.model_name
+        return param_dict
+
+    def save(self, output_dir):
+        """Persists model and json parameters in the given directory
+        :param output_dir: str, path to desired directory
+        """
+        os.makedirs(output_dir, exist_ok=True)
+        self.save_model(os.path.join(output_dir, self.MODEL_FILE))
+        self.save_parameters(os.path.join(output_dir, self.PARAMETERS_JSON))
+        self.save_index(os.path.join(output_dir, self.INDEX_JSON))
+
+    def save_model(self, model_path):
+        """Writes the model to the given path
+        :param model_path, str, file type, path to write Sklearn model to
+        """
+        joblib.dump(self.model, model_path)
+
+    def save_parameters(self, parameters_path):
+        """Saves the parameters of this model as json
+        :param path: str, file type, path to write json to
+        """
+        with open(parameters_path, 'w') as f:
+            json.dump(self.get_parameters(), f)
+
+    def save_index(self, index_path):
+        """Saves the index to file as json dictionary
+        """
+        with open(index_path, 'w') as f:
+            json.dump(self.index_to_key, f)
+
+    def load_model(self, model_path):
+        self.model = joblib.load(model_path)
+
+    def load_index(self, index_path):
+        with open(index_path, 'r') as f:
+            self.index_to_key = json.load(f)
+
+    @classmethod
+    def load(cls, directory):
+        """Loads a ClusterModel object from a given directory, assuming the filenames are the defaults
+        """
+        clustermodel = cls(None, None, None, None)
+        clustermodel.load_model(os.path.join(directory, cls.MODEL_FILE))
+        clustermodel.load_index(os.path.join(directory, cls.INDEX_JSON))
+        return clustermodel
 
 
 class DocumentClusteringModel(ClusteringModel):
@@ -137,7 +207,7 @@ class TfIdfDocumentClusters(DocumentClusteringModel):
 
 
 class GensimLDAModel(DocumentClusteringModel):
-    """Wrapper around the gensim LdaMulticore model to train on SparkRedditCorpus object
+    """Wrapper around the gensim LdaMulticore model to train on an iterable corpus or SparkRedditCorpus object
     See http://dirichlet.net/pdf/wallach09rethinking.pdf for notes on alpha and eta priors, where it was found an asymmetric prior on doc-topic dist and symmetric prior on topic-word dist performs best.
     """
 
@@ -152,11 +222,16 @@ class GensimLDAModel(DocumentClusteringModel):
         :param iterations: int, maximum number of iterations when infering the model
         :param kwargs: Any other LDA params that should be set, especially consider setting and workers
         """
+        self.corpus = corpus
+        self.index = id2word
         self.lda_model = gm.ldamulticore.LdaMulticore(
             num_topics=num_topics, id2word=id2word,
             alpha=alpha, eta=eta, iterations=iterations,
             **kwargs)
-        self.lda_model.update(corpus)
+        self.model_name = model_name
+
+    def train(self):
+        self.lda_model.update(self.corpus)
 
     def get_topic_scores(self, corpus, **kwargs):
         """Returns a dataframe of coherence scores and other scoring metrics for the model. Rows are documents, columns are topics with coherece
@@ -173,7 +248,7 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         return pd.DataFrame.from_records(self.get_top_words(), columns=["topic_id", "top_terms"])
 
-    def get_cluster_results_as_df(self, vocab_col_name="subreddit", join_df=None):
+    def get_cluster_results_as_df(self, vocab_col_name="documents", join_df=None):
         """
         """
         # TODO
@@ -184,11 +259,15 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         pass
 
-    def save(self, savepath):
+    def get_parameters(self):
+        # TODO
+        pass
+
+    def save_model(self, path):
         """Save the LDA model to the path
-        :param savepath: str or open file-like object, Path to save model to file
+        :param path: str or open file-like object, Path to save model to file
         """
-        self.lda_model(savepath)
+        self.lda_model.save(path)
 
     @ classmethod
     def load(cls, load_path):
@@ -196,4 +275,5 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         loaded_model = cls({})
         loaded_model.lda_model = gm.ldamulticore.LdaMulticore.load(load_path)
+        loaded_model.index = loaded_model.lda_model.id2word
         return loaded_model

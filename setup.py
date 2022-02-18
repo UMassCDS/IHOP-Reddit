@@ -6,6 +6,7 @@ setup(
     packages=find_packages(include=['ihop', 'ihop.*']),
     install_requires=[
         'gensim==4.1.2',
+        'joblib==1.1.0',
         'numpy==1.21.2',
         'pandas==1.3.4',
         'pyspark==3.2.0',
