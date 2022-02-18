@@ -11,7 +11,7 @@
 import argparse
 import logging
 
-from gensim.models.ldamulticore import LdaMulticore
+import gensim.models as gm
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
@@ -24,22 +24,54 @@ logger = logging.getLogger(__name__)
 class ClusteringModelFactory:
     """Return appropriate class given input params
     """
-    KMEANS = "kmeans"
-    AFFINITY_PROP = "affinity propagation"
-    AGGLOMERATIVE = "agglomerative clustering"
-    LDA = "lda"
-    VALID_CLUSTERING_ALGORITHMS = [KMEANS, AFFINITY_PROP, AGGLOMERATIVE, LDA]
+    AFFINITY_PROP = "Affinity Propagation"
+    AGGLOMERATIVE = "Agglomerative Clustering"
+    KMEANS = "Kmeans"
+    LDA = "LDA"
+
+    # Default parameters used when instantiating the model
+    DEFAULT_MODEL_PARAMS = {
+        AFFINITY_PROP: {'affinity': 'precomputed', 'max_iter': 1000, 'convergence_iter': 50, 'random_state': 100},
+        AGGLOMERATIVE: {'n_clusters': 250, 'linkage': 'average', 'affinity': 'cosine', 'compute_distances': True},
+        KMEANS: {'n_clusters': 250, 'random_state': 100},
+        LDA: {'num_topics': 250, 'alpha': 'asymmetric',
+              'eta': 'symmetric', 'iterations': 1000}
+    }
 
     @classmethod
-    def train_clustering_model(cls, choice, data, index, model_name, **kwargs):
+    def train_clustering_model(cls, choice, data, index, model_name=None, **kwargs):
+        """
+
+        """
+        if model_name is None:
+            model_id = choice
+        else:
+            model_id = model_name
+
+        if choice not in cls.DEFAULT_MODEL_PARAMS:
+            raise ValueError(f"Model choice {choice} is not supported")
+
+        parameters = {}
+        parameters.update(cls.DEFAULT_MODEL_PARAMS[choice])
+        parameters.update(kwargs)
+
         if choice == cls.KMEANS:
-            return ClusteringModel(data, KMeans())
+            return ClusteringModel(data, KMeans(**parameters), model_id, index)
         elif choice == cls.AFFINITY_PROP:
-            return ClusteringModel(data, AffinityPropagation())
+            if isinstance(data, gm.keyedvectors.KeyedVectors) and parameters['affinity'] == "precomputed":
+                precomputed_distances = np.zeros((len(index), len(index)))
+                for i, v in index.items():
+                    precomputed_distances[i] = np.array(data.distances(v))
+
+                return ClusteringModel(precomputed_distances, AffinityPropagation(**parameters), choice, index)
+            else:
+                return ClusteringModel(data, AffinityPropagation(**parameters), model_id, index)
         elif choice == cls.AGGLOMERATIVE:
-            return ClusteringModel(data, AgglomerativeClustering())
+            return ClusteringModel(data, AgglomerativeClustering(**parameters), model_id, index)
         elif choice == cls.LDA:
-            return GensimLDAModel(data)
+            return GensimLDAModel(data, model_id, index, **parameters)
+        else:
+            raise ValueError("Model type")
 
 
 class ClusteringModel:
@@ -50,6 +82,8 @@ class ClusteringModel:
     def __init__(self, data, clustering_model, model_name, index_to_key):
         """
         :param data: array-like of data points, e.g. numpy array or gensim.KeyedVectors
+        :param clustering_model: sklearn.base.ClusterMixin object
+        :param model_name:
         :param index_to_key: dict, int -> str, how to name each data point, important for exporting data for users and visualizations
         """
         # TODO
@@ -59,19 +93,19 @@ class ClusteringModel:
         self.model_name = model_name
         self.clusters = self.clustering_model.fit_predict(data)
 
-    def get_cluster_results_as_df(self, vocab_col_name="subreddit", join_df=None):
+    def get_cluster_results_as_df(self, datapoint_col_name="subreddit", join_df=None):
         """Returns the cluster results as a Pandas DataFrame that can be used to easily display or plot metrics.
 
-        :param vocab_col_name: How to identify the data points column
+        :param datapoint_col_name: How to identify the data points column
         :param join_df: Pandas DataFrame, optionally inner join this dataframe in the returned results
         """
-        cluster_df = pd.DataFrame({vocab_col_name: self.index_to_key,
-                                  self.model_name: self.clusters})
+        cluster_df = pd.DataFrame({datapoint_col_name: self.index_to_key,
+                                   self.model_name: self.clusters})
         cluster_df[self.model_name] = cluster_df[self.model_name].astype(
             'category')
         if join_df is not None:
             cluster_df = pd.merge(cluster_df, join_df,
-                                  how='inner', on=vocab_col_name, sort=False)
+                                  how='inner', on=datapoint_col_name, sort=False)
         return cluster_df
 
     def get_metrics(self):
@@ -107,8 +141,9 @@ class GensimLDAModel(DocumentClusteringModel):
     See http://dirichlet.net/pdf/wallach09rethinking.pdf for notes on alpha and eta priors, where it was found an asymmetric prior on doc-topic dist and symmetric prior on topic-word dist performs best.
     """
 
-    def __init__(self, id2word, model_name, num_topics=100, alpha='asymmetric', eta='symmetric', iterations=1000, **kwargs):
+    def __init__(self, corpus, model_name, id2word, num_topics=250, alpha='asymmetric', eta='symmetric', iterations=1000, **kwargs):
         """Initializes an LDA model in gensim
+        :param corpus: iterable of list of (int, float)
         :param id2word: dict, {int -> str}, indexes the words in the vocabulary
         :param model_name: str, how to identify the model
         :param num_topics: int, number of topics to use for this model
@@ -117,15 +152,10 @@ class GensimLDAModel(DocumentClusteringModel):
         :param iterations: int, maximum number of iterations when infering the model
         :param kwargs: Any other LDA params that should be set, especially consider setting and workers
         """
-        self.lda_model = LdaMulticore(
+        self.lda_model = gm.ldamulticore.LdaMulticore(
             num_topics=num_topics, id2word=id2word,
             alpha=alpha, eta=eta, iterations=iterations,
             **kwargs)
-
-    def train(self, corpus):
-        """
-        :param corpus: iterable of list of (int, float)
-        """
         self.lda_model.update(corpus)
 
     def get_topic_scores(self, corpus, **kwargs):
@@ -143,6 +173,12 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         return pd.DataFrame.from_records(self.get_top_words(), columns=["topic_id", "top_terms"])
 
+    def get_cluster_results_as_df(self, vocab_col_name="subreddit", join_df=None):
+        """
+        """
+        # TODO
+        pass
+
     def get_metrics(self):
         """TODO: Override superclass with coherence & exclusivity scores
         """
@@ -159,5 +195,5 @@ class GensimLDAModel(DocumentClusteringModel):
         """TODO
         """
         loaded_model = cls({})
-        loaded_model.lda_model = LdaMulticore.load(load_path)
+        loaded_model.lda_model = gm.ldamulticore.LdaMulticore.load(load_path)
         return loaded_model
