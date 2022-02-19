@@ -141,7 +141,7 @@ class SparkTextPreprocessingPipeline:
     PIPELINE_OUTPUT_NAME = "SparkTextProcessingPipeline"
     MODEL_OUTPUT_NAME = "SparkTextProcessingModel"
 
-    def __init__(self, input_col, output_col=VECTORIZED_COL_NAME, tokens_col="tokenized", tokenization_pattern="([\p{L}\p{N}#@][\p{L}\p{N}\p{Pd}\p{Pc}\p{S}\p{P}]*[\p{L}\p{N}])|[\p{L}\p{N}]", match_gaps=False, **kwargs):
+    def __init__(self, input_col=DEFAULT_DOC_COL_NAME, output_col=VECTORIZED_COL_NAME, tokens_col="tokenized", tokenization_pattern="([\p{L}\p{N}#@][\p{L}\p{N}\p{Pd}\p{Pc}\p{S}\p{P}]*[\p{L}\p{N}])|[\p{L}\p{N}]", match_gaps=False, **kwargs):
         """Initializes a text preprocessing pipeline with Spark
 
         :param input_col: str, the name of the column to be input to the pipeline

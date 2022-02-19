@@ -22,6 +22,9 @@ from sklearn import metrics
 
 
 logger = logging.getLogger(__name__)
+# TODO Logging should be configurable, but for now just turn it on for Gensim
+logging.basicConfig(
+    format='%(name)s : %(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
 
 
 class ClusteringModelFactory:
