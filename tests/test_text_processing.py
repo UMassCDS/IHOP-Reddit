@@ -2,7 +2,7 @@
 """
 import pytest
 
-from ihop.text_processing import SparkRedditCorpus, SparkTextPreprocessingPipeline
+from ihop.text_processing import SparkCorpus, SparkTextPreprocessingPipeline
 
 
 @pytest.fixture
@@ -29,11 +29,11 @@ def simple_vocab_df(spark):
 
 @pytest.fixture
 def corpus(joined_reddit_dataframe):
-    return SparkRedditCorpus.init_from_joined_dataframe(joined_reddit_dataframe)
+    return SparkCorpus.init_from_joined_dataframe(joined_reddit_dataframe)
 
 
 def test_init_spark_reddit_corpus(joined_reddit_dataframe):
-    corpus = SparkRedditCorpus.init_from_joined_dataframe(
+    corpus = SparkCorpus.init_from_joined_dataframe(
         joined_reddit_dataframe)
     assert corpus.document_dataframe.count() == 2
     assert corpus.document_dataframe.columns == ['id', 'document_text']
@@ -43,7 +43,7 @@ def test_init_spark_reddit_corpus(joined_reddit_dataframe):
 
 
 def test_init_spark_reddit_corpus_with_timedeltas(joined_reddit_dataframe):
-    corpus = SparkRedditCorpus.init_from_joined_dataframe(
+    corpus = SparkCorpus.init_from_joined_dataframe(
         joined_reddit_dataframe, min_time_delta=20, max_time_delta=500)
     assert corpus.document_dataframe.count() == 1
     doc_set = set([d for d in corpus.iterate_over_documents('document_text')])
@@ -69,7 +69,7 @@ def test_spark_text_processing_pipeline(corpus):
 
 def test_index_words(simple_vocab_df):
     pipeline = SparkTextPreprocessingPipeline("document_text", "vectorized")
-    corpus = SparkRedditCorpus(pipeline.fit_transform(simple_vocab_df))
+    corpus = SparkCorpus(pipeline.fit_transform(simple_vocab_df))
 
     vector_docs = list(corpus.iterate_over_doc_vectors("vectorized"))
     inv_index = pipeline.get_word_to_id()

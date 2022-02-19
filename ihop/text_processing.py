@@ -22,7 +22,7 @@ DEFAULT_DOC_COL_NAME = "document_text"
 VECTORIZED_COL_NAME = "vectorized"
 
 
-class SparkRedditCorpus:
+class SparkCorpus:
     """Performs the necessary filtering, grouping and concatenation of columns to produce
     a DataFrame of documents used to train topic models.
     Allows for iterating over documents for training models with Gensim.
@@ -32,20 +32,18 @@ class SparkRedditCorpus:
         self.document_dataframe = dataframe
         self.document_col_name = document_col_name
 
-    def iterate_over_documents(self, column_name):
-        """Yields the values in a particular column for documents
-        :param column_name: str, the column to return for each element
+    def get_column_iterator(self, column_name):
+        """Returns an iterator over data in a particular column of the corpus that contains text or numerical data
+        :param column_name: str, name of column
         """
-        data_iter = self.document_dataframe.rdd.toLocalIterator()
-        for row in data_iter:
-            yield row[column_name]
+        return SparkCorpusIterator(self.document_dataframe, column_name)
 
-    def iterate_over_doc_vectors(self, column_name=VECTORIZED_COL_NAME):
-        """Iterate over the a column containing sparse vector outputs, yielding
-        the contents of a vector as list of tuples
+    def get_vectorized_column_iterator(self, column_name=VECTORIZED_COL_NAME):
+        """Returns an iterator over data in a particular column of the corpus
+        that contains vector data as zipped tuples
+        :param column_name: str, name of column
         """
-        for v in self.iterate_over_documents(column_name):
-            yield zip(v.indices, v.values)
+        return SparkCorpusIterator(self.document_dataframe, column_name, is_vectorized=True)
 
     def save(self, output_path):
         """Save the corpus to a parquet file
@@ -106,6 +104,35 @@ class SparkRedditCorpus:
         :param kwargs: any other options to pass to Spark when reading data
         """
         cls(spark.read.load(df_path, format=format, **kwargs), document_col)
+
+
+class SparkCorpusIterator:
+    """An iterator object over a particular column of a SparkCorpus.
+    This is required for Gensim models such as LDA, which need iterator objects,
+    not generator functions.
+    """
+
+    def __init__(self, corpus_df, column_name, is_vectorized=False):
+        """
+        :param corpus: A SparkDataframe
+        :param column_name: The name of the column to retrieve from the corpus
+        :param is_vectorized: Set to true if the column stores vectorized documents as opposed to text or numerical data
+        """
+        self.corpus_df = corpus_df
+        self.column_name = column_name
+        self.is_vectorized = is_vectorized
+        self.spark_rdd_iter = corpus_df.rdd.toLocalIterator()
+
+    def __len__(self):
+        return self.corpus_df.count()
+
+    def __iter__(self):
+        for row in self.spark_rdd_iter:
+            data = row[self.column_name]
+            if self.is_vectorized:
+                yield zip(data.indices, data.values)
+            else:
+                yield data
 
 
 class SparkTextPreprocessingPipeline:

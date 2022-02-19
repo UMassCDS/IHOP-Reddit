@@ -238,10 +238,13 @@ class GensimLDAModel(DocumentClusteringModel):
         self.model_name = model_name
 
     def train(self):
+        """Trains LDA topic model on the corpus
+        """
         self.lda_model.update(self.corpus)
 
     def get_topic_scores(self, corpus, **kwargs):
-        """Returns a dataframe of coherence scores and other scoring metrics for the model. Rows are documents, columns are topics with coherece
+        """Returns a dataframe of coherence scores and other scoring metrics for the model. Rows are documents, columns are topics with coherence
+        :param corpus: iterable of list of (int, float)
         """
         return self.top_topics(corpus=corpus, **kwargs)
 

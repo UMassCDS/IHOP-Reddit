@@ -1,12 +1,15 @@
 """Unit tests for ihop.clustering
 """
+import collections
+
 import numpy as np
 from sklearn.cluster import KMeans
-
 import pytest
 
 import ihop.clustering as ic
 import ihop.text_processing as tp
+
+Corpus = collections.namedtuple("Corpus", "corpus index")
 
 
 @pytest.fixture
@@ -27,8 +30,8 @@ def text_features(spark):
     ]
     dataframe = spark.createDataFrame(test_data)
     pipeline = tp.SparkTextPreprocessingPipeline('text')
-    vectorized_df = tp.SparkRedditCorpus(pipeline.fit_transform(dataframe))
-    return vectorized_df
+    vectorized_df = tp.SparkCorpus(pipeline.fit_transform(dataframe))
+    return Corpus(vectorized_df, pipeline.get_id_to_word())
 
 
 def test_clustering_model(vector_data):
@@ -67,4 +70,11 @@ def test_cluster_model_serialization(vector_data, tmp_path):
 
 
 def test_lda(text_features):
-    pass
+    index = text_features.index
+    corpus_iter = tp.SparkCorpusIterator(
+        text_features.corpus.document_dataframe, "vectorized", True)
+    lda = ic.GensimLDAModel(corpus_iter, "test_lda", index,
+                            num_topics=2, iterations=5)
+    lda.train()
+    assert lda.get_topic_scores(
+        text_features.corpus.iterate_over_doc_vectors()).shape == (3, 2)
