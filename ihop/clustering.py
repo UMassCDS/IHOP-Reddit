@@ -78,7 +78,7 @@ class ClusteringModelFactory:
 
 class ClusteringModel:
     """Wrapper around sklearn clustering models
-    # TODO generify - allow to pass in tf-idf documents as well as
+
     """
     MODEL_NAME_KEY = "model_name"
     PARAMETERS_JSON = "parameters.json"
@@ -100,14 +100,14 @@ class ClusteringModel:
 
     def train(self):
         """Fits the model to data and predicts the cluster labels for each data point.
-        Returns the predicted clusters
+        Returns the predicted clusters for each data point.
         """
         self.clusters = self.clustering_model.fit_predict(self.data)
         return self.clusters
 
     def predict(self, new_data):
-        """Returns cluster assignments for the given data
-        :param new_data: numpy array
+        """Returns cluster assignments for the given data as
+        :param new_data: numpy array, data to predict clusters for
         """
         return self.clustering_model.predict(new_data)
 
@@ -134,11 +134,11 @@ class ClusteringModel:
         if len(set(labels)) > 1:
             silhouette = metrics.silhouette_score(
                 self.data, labels, metric="cosine")
-            ch_index = metrics.calinski_harabasz_scores(
+            ch_index = metrics.calinski_harabasz_score(
                 self.data, labels)
-            db_index = metrics.davies_bouldin_score(self.embeddings, labels)
+            db_index = metrics.davies_bouldin_score(self.data, labels)
             return {'Silhouette': silhouette,
-                    'Calinski Harabasz': ch_index,
+                    'Calinski-Harabasz': ch_index,
                     'Davies-Bouldin': db_index}
         else:
             return {}
@@ -164,7 +164,7 @@ class ClusteringModel:
         """Writes the model to the given path
         :param model_path, str, file type, path to write Sklearn model to
         """
-        joblib.dump(self.model, model_path)
+        joblib.dump(self.clustering_model, model_path)
 
     def save_parameters(self, parameters_path):
         """Saves the parameters of this model as json
@@ -180,11 +180,14 @@ class ClusteringModel:
             json.dump(self.index_to_key, f)
 
     def load_model(self, model_path):
-        self.model = joblib.load(model_path)
+        self.clustering_model = joblib.load(model_path)
 
     def load_index(self, index_path):
         with open(index_path, 'r') as f:
-            self.index_to_key = json.load(f)
+            index = json.load(f)
+            self.index_to_key = {}
+            for k, v in index.items():
+                self.index_to_key[int(k)] = v
 
     @classmethod
     def load(cls, directory):
@@ -193,6 +196,10 @@ class ClusteringModel:
         clustermodel = cls(None, None, None, None)
         clustermodel.load_model(os.path.join(directory, cls.MODEL_FILE))
         clustermodel.load_index(os.path.join(directory, cls.INDEX_JSON))
+
+        with open(os.path.join(directory, cls.PARAMETERS_JSON)) as js:
+            params = json.load(js)
+            clustermodel.model_name = params['model_name']
         return clustermodel
 
 
