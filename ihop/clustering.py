@@ -245,21 +245,27 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         self.lda_model.update(self.corpus)
 
-    def get_topic_scores(self, corpus, **kwargs):
-        """Returns a dataframe of coherence scores and other scoring metrics for the model. Rows are documents, columns are topics with coherence
-        :param corpus: iterable of list of (int, float)
-        """
-        return self.top_topics(corpus=corpus, **kwargs)
+    # TODO: What we actually want is average coherence, like Mallet gives
+    # def get_topic_scores(self, corpus, **kwargs):
+    #    """Returns a dataframe of coherence scores and other scoring metrics for the model. Rows are documents, columns are topics with coherence
+    #    :param corpus: iterable of list of (int, float)
+    #    """
+    #    return self.lda_model.top_topics(corpus=corpus, **kwargs)
 
     def get_top_words(self, num_words=20):
-        """Returns the top words for each learned topic
+        """Returns the top words for each learned topic as list of [(topic_id, [(word, probability)...]),...]
+        :param num_words: int, How many of the top words to return for each topic
         """
-        return self.lda_model.show_topics(num_topics=self.lda_model.num_topics, num_words=num_words)
+        return self.lda_model.show_topics(num_topics=self.lda_model.num_topics, num_words=num_words, formatted=False)
 
-    def get_top_words_as_dataframe(self):
+    def get_top_words_as_dataframe(self, num_words=20):
         """Returns the top words for each learned topic as a pandas dataframe
         """
-        return pd.DataFrame.from_records(self.get_top_words(), columns=["topic_id", "top_terms"])
+        topic_ids, word_probs = zip(*self.get_top_words())
+        word_strings = [" ".join([w[0] for w in topic_words])
+                        for topic_words in word_probs]
+
+        return pd.DataFrame({'topic_id': topic_ids, 'top_terms': word_strings})
 
     def get_cluster_results_as_df(self, vocab_col_name="documents", join_df=None):
         """
@@ -271,6 +277,16 @@ class GensimLDAModel(DocumentClusteringModel):
         """TODO: Override superclass with coherence & exclusivity scores
         """
         pass
+
+    def get_term_topics(self, word):
+        """Returns the most relevant topics to the word as a list of (int, float) representing topic id and probability (relevence to the given word)
+
+        :param word: str, word of interest
+        """
+        if word in self.index:
+            return self.lda_model.get_term_topics(self.index[word])
+        else:
+            return []
 
     def get_parameters(self):
         # TODO
