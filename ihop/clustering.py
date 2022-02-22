@@ -6,6 +6,7 @@
 .. TODO: Implement training of topic models on text: tf-idf-> KMeans, Hierarchical Dirichlet Processes
 .. TODO: Lift document level clusters to subreddit level (will we need spark again or will pandas be sufficient?)
 .. TODO: AuthorTopic models with subreddits as the metadata field (instead of author)
+.. TODO: Data also needs to be serialized with the cluster models, preferably as a pandas dataframe and not a spark dataframe (for LDA)
 """
 import argparse
 import copy
