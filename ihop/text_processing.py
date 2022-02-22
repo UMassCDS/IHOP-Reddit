@@ -5,14 +5,13 @@
 .. TODO: SparkRedditCorpus to pandas or numpy functions
 .. TODO: Does this actually need to be a script - can argparse options get moved over to clustering module?
 """
-import argparse
 import logging
 import os
 
 import pyspark.sql.functions as fn
 from pyspark.ml import Pipeline, PipelineModel
 from pyspark.ml.feature import CountVectorizer, CountVectorizerModel, RegexTokenizer, IDF
-import pytimeparse
+
 
 import ihop.import_data
 
@@ -28,22 +27,25 @@ class SparkCorpus:
     Allows for iterating over documents for training models with Gensim.
     """
 
-    def __init__(self, dataframe, document_col_name=DEFAULT_DOC_COL_NAME):
+    def __init__(self, dataframe, document_col_name=DEFAULT_DOC_COL_NAME, id_col="id"):
         self.document_dataframe = dataframe
         self.document_col_name = document_col_name
+        self.id_col = id_col
 
-    def get_column_iterator(self, column_name):
+    def get_column_iterator(self, column_name, use_id_col=False):
         """Returns an iterator over data in a particular column of the corpus that contains text or numerical data
         :param column_name: str, name of column
+        :param use_id_col: boolean, true to also return the id col during iteration
         """
-        return SparkCorpusIterator(self.document_dataframe, column_name)
+        return SparkCorpusIterator(self.document_dataframe, column_name, id_col=self.id_col, is_return_id=use_id_col)
 
-    def get_vectorized_column_iterator(self, column_name=VECTORIZED_COL_NAME):
+    def get_vectorized_column_iterator(self, column_name=VECTORIZED_COL_NAME, use_id_col=False):
         """Returns an iterator over data in a particular column of the corpus
         that contains vector data as zipped tuples
         :param column_name: str, name of column
+        :param use_id_col: boolean, true to also return the id col during iteration
         """
-        return SparkCorpusIterator(self.document_dataframe, column_name, is_vectorized=True)
+        return SparkCorpusIterator(self.document_dataframe, column_name, is_vectorized=True, is_return_id=use_id_col)
 
     def save(self, output_path):
         """Save the corpus to a parquet file
@@ -112,7 +114,7 @@ class SparkCorpusIterator:
     not generator functions.
     """
 
-    def __init__(self, corpus_df, column_name, is_vectorized=False):
+    def __init__(self, corpus_df, column_name, is_vectorized=False, is_return_id=False, id_col="id"):
         """
         :param corpus: A SparkDataframe
         :param column_name: The name of the column to retrieve from the corpus
@@ -121,18 +123,26 @@ class SparkCorpusIterator:
         self.corpus_df = corpus_df
         self.column_name = column_name
         self.is_vectorized = is_vectorized
-        self.spark_rdd_iter = corpus_df.rdd.toLocalIterator()
+        self.id_col = id_col
+        self.is_return_id = is_return_id
 
     def __len__(self):
         return self.corpus_df.count()
 
     def __iter__(self):
-        for row in self.spark_rdd_iter:
+        # Reset iteration each time
+        spark_rdd_iter = self.corpus_df.rdd.toLocalIterator()
+        for row in spark_rdd_iter:
             data = row[self.column_name]
             if self.is_vectorized:
-                yield list(zip(data.indices, data.values))
+                result = list(zip(data.indices, data.values))
             else:
-                yield data
+                result = data
+
+            if self.is_return_id:
+                yield row[self.id_col], result
+            else:
+                yield result
 
 
 class SparkTextPreprocessingPipeline:
@@ -221,21 +231,3 @@ class SparkTextPreprocessingPipeline:
             os.path.join(load_dir, cls.MODEL_OUTPUT_NAME))
 
         return result
-
-
-parser = argparse.ArgumentParser(
-    description="Pre-process text and train document-based topic or cluster models from Reddit threads")
-parser.add_argument("input", nargs='+',
-                    help="Path to the dataset output by 'ihop.import_data bow'")
-parser.add_argument("--model_dir", required=True,
-                    help="Path to serialize the trained model to")
-parser.add_argument("--min_term_frequency", default=0,
-                    help="Minimum term frequency for terms in each document")
-parser.add_argument("--min_doc_frequency", default=0.05,
-                    type=float, help="Minimum document frequency")
-parser.add_argument("--max_doc_frequency", type=float,
-                    default=0.90, help="Maximum document frequency")
-parser.add_argument("--max_time_delta", "-x", type=pytimeparse.parse,
-                    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
-parser.add_argument("--min_time_delta", "-m", type=pytimeparse.parse,
-                    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")

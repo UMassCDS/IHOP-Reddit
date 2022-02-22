@@ -37,7 +37,7 @@ def test_init_spark_reddit_corpus(joined_reddit_dataframe):
         joined_reddit_dataframe)
     assert corpus.document_dataframe.count() == 2
     assert corpus.document_dataframe.columns == ['id', 'document_text']
-    doc_set = set([d for d in corpus.iterate_over_documents('document_text')])
+    doc_set = set([d for d in corpus.get_column_iterator('document_text')])
     assert "MY FIRST POST!!!! Post 1 text. @someone some.one@email.com Ain't this hard to tokenize: #hashtag, yo-yo www.reddit.com?" in doc_set
     assert "Look @ this cute animal!  aww- - adorable..." in doc_set
 
@@ -46,12 +46,13 @@ def test_init_spark_reddit_corpus_with_timedeltas(joined_reddit_dataframe):
     corpus = SparkCorpus.init_from_joined_dataframe(
         joined_reddit_dataframe, min_time_delta=20, max_time_delta=500)
     assert corpus.document_dataframe.count() == 1
-    doc_set = set([d for d in corpus.iterate_over_documents('document_text')])
+    doc_set = set([d for d in corpus.get_column_iterator('document_text')])
     assert "Look @ this cute animal!  aww- - adorable..." in doc_set
 
 
 def test_spark_text_processing_pipeline(corpus):
-    pipeline = SparkTextPreprocessingPipeline("document_text", "vectorized")
+    pipeline = SparkTextPreprocessingPipeline(
+        "document_text", "vectorized", maxDF=1000, minDF=0.0)
     transformed_corpus = pipeline.fit_transform(corpus.document_dataframe)
     assert transformed_corpus.columns == [
         "id", "document_text", "tokenized", "vectorized"]
@@ -71,7 +72,7 @@ def test_index_words(simple_vocab_df):
     pipeline = SparkTextPreprocessingPipeline("document_text", "vectorized")
     corpus = SparkCorpus(pipeline.fit_transform(simple_vocab_df))
 
-    vector_docs = list(corpus.iterate_over_doc_vectors("vectorized"))
+    vector_docs = list(corpus.get_vectorized_column_iterator("vectorized"))
     inv_index = pipeline.get_word_to_id()
     a_id = inv_index['a']
     b_id = inv_index['b']

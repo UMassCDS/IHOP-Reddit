@@ -1,12 +1,10 @@
 """Train clusters on community2vec embeddings and other embedding data.
 
-
-.. TODO: Determine best design pattern for cluster model wrapper and update params accordingly
 .. TODO: Base topic model interface/abstract class defining necessary behaviours
 .. TODO: Support clustering of documents based on TF-IDF, not just c2v embeddings
-.. TODO: Figure out how to get AffinityPropagation to use appropriately precomputed distances
 .. TODO: Implement training of topic models on text: tf-idf-> KMeans, LDA, Hierarchical Dirichlet Processes
 .. TODO: Lift document level clusters to subreddit level (will we need spark again or will pandas be sufficient?)
+.. TODO: AuthorTopic models with subreddits as the metadata field (instead of author)
 """
 import argparse
 import json
@@ -17,6 +15,7 @@ import gensim.models as gm
 import joblib
 import numpy as np
 import pandas as pd
+import pytimeparse
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
 from sklearn import metrics
 
@@ -221,9 +220,9 @@ class GensimLDAModel(DocumentClusteringModel):
     See http://dirichlet.net/pdf/wallach09rethinking.pdf for notes on alpha and eta priors, where it was found an asymmetric prior on doc-topic dist and symmetric prior on topic-word dist performs best.
     """
 
-    def __init__(self, corpus, model_name, id2word, num_topics=250, alpha='asymmetric', eta='symmetric', iterations=1000, **kwargs):
+    def __init__(self, corpus_iter, model_name, id2word, num_topics=250, alpha='asymmetric', eta='symmetric', iterations=1000, **kwargs):
         """Initializes an LDA model in gensim
-        :param corpus: iterable of list of (int, float)
+        :param corpus_iter: SparkCorpusIterator, returns (int, float) for document BOW representations
         :param id2word: dict, {int -> str}, indexes the words in the vocabulary
         :param model_name: str, how to identify the model
         :param num_topics: int, number of topics to use for this model
@@ -232,18 +231,21 @@ class GensimLDAModel(DocumentClusteringModel):
         :param iterations: int, maximum number of iterations when infering the model
         :param kwargs: Any other LDA params that should be set, especially consider setting and workers
         """
-        self.corpus = corpus
+        self.corpus_iter = corpus_iter
         self.index = id2word
+        self.word2id = {v: k for k, v in id2word.items()}
         self.lda_model = gm.ldamulticore.LdaMulticore(
             num_topics=num_topics, id2word=id2word,
             alpha=alpha, eta=eta, iterations=iterations,
             **kwargs)
         self.model_name = model_name
+        self.coherence_model = gm.coherencemodel.CoherenceModel(
+            self.lda_model, corpus=self.corpus_iter, coherence='u_mass')
 
     def train(self):
         """Trains LDA topic model on the corpus
         """
-        self.lda_model.update(self.corpus)
+        self.lda_model.update(self.corpus_iter)
 
     # TODO: What we actually want is average coherence, like Mallet gives
     # def get_topic_scores(self, corpus, **kwargs):
@@ -267,30 +269,50 @@ class GensimLDAModel(DocumentClusteringModel):
 
         return pd.DataFrame({'topic_id': topic_ids, 'top_terms': word_strings})
 
+    def get_topic_assigments(self, corpus):
+        """Returns the topic assignments for each document as a list of list of (int, float)
+        :param corpus: SparkCorpusIterator with is_return_id as true
+        """
+        results = dict()
+        for doc_id, bow_doc in corpus:
+            results[doc_id] = self.lda_model.get_document_topics(bow_doc)
+
+        return results
+
     def get_cluster_results_as_df(self, vocab_col_name="documents", join_df=None):
+        """Returns the most likely topic for each document in the corpus
         """
-        """
-        # TODO
         pass
 
     def get_metrics(self):
-        """TODO: Override superclass with coherence & exclusivity scores
+        """Returns LDA coherence in dictionary
+        .. TODO Add exclusivity and other metrics
         """
-        pass
+        return {'Coherence': self.coherence_model.get_coherence()}
 
     def get_term_topics(self, word):
         """Returns the most relevant topics to the word as a list of (int, float) representing topic id and probability (relevence to the given word)
 
         :param word: str, word of interest
         """
-        if word in self.index:
-            return self.lda_model.get_term_topics(self.index[word])
+        if word in self.word2id:
+            return self.lda_model.get_term_topics(self.word2id[word])
         else:
             return []
 
     def get_parameters(self):
-        # TODO
-        pass
+        """Returns the model's paramters as a dictionary
+        """
+        params = {}
+        params[self.MODEL_NAME_KEY] = self.model_name
+        params["num_topics"] = self.lda_model.num_topics
+        params["alpha"] = list(self.lda_model.alpha)
+        params["eta"] = list(self.lda_model.eta)
+        params["decay"] = self.lda_model.decay
+        params["offset"] = self.lda_model.offset
+        params["iterations"] = self.lda_model.iterations
+        params["random_state"] = self.lda_model.random_state.get_state()
+        return params
 
     def save_model(self, path):
         """Save the LDA model to the path
@@ -306,3 +328,21 @@ class GensimLDAModel(DocumentClusteringModel):
         loaded_model.lda_model = gm.ldamulticore.LdaMulticore.load(load_path)
         loaded_model.index = loaded_model.lda_model.id2word
         return loaded_model
+
+
+parser = argparse.ArgumentParser(
+    description="Pre-process text and train document-based topic or cluster models from Reddit threads")
+parser.add_argument("input", nargs='+',
+                    help="Path to the dataset output by 'ihop.import_data bow'")
+parser.add_argument("--model_dir", required=True,
+                    help="Path to serialize the trained model to")
+parser.add_argument("--min_term_frequency", default=0,
+                    help="Minimum term frequency for terms in each document")
+parser.add_argument("--min_doc_frequency", default=0.05,
+                    type=float, help="Minimum document frequency")
+parser.add_argument("--max_doc_frequency", type=float,
+                    default=0.90, help="Maximum document frequency")
+parser.add_argument("--max_time_delta", "-x", type=pytimeparse.parse,
+                    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
+parser.add_argument("--min_time_delta", "-m", type=pytimeparse.parse,
+                    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
