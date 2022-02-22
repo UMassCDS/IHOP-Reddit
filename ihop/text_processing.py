@@ -85,6 +85,7 @@ class SparkCorpus:
 
         document_dataframe = grouped_submissions.select(
             grouped_submissions[submission_id_col],
+            grouped_submissions[category_col],
             fn.concat_ws(" ",
                          grouped_submissions[submission_title_col],
                          grouped_submissions[submission_text_col],

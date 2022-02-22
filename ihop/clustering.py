@@ -1,12 +1,14 @@
 """Train clusters on community2vec embeddings and other embedding data.
 
+.. TODO: Implement main method and argparse for training document clustering models/topics models from a joined dataframe or clusters from embeddings using a script
 .. TODO: Base topic model interface/abstract class defining necessary behaviours
 .. TODO: Support clustering of documents based on TF-IDF, not just c2v embeddings
-.. TODO: Implement training of topic models on text: tf-idf-> KMeans, LDA, Hierarchical Dirichlet Processes
+.. TODO: Implement training of topic models on text: tf-idf-> KMeans, Hierarchical Dirichlet Processes
 .. TODO: Lift document level clusters to subreddit level (will we need spark again or will pandas be sufficient?)
 .. TODO: AuthorTopic models with subreddits as the metadata field (instead of author)
 """
 import argparse
+import copy
 import json
 import logging
 import os
@@ -270,19 +272,34 @@ class GensimLDAModel(DocumentClusteringModel):
         return pd.DataFrame({'topic_id': topic_ids, 'top_terms': word_strings})
 
     def get_topic_assigments(self, corpus):
-        """Returns the topic assignments for each document as a list of list of (int, float)
+        """Returns the topic assignments for each document as a list of list of (int, float) sorted in order of decreasing probability
         :param corpus: SparkCorpusIterator with is_return_id as true
         """
         results = dict()
         for doc_id, bow_doc in corpus:
-            results[doc_id] = self.lda_model.get_document_topics(bow_doc)
+            results[doc_id] = sorted(self.lda_model.get_document_topics(bow_doc),
+                                     key=lambda t: t[1])
 
         return results
 
-    def get_cluster_results_as_df(self, vocab_col_name="documents", join_df=None):
-        """Returns the most likely topic for each document in the corpus
+    def get_cluster_results_as_df(self, vocab_col_name="document_id", join_df=None):
+        """Returns the most likely topic for each document in the corpus as a pandas DataFrame
         """
-        pass
+        corpus_iterator = copy.copy(self.corpus_iter)
+        corpus_iterator.is_return_id = True
+        topic_assigments = [(doc_id, topics[0][0]) for doc_id, topics in self.get_topic_assigments(
+            corpus_iterator).items()]
+
+        topics_df = pd.DataFrame(topic_assigments, columns=[
+                                 vocab_col_name, self.model_name])
+
+        topics_df[self.model_name] = topics_df[self.model_name].astype(
+            'category')
+        if join_df is not None:
+            topics_df = pd.merge(topics_df, join_df,
+                                 how='inner', on=vocab_col_name, sort=False)
+
+        return topics_df
 
     def get_metrics(self):
         """Returns LDA coherence in dictionary
@@ -311,7 +328,7 @@ class GensimLDAModel(DocumentClusteringModel):
         params["decay"] = self.lda_model.decay
         params["offset"] = self.lda_model.offset
         params["iterations"] = self.lda_model.iterations
-        params["random_state"] = self.lda_model.random_state.get_state()
+        params["random_state_seed"] = self.lda_model.random_state.seed
         return params
 
     def save_model(self, path):
@@ -330,6 +347,8 @@ class GensimLDAModel(DocumentClusteringModel):
         return loaded_model
 
 
+# TODO Main method
+# TODO Finish all argparse options for scripts
 parser = argparse.ArgumentParser(
     description="Pre-process text and train document-based topic or cluster models from Reddit threads")
 parser.add_argument("input", nargs='+',
