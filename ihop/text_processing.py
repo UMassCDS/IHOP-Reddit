@@ -11,7 +11,7 @@ import os
 
 import pyspark.sql.functions as fn
 from pyspark.ml import Pipeline, PipelineModel
-from pyspark.ml.feature import CountVectorizer, CountVectorizerModel, RegexTokenizer
+from pyspark.ml.feature import CountVectorizer, CountVectorizerModel, RegexTokenizer, IDF
 import pytimeparse
 
 import ihop.import_data
@@ -143,7 +143,8 @@ class SparkTextPreprocessingPipeline:
 
     def __init__(self, input_col=DEFAULT_DOC_COL_NAME, output_col=VECTORIZED_COL_NAME, tokens_col="tokenized",
                  tokenization_pattern="([\p{L}\p{N}#@][\p{L}\p{N}\p{Pd}\p{Pc}\p{S}\p{P}]*[\p{L}\p{N}])|[\p{L}\p{N}]",
-                 match_gaps=False, **kwargs):
+                 match_gaps=False, toLowercase=True,
+                 maxDF=0.95, minDF=0.5, minTF=0.0, binary=False, useIDF=False):
         """Initializes a text preprocessing pipeline with Spark.
         Note: The tokenization pattern throws away punctuation pretty aggresively, is probably throwing away emojis
 
@@ -152,15 +153,30 @@ class SparkTextPreprocessingPipeline:
         :param tokens_col: str, the name for the intermediate column
         :param tokenization_pattern: regex pattern passed to tokenizer
         :param match_gaps: boolean, True if your regex matches gaps between words, False to match tokens
-        :param **kwargs: Any arguments to be passed to Spark transformers in the pipeline
+        :param toLowercase: boolean, True to covert characters to lowercase before tokenizing
+        :param maxDF: int or float, maximum document frequency expressed as a float percentage of documents in the corpus or a integer number of documents. Throw away terms that occur in more than that number of documents.
+        :param minDF: int or float, minimum number of documents a term must be in as a percentage of documents in the corpus or an integer number of documents. Throw away terms that occur in fewer than that number of docs.
+        :param minTF: int or float, ignore terms with frequency (float, fraction of document's token count) or count less than the given value for each document (affects transform only, not fitting)
+        :param binary: boolean, Set to True for binary term document flags, rather than term frequency counts
+        :param useIDF: boolean, set to True to use inverse document frequency smoothing of counts.
         """
-        tokenizer = RegexTokenizer(inputCol=input_col, outputCol=tokens_col, **kwargs).\
+        tokenizer = RegexTokenizer(inputCol=input_col, outputCol=tokens_col, toLowercase=toLowercase).\
             setPattern(tokenization_pattern).\
             setGaps(match_gaps)
+
         count_vectorizer = CountVectorizer(
-            inputCol=tokens_col, outputCol=output_col, **kwargs)
-        self.pipeline = Pipeline(
-            stages=[tokenizer, count_vectorizer])
+            inputCol=tokens_col, outputCol=output_col,
+            maxDF=maxDF, minDF=minDF, minTF=minTF, binary=binary)
+        pipeline_stages = [tokenizer, count_vectorizer]
+
+        if useIDF:
+            count_vectorized_col = "count_vectorized"
+            count_vectorizer.setOutputCol(count_vectorized_col)
+            idf_stage = IDF(inputCol=count_vectorized_col,
+                            outputCol=output_col)
+            pipeline_stages.append(idf_stage)
+
+        self.pipeline = Pipeline(stages=pipeline_stages)
 
         self.model = None
 
