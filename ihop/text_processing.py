@@ -1,8 +1,8 @@
 """Supports Spark pipelines for working with text data
 
 .. TODO: set submission timeframe start and end dates
-.. TODO: optionally support IDF as last step in the pipeline
 .. TODO: SparkRedditCorpus to pandas or numpy functions
+.. TODO: PandasCorpus and Corpus iterator objects - instantiate from reading parquet
 .. TODO: Does this actually need to be a script - can argparse options get moved over to clustering module?
 """
 import logging

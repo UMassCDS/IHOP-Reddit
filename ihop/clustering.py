@@ -120,7 +120,7 @@ class ClusteringModel:
         """Returns the cluster results as a Pandas DataFrame that can be used to easily display or plot metrics.
 
         :param datapoint_col_name: How to identify the data points column
-        :param join_df: Pandas DataFrame, optionally inner join this dataframe in the returned results
+        :param join_df: Pandas DataFrame, optionally inner join this dataframe on the datapoint_col_name in the returned results
         """
         cluster_df = pd.DataFrame({datapoint_col_name: self.index_to_key,
                                    self.model_name: self.clusters})
@@ -272,33 +272,41 @@ class GensimLDAModel(DocumentClusteringModel):
 
         return pd.DataFrame({'topic_id': topic_ids, 'top_terms': word_strings})
 
-    def get_topic_assigments(self, corpus):
+    def get_topic_assignments(self, corpus_iter=None):
         """Returns the topic assignments for each document as a list of list of (int, float) sorted in order of decreasing probability
-        :param corpus: SparkCorpusIterator with is_return_id as true
+        :param corpus_iter: SparkCorpusIterator with is_return_id as true, if not specified, uses the training corpus
         """
+        if corpus_iter is None:
+            current_iterator = copy.copy(self.corpus_iter)
+            current_iterator.is_return_id = True
+        else:
+            current_iterator = corpus_iter
         results = dict()
-        for doc_id, bow_doc in corpus:
+        for doc_id, bow_doc in current_iterator:
             results[doc_id] = sorted(self.lda_model.get_document_topics(bow_doc),
                                      key=lambda t: t[1])
 
         return results
 
-    def get_cluster_results_as_df(self, vocab_col_name="document_id", join_df=None):
-        """Returns the most likely topic for each document in the corpus as a pandas DataFrame
-        """
-        corpus_iterator = copy.copy(self.corpus_iter)
-        corpus_iterator.is_return_id = True
-        topic_assigments = [(doc_id, topics[0][0]) for doc_id, topics in self.get_topic_assigments(
-            corpus_iterator).items()]
+    def get_cluster_results_as_df(self, corpus_iter=None, doc_col_name="id", join_df=None):
+        """Returns the topic probabilities for each document in the training corpus as a pandas DataFrame
 
-        topics_df = pd.DataFrame(topic_assigments, columns=[
-                                 vocab_col_name, self.model_name])
+        :param corpus_iter: SparkCorpusIterator with is_return_id as true, if not specified, uses the training corpus
+        :param doc_col_name: str, column name that identifies for documents
+        :param join_df: Pandas DataFrame, optionally inner join this dataframe on doc_col_name the in the returned results
+        """
+        topic_probabilities = list()
+        for doc_id, topics in self.get_topic_assignments(corpus_iter):
+            topic_probabilities.extend([(doc_id, t[0], t[1]) for t in topics])
+
+        topics_df = pd.DataFrame(topic_probabilities, columns=[
+                                 doc_col_name, self.model_name, "probability"])
 
         topics_df[self.model_name] = topics_df[self.model_name].astype(
             'category')
         if join_df is not None:
             topics_df = pd.merge(topics_df, join_df,
-                                 how='inner', on=vocab_col_name, sort=False)
+                                 how='inner', on=doc_col_name, sort=False)
 
         return topics_df
 
@@ -329,7 +337,6 @@ class GensimLDAModel(DocumentClusteringModel):
         params["decay"] = self.lda_model.decay
         params["offset"] = self.lda_model.offset
         params["iterations"] = self.lda_model.iterations
-        params["random_state_seed"] = self.lda_model.random_state.seed
         return params
 
     def save_model(self, path):

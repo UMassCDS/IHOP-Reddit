@@ -29,7 +29,7 @@ def text_features(spark):
         {'id': 'c3', 'text': 'The last sentence'}
     ]
     dataframe = spark.createDataFrame(test_data)
-    pipeline = tp.SparkTextPreprocessingPipeline('text')
+    pipeline = tp.SparkTextPreprocessingPipeline('text', maxDF=10, minDF=0)
     vectorized_df = tp.SparkCorpus(pipeline.fit_transform(dataframe))
     return Corpus(vectorized_df, pipeline.get_id_to_word())
 
@@ -74,7 +74,26 @@ def test_lda(text_features):
     corpus_iter = tp.SparkCorpusIterator(
         text_features.corpus.document_dataframe, "vectorized", True)
     lda = ic.GensimLDAModel(corpus_iter, "test_lda", index,
-                            num_topics=2, iterations=5)
+                            num_topics=2, iterations=5, random_state=8)
     lda.train()
-    assert lda.get_topic_scores(
-        text_features.corpus.iterate_over_doc_vectors()).shape == (3, 2)
+    topic_assignments = lda.get_topic_assignments()
+    assert len(topic_assignments) == 3
+    assert set(topic_assignments.keys()) == {'a1', 'b2', 'c3'}
+
+    parameters = lda.get_parameters()
+    assert parameters["model_name"] == "test_lda"
+    assert parameters["num_topics"] == 2
+    assert isinstance(parameters["alpha"], list)
+    assert isinstance(parameters["eta"], list)
+    assert parameters["decay"] == 0.5
+    assert parameters["offset"] == 1.0
+    assert parameters["iterations"] == 5
+
+    top_words_list = lda.get_top_words()
+    assert len(top_words_list) == 2
+
+    # Vocabulary size for the toy example is 9, so that's the max number of words returned for the topics
+    for t in top_words_list:
+        assert len(t[1]) == 9
+
+    assert lda.get_top_words_as_dataframe().shape == (2, 2)
