@@ -83,18 +83,16 @@ class ClusteringModelFactory:
 
 class ClusteringModel:
     """Wrapper around sklearn clustering models
-
     """
     MODEL_NAME_KEY = "model_name"
     PARAMETERS_JSON = "parameters.json"
-    INDEX_JSON = "index.json"
     MODEL_FILE = "sklearn_cluster_model.joblib"
 
     def __init__(self, data, clustering_model, model_name, index_to_key):
         """
         :param data: array-like of data points, e.g. numpy array or gensim.KeyedVectors
         :param clustering_model: sklearn.base.ClusterMixin object
-        :param model_name:
+        :param model_name: str, human readable identifier for the model
         :param index_to_key: dict, int -> str, how to name each data point, important for exporting data for users and visualizations
         """
         self.data = data
@@ -105,7 +103,7 @@ class ClusteringModel:
 
     def train(self):
         """Fits the model to data and predicts the cluster labels for each data point.
-        Returns the predicted clusters for each data point.
+        Returns the predicted clusters for each data point in training data
         """
         self.clusters = self.clustering_model.fit_predict(self.data)
         return self.clusters
@@ -119,7 +117,7 @@ class ClusteringModel:
     def get_cluster_results_as_df(self, datapoint_col_name="subreddit", join_df=None):
         """Returns the cluster results as a Pandas DataFrame that can be used to easily display or plot metrics.
 
-        :param datapoint_col_name: How to identify the data points column
+        :param datapoint_col_name: str, name of column that serves as key for data points
         :param join_df: Pandas DataFrame, optionally inner join this dataframe on the datapoint_col_name in the returned results
         """
         cluster_df = pd.DataFrame({datapoint_col_name: self.index_to_key,
@@ -163,7 +161,6 @@ class ClusteringModel:
         os.makedirs(output_dir, exist_ok=True)
         self.save_model(os.path.join(output_dir, self.MODEL_FILE))
         self.save_parameters(os.path.join(output_dir, self.PARAMETERS_JSON))
-        self.save_index(os.path.join(output_dir, self.INDEX_JSON))
 
     def save_model(self, model_path):
         """Writes the model to the given path
@@ -178,29 +175,23 @@ class ClusteringModel:
         with open(parameters_path, 'w') as f:
             json.dump(self.get_parameters(), f)
 
-    def save_index(self, index_path):
-        """Saves the index to file as json dictionary
-        """
-        with open(index_path, 'w') as f:
-            json.dump(self.index_to_key, f)
-
     def load_model(self, model_path):
         self.clustering_model = joblib.load(model_path)
 
-    def load_index(self, index_path):
-        with open(index_path, 'r') as f:
-            index = json.load(f)
-            self.index_to_key = {}
-            for k, v in index.items():
-                self.index_to_key[int(k)] = v
-
     @classmethod
-    def load(cls, directory):
-        """Loads a ClusterModel object from a given directory, assuming the filenames are the defaults
+    def load(cls, directory, data, index_to_key):
+        """Loads a ClusterModel object from a given directory, assuming the filenames are the defaults.
+        Creates cluster predictions for the given data without re-fitting the clusters.
+
+        :param directory: Path to the model directory
+        :param data: array-like of data points, e.g. numpy array or gensim.KeyedVectors
+        :param index_to_key: dict, int -> str, how to name each data point, important for exporting data for users and visualizations
         """
         clustermodel = cls(None, None, None, None)
         clustermodel.load_model(os.path.join(directory, cls.MODEL_FILE))
-        clustermodel.load_index(os.path.join(directory, cls.INDEX_JSON))
+        clustermodel.index_to_key = index_to_key
+        clustermodel.data = data
+        clustermodel.clusters = clustermodel.clustering_model.predict(data)
 
         with open(os.path.join(directory, cls.PARAMETERS_JSON)) as js:
             params = json.load(js)
@@ -222,6 +213,7 @@ class GensimLDAModel(DocumentClusteringModel):
     """Wrapper around the gensim LdaMulticore model to train on an iterable corpus or SparkRedditCorpus object
     See http://dirichlet.net/pdf/wallach09rethinking.pdf for notes on alpha and eta priors, where it was found an asymmetric prior on doc-topic dist and symmetric prior on topic-word dist performs best.
     """
+    MODEL_FILE = "gensim_lda.gz"
 
     def __init__(self, corpus_iter, model_name, id2word, num_topics=250, alpha='asymmetric', eta='symmetric', iterations=1000, **kwargs):
         """Initializes an LDA model in gensim
@@ -235,7 +227,6 @@ class GensimLDAModel(DocumentClusteringModel):
         :param kwargs: Any other LDA params that should be set, especially consider setting and workers
         """
         self.corpus_iter = corpus_iter
-        self.index = id2word
         self.word2id = {v: k for k, v in id2word.items()}
         self.lda_model = gm.ldamulticore.LdaMulticore(
             num_topics=num_topics, id2word=id2word,
@@ -247,8 +238,39 @@ class GensimLDAModel(DocumentClusteringModel):
 
     def train(self):
         """Trains LDA topic model on the corpus
+        Returns topic assignments for each document in the training data
         """
         self.lda_model.update(self.corpus_iter)
+        return self.get_topic_assignments()
+
+    def predict(self, bow_docs):
+        """Returns topic assignments as a numpy array of shape (len(bow_docs), num_topics) where each cell represents the probability of a document being associated with a topic
+
+        :param bow_docs: iterable of lists of (int, float) representing docs in bag-of-words format
+        """
+        result = np.zeros((len(bow_docs), self.lda_model.num_topics))
+        for i, bow in enumerate(bow_docs):
+            indices, topic_probs = zip(
+                *self.lda_model.get_document_topics(bow))
+            result[i, indices] = topic_probs
+
+        return result
+
+    def get_topic_assignments(self, corpus_iter=None):
+        """Returns {str-> list((int,float))}, the topic assignments for each document id as a list of list of (int, float) sorted in order of decreasing probability.
+        :param corpus_iter: SparkCorpusIterator with is_return_id as true, if not specified, uses the training corpus
+        """
+        if corpus_iter is None:
+            current_iterator = copy.copy(self.corpus_iter)
+            current_iterator.is_return_id = True
+        else:
+            current_iterator = corpus_iter
+        results = dict()
+        for doc_id, bow_doc in current_iterator:
+            results[doc_id] = sorted(self.lda_model.get_document_topics(bow_doc),
+                                     key=lambda t: t[1])
+
+        return results
 
     # TODO: What we actually want is average coherence, like Mallet gives
     # def get_topic_scores(self, corpus, **kwargs):
@@ -266,27 +288,11 @@ class GensimLDAModel(DocumentClusteringModel):
     def get_top_words_as_dataframe(self, num_words=20):
         """Returns the top words for each learned topic as a pandas dataframe
         """
-        topic_ids, word_probs = zip(*self.get_top_words())
+        topic_ids, word_probs = zip(*self.get_top_words(num_words=num_words))
         word_strings = [" ".join([w[0] for w in topic_words])
                         for topic_words in word_probs]
 
         return pd.DataFrame({'topic_id': topic_ids, 'top_terms': word_strings})
-
-    def get_topic_assignments(self, corpus_iter=None):
-        """Returns the topic assignments for each document as a list of list of (int, float) sorted in order of decreasing probability
-        :param corpus_iter: SparkCorpusIterator with is_return_id as true, if not specified, uses the training corpus
-        """
-        if corpus_iter is None:
-            current_iterator = copy.copy(self.corpus_iter)
-            current_iterator.is_return_id = True
-        else:
-            current_iterator = corpus_iter
-        results = dict()
-        for doc_id, bow_doc in current_iterator:
-            results[doc_id] = sorted(self.lda_model.get_document_topics(bow_doc),
-                                     key=lambda t: t[1])
-
-        return results
 
     def get_cluster_results_as_df(self, corpus_iter=None, doc_col_name="id", join_df=None):
         """Returns the topic probabilities for each document in the training corpus as a pandas DataFrame
@@ -332,8 +338,6 @@ class GensimLDAModel(DocumentClusteringModel):
         params = {}
         params[self.MODEL_NAME_KEY] = self.model_name
         params["num_topics"] = self.lda_model.num_topics
-        params["alpha"] = list(self.lda_model.alpha)
-        params["eta"] = list(self.lda_model.eta)
         params["decay"] = self.lda_model.decay
         params["offset"] = self.lda_model.offset
         params["iterations"] = self.lda_model.iterations
@@ -345,13 +349,25 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         self.lda_model.save(path)
 
-    @ classmethod
-    def load(cls, load_path):
-        """TODO
+    @classmethod
+    def load(cls, load_path, corpus_iter):
         """
-        loaded_model = cls({})
-        loaded_model.lda_model = gm.ldamulticore.LdaMulticore.load(load_path)
-        loaded_model.index = loaded_model.lda_model.id2word
+        :param load_path: str, directory to load LDA model files from
+        :param corpus_iter: iterable over bag-of-words format documents
+        """
+        # Gensim
+        loaded_model = cls([[(0, 1.0)]], None, {0: 'dummy'})
+        loaded_model.lda_model = gm.ldamulticore.LdaMulticore.load(
+            os.path.join(load_path, cls.MODEL_FILE))
+        loaded_model.word2id = {v: k for k,
+                                v in loaded_model.lda_model.id2word.items()}
+        loaded_model.corpus_iter = corpus_iter
+        loaded_model.coherence_model = gm.coherencemodel.CoherenceModel(
+            loaded_model.lda_model, corpus=corpus_iter, coherence='u_mass')
+
+        with open(os.path.join(load_path, cls.PARAMETERS_JSON)) as js:
+            params = json.load(js)
+            loaded_model.model_name = params['model_name']
         return loaded_model
 
 
