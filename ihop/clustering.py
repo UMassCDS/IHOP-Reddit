@@ -1,7 +1,5 @@
 """Train clusters on community2vec embeddings and other embedding data.
 
-.. TODO: Implement main method and argparse for training document clustering models/topics models from a joined dataframe or clusters from embeddings using a script
-.. TODO: Base topic model interface/abstract class defining necessary behaviours
 .. TODO: Support clustering of documents based on TF-IDF, not just c2v embeddings
 .. TODO: Implement training of topic models on text: tf-idf-> KMeans, Hierarchical Dirichlet Processes
 .. TODO: Lift document level clusters to subreddit level (will we need spark again or will pandas be sufficient?)
@@ -22,6 +20,7 @@ import pytimeparse
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
 from sklearn import metrics
 
+import ihop
 
 logger = logging.getLogger(__name__)
 # TODO Logging should be configurable, but for now just turn it on for Gensim
@@ -32,10 +31,10 @@ logging.basicConfig(
 class ClusteringModelFactory:
     """Return appropriate class given input params
     """
-    AFFINITY_PROP = "Affinity Propagation"
-    AGGLOMERATIVE = "Agglomerative Clustering"
-    KMEANS = "Kmeans"
-    LDA = "LDA"
+    AFFINITY_PROP = "affinity_propagation"
+    AGGLOMERATIVE = "agglomerative_clustering"
+    KMEANS = "kmeans"
+    LDA = "lda"
 
     # Default parameters used when instantiating the model
     DEFAULT_MODEL_PARAMS = {
@@ -47,38 +46,43 @@ class ClusteringModelFactory:
     }
 
     @classmethod
-    def init_clustering_model(cls, choice, data, index, model_name=None, **kwargs):
-        """Returns a ClusteringModel instance instantiated with the appropirate parameters and ready to train on the given data.
+    def init_clustering_model(cls, model_choice, data, index, model_name=None, **kwargs):
+        """Returns a ClusteringModel instance instantiated with the appropriate parameters and ready to train on the given data.
+        :param model_choice: str, type of model to instantiate
+        :param data: data used to train the model, type is dependent on the model choice
+        :param index: dict, int -> str, how to name each data point, important for exporting data for users and visualizations
+        :param model_name: str, used to identify the model in output and string representation. If left as None, then choice value will be used as model name
+        :param kwargs: parameters to pass to the sklearn or Gensim model
         """
         if model_name is None:
-            model_id = choice
+            model_id = model_choice
         else:
             model_id = model_name
 
-        if choice not in cls.DEFAULT_MODEL_PARAMS:
-            raise ValueError(f"Model choice {choice} is not supported")
+        if model_choice not in cls.DEFAULT_MODEL_PARAMS:
+            raise ValueError(f"Model choice {model_choice} is not supported")
 
         parameters = {}
-        parameters.update(cls.DEFAULT_MODEL_PARAMS[choice])
+        parameters.update(cls.DEFAULT_MODEL_PARAMS[model_choice])
         parameters.update(kwargs)
 
-        if choice == cls.KMEANS:
+        if model_choice == cls.KMEANS:
             return ClusteringModel(data, KMeans(**parameters), model_id, index)
-        elif choice == cls.AFFINITY_PROP:
+        elif model_choice == cls.AFFINITY_PROP:
             if isinstance(data, gm.keyedvectors.KeyedVectors) and parameters['affinity'] == "precomputed":
                 precomputed_distances = np.zeros((len(index), len(index)))
                 for i, v in index.items():
                     precomputed_distances[i] = np.array(data.distances(v))
 
-                return ClusteringModel(precomputed_distances, AffinityPropagation(**parameters), choice, index)
+                return ClusteringModel(precomputed_distances, AffinityPropagation(**parameters), model_choice, index)
             else:
                 return ClusteringModel(data, AffinityPropagation(**parameters), model_id, index)
-        elif choice == cls.AGGLOMERATIVE:
+        elif model_choice == cls.AGGLOMERATIVE:
             return ClusteringModel(data, AgglomerativeClustering(**parameters), model_id, index)
-        elif choice == cls.LDA:
+        elif model_choice == cls.LDA:
             return GensimLDAModel(data, model_id, index, **parameters)
         else:
-            raise ValueError(f"Model type '{choice}' is not supported")
+            raise ValueError(f"Model type '{model_choice}' is not supported")
 
 
 class ClusteringModel:
@@ -158,9 +162,11 @@ class ClusteringModel:
         """Persists model and json parameters in the given directory
         :param output_dir: str, path to desired directory
         """
+        logger.debug("Saving ClusterModel to directory:", output_dir)
         os.makedirs(output_dir, exist_ok=True)
         self.save_model(os.path.join(output_dir, self.MODEL_FILE))
         self.save_parameters(os.path.join(output_dir, self.PARAMETERS_JSON))
+        logger.debug("All ClusterModel components saved")
 
     def save_model(self, model_path):
         """Writes the model to the given path
@@ -240,7 +246,9 @@ class GensimLDAModel(DocumentClusteringModel):
         """Trains LDA topic model on the corpus
         Returns topic assignments for each document in the training data
         """
+        logger.debug("Staring LDA training")
         self.lda_model.update(self.corpus_iter)
+        logger.debug("Finished LDA training")
         return self.get_topic_assignments()
 
     def predict(self, bow_docs):
@@ -302,7 +310,7 @@ class GensimLDAModel(DocumentClusteringModel):
         :param join_df: Pandas DataFrame, optionally inner join this dataframe on doc_col_name the in the returned results
         """
         topic_probabilities = list()
-        for doc_id, topics in self.get_topic_assignments(corpus_iter):
+        for doc_id, topics in self.get_topic_assignments(corpus_iter).items():
             topic_probabilities.extend([(doc_id, t[0], t[1]) for t in topics])
 
         topics_df = pd.DataFrame(topic_probabilities, columns=[
@@ -347,7 +355,9 @@ class GensimLDAModel(DocumentClusteringModel):
         """Save the LDA model to the path
         :param path: str or open file-like object, Path to save model to file
         """
+        logger.debug("Saving Gensim LDA model to", path)
         self.lda_model.save(path)
+        logger.debug("Gensim LDA model successfully saved")
 
     @classmethod
     def load(cls, load_path, corpus_iter):
@@ -371,21 +381,102 @@ class GensimLDAModel(DocumentClusteringModel):
         return loaded_model
 
 
-# TODO Main method
-# TODO Finish all argparse options for scripts
+def main(model_choice, data, index, experiment_dir, cluster_params,
+         clusters_csv_filename="clusters.csv", words_csv_filename="words.csv",
+         is_quiet=False):
+    """Main method to train a clustering model, then save model and cluster outputs. Returns the trained model.
+
+    :param model_choice: str, type of model to instantiate
+    :param data: data used to train the model, type is dependent on the model choice
+    :param index: dict, int -> str, how to name each data point, important for exporting data for users and visualizations
+    :param experiment_dir: str, path to model output directory
+    :param cluster_params: dict, any keyword arguments to pass along to sklearn or Gensim
+    :param clusters_csv_filename: str, how to name the CSV file storing cluster output
+    :param words_csv_filename: str, if the model is LDA, how to name csv filename storing topic keywords
+    :param is_quiet: boolean, set to true to silence print statements for metrics
+    """
+    model = ClusteringModelFactory.init_clustering_model(
+        model_choice, data, index, **cluster_params)
+    logger.info("Training model", model.model_name)
+    model.train()
+    logger.info("Finished training model", model.model_name)
+    logger.info("Saving model", model.model_name, "to", args.model_dir)
+    model.save(experiment_dir)
+    metrics = model.metrics()
+    logger.info("Model performance metrics:", model.metrics())
+    if not is_quiet:
+        print("Performance metrics:", metrics)
+
+    if clusters_csv_filename is not None:
+        logger.info("Saving clusters to CSV")
+        model.get_cluster_results_as_df().to_csv(
+            os.path.join(experiment_dir, clusters_csv_filename))
+
+    if model_choice == ClusteringModelFactory.LDA and words_csv_filename is not None:
+        logger.info("Saving topic keywords")
+        model.get_top_words_as_dataframe(
+            os.path.join(experiment_dir, words_csv_filename))
+
+    return model
+
+
 parser = argparse.ArgumentParser(
-    description="Pre-process text and train document-based topic or cluster models from Reddit threads")
+    description="Produce clusterings of the input data")
+parser.add_argument("-q", "--quiet", action='store_true',
+                    help="Use to turn off verbose info statements.")
+
 parser.add_argument("input", nargs='+',
-                    help="Path to the dataset output by 'ihop.import_data bow'")
-parser.add_argument("--model_dir", required=True,
-                    help="Path to serialize the trained model to")
-parser.add_argument("--min_term_frequency", default=0,
-                    help="Minimum term frequency for terms in each document")
+                    help="Path to the file containing input data in the specified format")
+
+parser.add_argument("--data_type", '-d',
+                    choices=["keyedvectors", "sparkcorpus"], default="keyedvectors")
+parser.add_argument("--cluster_type", "-c",
+                    choices=ClusteringModelFactory.DEFAULT_MODEL_PARAMS.keys(),
+                    default=ClusteringModelFactory.KMEANS)
+parser.add_argument("--cluster_params", "-p", nargs='?', type=json.loads, default="{}",
+                    help="JSON defining overriding or additional parameters to pass to the sklearn or Gensim model")
+
+parser.add_argument("--output_dir", '-o', required=True,
+                    help="Directory to save the trained model and any additional data and parameters")
 parser.add_argument("--min_doc_frequency", default=0.05,
                     type=float, help="Minimum document frequency")
 parser.add_argument("--max_doc_frequency", type=float,
-                    default=0.90, help="Maximum document frequency")
+                    default=0.95, help="Maximum document frequency")
 parser.add_argument("--max_time_delta", "-x", type=pytimeparse.parse,
-                    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
+                    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.",
+                    default="72h")
 parser.add_argument("--min_time_delta", "-m", type=pytimeparse.parse,
-                    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
+                    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.",
+                    default="3s")
+
+
+if __name__ == "__main__":
+    # TODO Clean this up a bit
+    args = parser.parse_args()
+    if args.data_type == 'keyedvectors' and args.cluster_type == ClusteringModelFactory.LDA:
+        raise ValueError("LDA models do not support KeyedVector data type")
+    if args.data_type == 'sparkcorpus' and args.cluster_type != ClusteringModelFactory.LDA:
+        raise ValueError(
+            "Document clustering with sklearn models not implemented yet")
+
+    if args.data_type == 'keyedvectors':
+        data = gm.KeyedVectors.load(args.input)
+        index = data.index
+    elif args.data_type == 'sparkcorpus':
+        spark = ihop.utils.get_spark_session("LDA Clustering prep", args.quiet)
+
+        vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(
+            spark, args.input,
+            min_time_delta=args.min_time_delta, max_time_delta=args.max_time_delta,
+            min_doc_frequency=args.min_doc_frequency, max_doc_frequency=args.max_doc_frequency,
+            output_dir=args.output_dir)
+
+        if not args.quiet:
+            # TODO Compute and print document length statistics after tokenization
+            pass
+
+        data = vectorized_corpus.get_vectorized_column_iterator()
+        index = pipeline.get_id_to_word()
+
+    main(args.cluster_type, data, index, args.output_dir,
+         args.cluster_params, args.quiet)

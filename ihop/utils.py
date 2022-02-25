@@ -1,6 +1,6 @@
-"""Utilities for working with Spark and various file and path manipulations.
+"""Utilities for working with Spark.
 
-# TODO Eventually, we may need to be more careful with Spark configuration, especially if we want to submit jobs to a cluster.
+# TODO Eventually, we may need to read Spark config from a file, especially if we want to submit jobs to a cluster.
 """
 import os
 import logging
@@ -10,6 +10,7 @@ from pyspark.sql import SparkSession
 logger = logging.getLogger(__name__)
 
 HADOOP_ENV = "HADOOP_HOME"
+
 
 def get_spark_session(name, driver_mem="8G", quiet=False):
     """Return a SparkSession configured with checking HADOOP_HOME for additional library support.

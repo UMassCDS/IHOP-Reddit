@@ -3,7 +3,6 @@
 .. TODO: set submission timeframe start and end dates
 .. TODO: SparkRedditCorpus to pandas or numpy functions
 .. TODO: PandasCorpus and Corpus iterator objects - instantiate from reading parquet
-.. TODO: Does this actually need to be a script - can argparse options get moved over to clustering module?
 """
 import logging
 import os
@@ -19,6 +18,36 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_DOC_COL_NAME = "document_text"
 VECTORIZED_COL_NAME = "vectorized"
+
+
+def prep_spark_corpus(spark, input_corpus_path, min_time_delta=3, max_time_delta=60*60*72,
+                      min_doc_frequency=0.05, max_doc_frequency=0.95,
+                      output_dir=None, corpus_output_name="vectorized_corpus.parquet"):
+    """Transforms a text data frame using the specified text processing pipeline options.
+    Returns the transformed dataframe as a SparkCorpus and the SparkTextPreProcessingPipeline
+    :param spark: Spark Session
+    :param input_corpus_path: str, path to parquet corpus produced by 'ihop.import_data bow'
+    :param min_time_delta: int, Exclude comments that occur sooner than this number of seconds after the submission
+    :param max_time_delta: int, Exclude comments that occur later than this number of seconds after the submission
+    :param min_doc_frequency: int or float, minimum number or percentage of documents a term appear to be included in the vocab
+    :param max_doc_frequency: int or float, maximum number or percentage of documents a term appear to be included in the vocab
+    :param output_dir: None or str, directory to optionally save the corpus and pipeline. If this is None, they won't be saved
+    :param corpus_output_name: str, filename of corpus used when output_dir is not None
+    """
+    logger.info("Prepping corpus for LDA with parameters:", locals())
+    raw_joined_df = spark.read.parquet(input_corpus_path)
+    time_filtered_corpus = SparkCorpus.init_from_joined_dataframe(
+        raw_joined_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta)
+    preprocessing_pipeline = SparkTextPreprocessingPipeline(
+        minDF=min_doc_frequency, maxDF=max_doc_frequency)
+    vectorized_corpus = SparkCorpus(
+        preprocessing_pipeline.fit_transform(time_filtered_corpus.document_dataframe))
+
+    if output_dir is not None:
+        preprocessing_pipeline.save(output_dir)
+        vectorized_corpus.save(os.path.join(output_dir, corpus_output_name))
+
+    return vectorized_corpus, preprocessing_pipeline
 
 
 class SparkCorpus:
@@ -69,6 +98,8 @@ class SparkCorpus:
         :param max_time_delta: int, the maximum time (typically in seconds) a comment is allowed to occur after a submission
         :param time_time_delta: int, the minimum time (typically in seconds) a comment is allowed to occur after a submission
         """
+        logger.debug(
+            "Filtering Spark Reddit dataframe with following settings:", locals())
         filtered_df = ihop.import_data.filter_by_time_between_submission_and_comment(
             raw_dataframe, max_time_delta, min_time_delta, time_delta_col)
 
@@ -132,6 +163,7 @@ class SparkCorpusIterator:
 
     def __iter__(self):
         # Reset iteration each time
+        logger.debug("Starting iteration over corpus")
         spark_rdd_iter = self.corpus_df.rdd.toLocalIterator()
         for row in spark_rdd_iter:
             data = row[self.column_name]
@@ -155,7 +187,7 @@ class SparkTextPreprocessingPipeline:
     def __init__(self, input_col=DEFAULT_DOC_COL_NAME, output_col=VECTORIZED_COL_NAME, tokens_col="tokenized",
                  tokenization_pattern="([\p{L}\p{N}#@][\p{L}\p{N}\p{Pd}\p{Pc}\p{S}\p{P}]*[\p{L}\p{N}])|[\p{L}\p{N}]",
                  match_gaps=False, toLowercase=True,
-                 maxDF=0.95, minDF=0.5, minTF=0.0, binary=False, useIDF=False):
+                 maxDF=0.95, minDF=0.05, minTF=0.0, binary=False, useIDF=False):
         """Initializes a text preprocessing pipeline with Spark.
         Note: The tokenization pattern throws away punctuation pretty aggresively, is probably throwing away emojis
 
@@ -171,13 +203,18 @@ class SparkTextPreprocessingPipeline:
         :param binary: boolean, Set to True for binary term document flags, rather than term frequency counts
         :param useIDF: boolean, set to True to use inverse document frequency smoothing of counts.
         """
+        logger.debug(
+            "Parameters for SparkTextPreprocessingPipeline:", locals())
         tokenizer = RegexTokenizer(inputCol=input_col, outputCol=tokens_col, toLowercase=toLowercase).\
             setPattern(tokenization_pattern).\
             setGaps(match_gaps)
+        logger.debug(
+            "Using RegexTokenizer with following parameters:", tokenizer.params)
 
         count_vectorizer = CountVectorizer(
             inputCol=tokens_col, outputCol=output_col,
             maxDF=maxDF, minDF=minDF, minTF=minTF, binary=binary)
+
         pipeline_stages = [tokenizer, count_vectorizer]
 
         if useIDF:
@@ -186,15 +223,21 @@ class SparkTextPreprocessingPipeline:
             idf_stage = IDF(inputCol=count_vectorized_col,
                             outputCol=output_col)
             pipeline_stages.append(idf_stage)
+            logger.debug(
+                "Using IDF with following parameters:", count_vectorizer.params)
 
+        logger.debug(
+            "Using CountVectorizer with following parameters:", count_vectorizer.params)
         self.pipeline = Pipeline(stages=pipeline_stages)
 
+        logger.debug("Text transformation pipeline created")
         self.model = None
 
     def fit_transform(self, docs_dataframe):
         """Fit the pipeline, then return results of the running transform on the docs_dataframe
         :param docs_dataframe: Spark DataFrame
         """
+        logger.debug("Fitting SparkTextPreprocessingPipeline")
         self.model = self.pipeline.fit(docs_dataframe)
         return self.model.transform(docs_dataframe)
 
@@ -215,20 +258,27 @@ class SparkTextPreprocessingPipeline:
 
         :param save_dir: Directory to save the model and pipeline
         """
+        logger.debug(
+            "Saving SparkTextPreprocessingPipeline to directory:", save_dir)
         os.makedirs(save_dir, exist_ok=True)
         self.pipeline.save(os.path.join(save_dir, self.PIPELINE_OUTPUT_NAME))
         if self.model is not None:
             self.model.save(os.path.join(save_dir, self.MODEL_OUTPUT_NAME))
+        logger.debug("SparkTextPreprocessingPipeline saved")
 
     @classmethod
     def load(cls, load_dir):
         """Loads a SparkTextPreprocessingPipeline from the specified directory
         :param load_dir: Directory to load the model and pipeline from
         """
+        logger.debug(
+            "Loading SparkTextPreProcessingPipeline from directory:", load_dir)
         result = cls("inplaceholder", "outplaceholder")
         result.pipeline = Pipeline.load(
             os.path.join(load_dir, cls.PIPELINE_OUTPUT_NAME))
-        result.model = PipelineModel.load(
-            os.path.join(load_dir, cls.MODEL_OUTPUT_NAME))
+        model_file = os.path.join(load_dir, cls.MODEL_OUTPUT_NAME)
+        if os.path.exists(model_file):
+            result.model = PipelineModel.load(model_file)
 
+        logger.debug("SparkTextPreprocessingPipeline sucessfully loaded")
         return result
