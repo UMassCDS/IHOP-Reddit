@@ -34,7 +34,8 @@ def prep_spark_corpus(spark, input_corpus_path, min_time_delta=3, max_time_delta
     :param output_dir: None or str, directory to optionally save the corpus and pipeline. If this is None, they won't be saved
     :param corpus_output_name: str, filename of corpus used when output_dir is not None
     """
-    logger.info("Prepping corpus for LDA with parameters:", locals())
+    logger.info("Prepping corpus for LDA with parameters: %s", locals())
+
     raw_joined_df = spark.read.parquet(input_corpus_path)
     time_filtered_corpus = SparkCorpus.init_from_joined_dataframe(
         raw_joined_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta)
@@ -99,7 +100,7 @@ class SparkCorpus:
         :param time_time_delta: int, the minimum time (typically in seconds) a comment is allowed to occur after a submission
         """
         logger.debug(
-            "Filtering Spark Reddit dataframe with following settings:", locals())
+            "Filtering Spark Reddit dataframe with following settings:, %s", locals())
         filtered_df = ihop.import_data.filter_by_time_between_submission_and_comment(
             raw_dataframe, max_time_delta, min_time_delta, time_delta_col)
 
@@ -204,12 +205,12 @@ class SparkTextPreprocessingPipeline:
         :param useIDF: boolean, set to True to use inverse document frequency smoothing of counts.
         """
         logger.debug(
-            "Parameters for SparkTextPreprocessingPipeline:", locals())
+            "Parameters for SparkTextPreprocessingPipeline: %s", locals())
         tokenizer = RegexTokenizer(inputCol=input_col, outputCol=tokens_col, toLowercase=toLowercase).\
             setPattern(tokenization_pattern).\
             setGaps(match_gaps)
         logger.debug(
-            "Using RegexTokenizer with following parameters:", tokenizer.params)
+            "Using RegexTokenizer with following parameters: %s", tokenizer.params)
 
         count_vectorizer = CountVectorizer(
             inputCol=tokens_col, outputCol=output_col,
@@ -224,10 +225,10 @@ class SparkTextPreprocessingPipeline:
                             outputCol=output_col)
             pipeline_stages.append(idf_stage)
             logger.debug(
-                "Using IDF with following parameters:", count_vectorizer.params)
+                "Using IDF with following parameters: %s", count_vectorizer.params)
 
         logger.debug(
-            "Using CountVectorizer with following parameters:", count_vectorizer.params)
+            "Using CountVectorizer with following parameters: %s", count_vectorizer.params)
         self.pipeline = Pipeline(stages=pipeline_stages)
 
         logger.debug("Text transformation pipeline created")
@@ -259,7 +260,7 @@ class SparkTextPreprocessingPipeline:
         :param save_dir: Directory to save the model and pipeline
         """
         logger.debug(
-            "Saving SparkTextPreprocessingPipeline to directory:", save_dir)
+            "Saving SparkTextPreprocessingPipeline to directory: %s", save_dir)
         os.makedirs(save_dir, exist_ok=True)
         self.pipeline.save(os.path.join(save_dir, self.PIPELINE_OUTPUT_NAME))
         if self.model is not None:
@@ -272,7 +273,7 @@ class SparkTextPreprocessingPipeline:
         :param load_dir: Directory to load the model and pipeline from
         """
         logger.debug(
-            "Loading SparkTextPreProcessingPipeline from directory:", load_dir)
+            "Loading SparkTextPreProcessingPipeline from directory: %s", load_dir)
         result = cls("inplaceholder", "outplaceholder")
         result.pipeline = Pipeline.load(
             os.path.join(load_dir, cls.PIPELINE_OUTPUT_NAME))

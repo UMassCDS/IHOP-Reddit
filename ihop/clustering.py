@@ -162,7 +162,7 @@ class ClusteringModel:
         """Persists model and json parameters in the given directory
         :param output_dir: str, path to desired directory
         """
-        logger.debug("Saving ClusterModel to directory:", output_dir)
+        logger.debug("Saving ClusterModel to directory: %s", output_dir)
         os.makedirs(output_dir, exist_ok=True)
         self.save_model(os.path.join(output_dir, self.MODEL_FILE))
         self.save_parameters(os.path.join(output_dir, self.PARAMETERS_JSON))
@@ -291,7 +291,7 @@ class GensimLDAModel(DocumentClusteringModel):
         """Returns the top words for each learned topic as list of [(topic_id, [(word, probability)...]),...]
         :param num_words: int, How many of the top words to return for each topic
         """
-        return self.lda_model.show_topics(num_topics=self.lda_model.num_topics, num_words=num_words, formatted=False)
+        return self.lda_model.print_topics(num_topics=-1, num_words=num_words)
 
     def get_top_words_as_dataframe(self, num_words=20):
         """Returns the top words for each learned topic as a pandas dataframe
@@ -355,7 +355,7 @@ class GensimLDAModel(DocumentClusteringModel):
         """Save the LDA model to the path
         :param path: str or open file-like object, Path to save model to file
         """
-        logger.debug("Saving Gensim LDA model to", path)
+        logger.debug("Saving Gensim LDA model to %s", path)
         self.lda_model.save(path)
         logger.debug("Gensim LDA model successfully saved")
 
@@ -397,14 +397,15 @@ def main(model_choice, data, index, experiment_dir, cluster_params,
     """
     model = ClusteringModelFactory.init_clustering_model(
         model_choice, data, index, **cluster_params)
-    logger.info("Training model", model.model_name)
+    logger.info("Training model %s", model.model_name)
     model.train()
-    logger.info("Finished training model", model.model_name)
-    logger.info("Saving model", model.model_name, "to", args.model_dir)
+    logger.info("Finished training model %s", model.model_name)
+    logger.info("Saving model %s to %s", model.model_name, experiment_dir)
     model.save(experiment_dir)
-    metrics = model.metrics()
-    logger.info("Model performance metrics:", model.metrics())
+
     if not is_quiet:
+        metrics = model.get_metrics()
+        logger.info("Model performance metrics: %s", model.get_metrics())
         print("Performance metrics:", metrics)
 
     if clusters_csv_filename is not None:
