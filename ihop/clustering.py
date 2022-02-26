@@ -291,7 +291,7 @@ class GensimLDAModel(DocumentClusteringModel):
         """Returns the top words for each learned topic as list of [(topic_id, [(word, probability)...]),...]
         :param num_words: int, How many of the top words to return for each topic
         """
-        return self.lda_model.print_topics(num_topics=-1, num_words=num_words)
+        return self.lda_model.show_topics(num_topics=-1, num_words=num_words, formatted=False)
 
     def get_top_words_as_dataframe(self, num_words=20):
         """Returns the top words for each learned topic as a pandas dataframe
