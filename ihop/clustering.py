@@ -331,12 +331,12 @@ class GensimLDAModel(DocumentClusteringModel):
         return {'Coherence': self.coherence_model.get_coherence()}
 
     def get_term_topics(self, word):
-        """Returns the most relevant topics to the word as a list of (int, float) representing topic id and probability (relevence to the given word)
+        """Returns the most relevant topics to the word as a list of (int, float) representing topic id and probability (relevence to the given word) worded by decreasing probability
 
         :param word: str, word of interest
         """
         if word in self.word2id:
-            return self.lda_model.get_term_topics(self.word2id[word])
+            return sorted(self.lda_model.get_term_topics(self.word2id[word]), key=lambda x: x[1], reverse=True)
         else:
             return []
 
@@ -409,14 +409,14 @@ def main(model_choice, data, index, experiment_dir, cluster_params,
         print("Performance metrics:", metrics)
 
     if clusters_csv_filename is not None:
-        logger.info("Saving clusters to CSV")
-        model.get_cluster_results_as_df().to_csv(
-            os.path.join(experiment_dir, clusters_csv_filename))
+        cluster_csv = os.path.join(experiment_dir, clusters_csv_filename)
+        logger.info("Saving clusters to CSV %s", cluster_csv)
+        model.get_cluster_results_as_df().to_csv(cluster_csv, index=False)
 
     if model_choice == ClusteringModelFactory.LDA and words_csv_filename is not None:
-        logger.info("Saving topic keywords")
-        model.get_top_words_as_dataframe(
-            os.path.join(experiment_dir, words_csv_filename))
+        words_csv = os.path.join(experiment_dir, words_csv_filename)
+        logger.info("Saving topic keywords to CSV %s", words_csv)
+        model.get_top_words_as_dataframe().to_csv(words_csv, index=False)
 
     return model
 
