@@ -431,30 +431,31 @@ def main(model_choice, data, index, experiment_dir, cluster_params,
 parser = argparse.ArgumentParser(
     description="Produce clusterings of the input data")
 parser.add_argument("-q", "--quiet", action='store_true',
-                    help="Use to turn off verbose info statements.")
+                    help="Use to turn off verbose info statements that require extra computation.")
 
 parser.add_argument("input", nargs='+',
                     help="Path to the file containing input data in the specified format")
+parser.add_argument("--output_dir", '-o', required=True,
+                    help="Directory to save the trained model and any additional data and parameters")
 
-parser.add_argument("--data_type", '-d',
+parser.add_argument("--data_type", '-d', help="Specify the format of the input data fed to the clustering model",
                     choices=["keyedvectors", "sparkcorpus"], default="keyedvectors")
-parser.add_argument("--cluster_type", "-c",
+parser.add_argument("--cluster_type", "-c", help="The type of clustering model to train.",
                     choices=ClusteringModelFactory.DEFAULT_MODEL_PARAMS.keys(),
                     default=ClusteringModelFactory.KMEANS)
 parser.add_argument("--cluster_params", "-p", nargs='?', type=json.loads, default="{}",
                     help="JSON defining overriding or additional parameters to pass to the sklearn or Gensim model")
 
-parser.add_argument("--output_dir", '-o', required=True,
-                    help="Directory to save the trained model and any additional data and parameters")
+# Used for text data only
 parser.add_argument("--min_doc_frequency", default=0.05,
-                    type=float, help="Minimum document frequency")
+                    type=float, help="Minimum document frequency. Defaults to 0.05.")
 parser.add_argument("--max_doc_frequency", type=float,
-                    default=0.95, help="Maximum document frequency")
+                    default=0.95, help="Maximum document frequency. Defaults to 0.95.")
 parser.add_argument("--max_time_delta", "-x", type=pytimeparse.parse,
-                    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.",
+                    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 72h.",
                     default="72h")
 parser.add_argument("--min_time_delta", "-m", type=pytimeparse.parse,
-                    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.",
+                    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 3s.",
                     default="3s")
 
 
