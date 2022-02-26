@@ -31,8 +31,8 @@ logging.basicConfig(
 class ClusteringModelFactory:
     """Return appropriate class given input params
     """
-    AFFINITY_PROP = "affinity_propagation"
-    AGGLOMERATIVE = "agglomerative_clustering"
+    AFFINITY_PROP = "affinity"
+    AGGLOMERATIVE = "agglomerative"
     KMEANS = "kmeans"
     LDA = "lda"
 
@@ -124,8 +124,10 @@ class ClusteringModel:
         :param datapoint_col_name: str, name of column that serves as key for data points
         :param join_df: Pandas DataFrame, optionally inner join this dataframe on the datapoint_col_name in the returned results
         """
-        cluster_df = pd.DataFrame({datapoint_col_name: self.index_to_key,
-                                   self.model_name: self.clusters})
+        datapoints = [(val, self.clusters[idx])
+                      for idx, val in self.index_to_key.items()]
+        cluster_df = pd.DataFrame(
+            datapoints, columns=[datapoint_col_name, self.model_name])
         cluster_df[self.model_name] = cluster_df[self.model_name].astype(
             'category')
         if join_df is not None:
@@ -234,20 +236,20 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         self.corpus_iter = corpus_iter
         self.word2id = {v: k for k, v in id2word.items()}
-        self.lda_model = gm.ldamulticore.LdaMulticore(
+        self.clustering_model = gm.ldamulticore.LdaMulticore(
             num_topics=num_topics, id2word=id2word,
             alpha=alpha, eta=eta, iterations=iterations,
             **kwargs)
         self.model_name = model_name
         self.coherence_model = gm.coherencemodel.CoherenceModel(
-            self.lda_model, corpus=self.corpus_iter, coherence='u_mass')
+            self.clustering_model, corpus=self.corpus_iter, coherence='u_mass')
 
     def train(self):
         """Trains LDA topic model on the corpus
         Returns topic assignments for each document in the training data
         """
         logger.debug("Staring LDA training")
-        self.lda_model.update(self.corpus_iter)
+        self.clustering_model.update(self.corpus_iter)
         logger.debug("Finished LDA training")
         return self.get_topic_assignments()
 
@@ -256,10 +258,10 @@ class GensimLDAModel(DocumentClusteringModel):
 
         :param bow_docs: iterable of lists of (int, float) representing docs in bag-of-words format
         """
-        result = np.zeros((len(bow_docs), self.lda_model.num_topics))
+        result = np.zeros((len(bow_docs), self.clustering_model.num_topics))
         for i, bow in enumerate(bow_docs):
             indices, topic_probs = zip(
-                *self.lda_model.get_document_topics(bow))
+                *self.clustering_model.get_document_topics(bow))
             result[i, indices] = topic_probs
 
         return result
@@ -275,7 +277,7 @@ class GensimLDAModel(DocumentClusteringModel):
             current_iterator = corpus_iter
         results = dict()
         for doc_id, bow_doc in current_iterator:
-            results[doc_id] = sorted(self.lda_model.get_document_topics(bow_doc),
+            results[doc_id] = sorted(self.clustering_model.get_document_topics(bow_doc),
                                      key=lambda t: t[1])
 
         return results
@@ -291,7 +293,7 @@ class GensimLDAModel(DocumentClusteringModel):
         """Returns the top words for each learned topic as list of [(topic_id, [(word, probability)...]),...]
         :param num_words: int, How many of the top words to return for each topic
         """
-        return self.lda_model.show_topics(num_topics=-1, num_words=num_words, formatted=False)
+        return self.clustering_model.show_topics(num_topics=-1, num_words=num_words, formatted=False)
 
     def get_top_words_as_dataframe(self, num_words=20):
         """Returns the top words for each learned topic as a pandas dataframe
@@ -336,7 +338,7 @@ class GensimLDAModel(DocumentClusteringModel):
         :param word: str, word of interest
         """
         if word in self.word2id:
-            return sorted(self.lda_model.get_term_topics(self.word2id[word]), key=lambda x: x[1], reverse=True)
+            return sorted(self.clustering_model.get_term_topics(self.word2id[word]), key=lambda x: x[1], reverse=True)
         else:
             return []
 
@@ -345,10 +347,10 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         params = {}
         params[self.MODEL_NAME_KEY] = self.model_name
-        params["num_topics"] = self.lda_model.num_topics
-        params["decay"] = self.lda_model.decay
-        params["offset"] = self.lda_model.offset
-        params["iterations"] = self.lda_model.iterations
+        params["num_topics"] = self.clustering_model.num_topics
+        params["decay"] = self.clustering_model.decay
+        params["offset"] = self.clustering_model.offset
+        params["iterations"] = self.clustering_model.iterations
         return params
 
     def save_model(self, path):
@@ -356,7 +358,7 @@ class GensimLDAModel(DocumentClusteringModel):
         :param path: str or open file-like object, Path to save model to file
         """
         logger.debug("Saving Gensim LDA model to %s", path)
-        self.lda_model.save(path)
+        self.clustering_model.save(path)
         logger.debug("Gensim LDA model successfully saved")
 
     @classmethod
@@ -367,13 +369,13 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         # Gensim
         loaded_model = cls([[(0, 1.0)]], None, {0: 'dummy'})
-        loaded_model.lda_model = gm.ldamulticore.LdaMulticore.load(
+        loaded_model.clustering_model = gm.ldamulticore.LdaMulticore.load(
             os.path.join(load_path, cls.MODEL_FILE))
         loaded_model.word2id = {v: k for k,
-                                v in loaded_model.lda_model.id2word.items()}
+                                v in loaded_model.clustering_model.id2word.items()}
         loaded_model.corpus_iter = corpus_iter
         loaded_model.coherence_model = gm.coherencemodel.CoherenceModel(
-            loaded_model.lda_model, corpus=corpus_iter, coherence='u_mass')
+            loaded_model.clustering_model, corpus=corpus_iter, coherence='u_mass')
 
         with open(os.path.join(load_path, cls.PARAMETERS_JSON)) as js:
             params = json.load(js)
@@ -382,7 +384,7 @@ class GensimLDAModel(DocumentClusteringModel):
 
 
 def main(model_choice, data, index, experiment_dir, cluster_params,
-         clusters_csv_filename="clusters.csv", words_csv_filename="words.csv",
+         clusters_csv_filename="clusters.csv", words_csv_filename="keywords.csv", metrics_json="metrics.json", model_name=None,
          is_quiet=False):
     """Main method to train a clustering model, then save model and cluster outputs. Returns the trained model.
 
@@ -393,20 +395,25 @@ def main(model_choice, data, index, experiment_dir, cluster_params,
     :param cluster_params: dict, any keyword arguments to pass along to sklearn or Gensim
     :param clusters_csv_filename: str, how to name the CSV file storing cluster output
     :param words_csv_filename: str, if the model is LDA, how to name csv filename storing topic keywords
+    :param metrics_json: str, if specified, save model metrics to this file as a json
+    :param model_name: str or None, if not None, overrides the default model name
     :param is_quiet: boolean, set to true to silence print statements for metrics
     """
     model = ClusteringModelFactory.init_clustering_model(
-        model_choice, data, index, **cluster_params)
+        model_choice, data, index, model_name, **cluster_params)
     logger.info("Training model %s", model.model_name)
     model.train()
     logger.info("Finished training model %s", model.model_name)
     logger.info("Saving model %s to %s", model.model_name, experiment_dir)
     model.save(experiment_dir)
 
-    if not is_quiet:
+    # TODO clean up - encapsulate the following in a save_experimental_results method for the models
+    if not is_quiet or metrics_json is not None:
         metrics = model.get_metrics()
         logger.info("Model performance metrics: %s", model.get_metrics())
-        print("Performance metrics:", metrics)
+        if metrics_json is not None:
+            with open(os.path.join(experiment_dir, metrics_json), 'w') as f:
+                json.dump(metrics, f)
 
     if clusters_csv_filename is not None:
         cluster_csv = os.path.join(experiment_dir, clusters_csv_filename)

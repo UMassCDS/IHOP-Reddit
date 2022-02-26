@@ -2,8 +2,9 @@
 """
 import collections
 
+import gensim.models as gm
 import numpy as np
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, AgglomerativeClustering
 import pytest
 
 import ihop.clustering as ic
@@ -39,8 +40,8 @@ def test_clustering_model(vector_data):
         n_clusters=2, max_iter=10), "test", {0: "AskReddit", 1: "aww", 2: "NBA"})
     clusters = model.train()
     assert clusters.shape == (3,)
-    assert sorted(list(model.get_metrics().keys())) == [
-        'Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette']
+    assert set(model.get_metrics().keys()) == set([
+        'Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette'])
 
     expected_params = {
         'algorithm': 'auto',
@@ -60,6 +61,8 @@ def test_clustering_model(vector_data):
     # Giving the AskReddit vector again predicts the same cluster
     assert model.predict(np.full((1, 5), 1)) == clusters[0]
 
+    assert model.get_cluster_results_as_df().shape == (3, 2)
+
 
 def test_cluster_model_serialization(vector_data, tmp_path):
     model = ic.ClusteringModel(vector_data, KMeans(
@@ -73,6 +76,30 @@ def test_cluster_model_serialization(vector_data, tmp_path):
     assert loaded_model.get_parameters() == model.get_parameters()
     assert loaded_model.clusters.shape == model.clusters.shape
     assert (loaded_model.clusters == model.clusters).all()
+
+
+def test_main_sklearn(vector_data, tmp_path):
+    print(vector_data)
+    index = {0: "AskReddit", 1: "aww", 2: "NBA"}
+    print(index)
+    model = ic.main('agglomerative', vector_data,
+                    index, tmp_path, {'n_clusters': 2, 'linkage': 'single'}, model_name='test_agglomerative')
+    assert isinstance(model.clustering_model, AgglomerativeClustering)
+    assert model.clustering_model.n_clusters == 2
+    assert model.clustering_model.linkage == 'single'
+    assert model.model_name == 'test_agglomerative'
+
+    model_path = tmp_path / 'sklearn_cluster_model.joblib'
+    assert model_path.exists()
+
+    param_json = tmp_path / 'parameters.json'
+    assert param_json.exists()
+
+    metrics_json = tmp_path / 'metrics.json'
+    assert metrics_json.exists()
+
+    clusters_csv = tmp_path / 'clusters.csv'
+    assert clusters_csv.exists()
 
 
 def test_lda(text_features):
@@ -118,8 +145,35 @@ def test_lda_serialization(text_features, tmp_path):
     lda.train()
     lda.save(tmp_path)
     loaded_lda = ic.GensimLDAModel.load(tmp_path, corpus_iter)
-    assert loaded_lda.lda_model.id2word == index
+    assert loaded_lda.clustering_model.id2word == index
     assert len(loaded_lda.get_term_topics('sentence')) == 2
     sample_bow = [[(1, 3.0), (7, 2.0)]]
     assert (loaded_lda.predict(sample_bow) == lda.predict(sample_bow)).all()
     assert loaded_lda.get_parameters() == lda.get_parameters()
+
+
+def test_main_lda(text_features, tmp_path):
+    index = text_features.index
+    corpus_iter = tp.SparkCorpusIterator(
+        text_features.corpus.document_dataframe, "vectorized", True)
+
+    model = ic.main('lda', corpus_iter,
+                    index, tmp_path, {'num_topics': 2, 'alpha': 'symmetric'}, model_name='test_lda')
+    assert isinstance(model.clustering_model, gm.LdaMulticore)
+    assert model.clustering_model.num_topics == 2
+    assert model.model_name == 'test_lda'
+
+    model_path = tmp_path / 'gensim_lda.gz'
+    assert model_path.exists()
+
+    param_json = tmp_path / 'parameters.json'
+    assert param_json.exists()
+
+    metrics_json = tmp_path / 'metrics.json'
+    assert metrics_json.exists()
+
+    clusters_csv = tmp_path / 'clusters.csv'
+    assert clusters_csv.exists()
+
+    words_csv = tmp_path / 'keywords.csv'
+    assert words_csv.exists()
