@@ -2,7 +2,9 @@
 The Center for Data Science repository for the International Hate Observatory Project.
 The `ihop` directory is a python module with submodules that can also be run as command line programs:
 - `ihop.import_data`: Uses Spark to import Reddit data from the Pushshift json dumps to formats more easily used for topic modeling. Run `python -m ihop.import_data --help` for details
-- `ihop.community2vec`: Wrappers for training and tuning word2vec to implement community2vec on the Reddit datasets.
+- `ihop.community2vec`: Wrappers for training and tuning word2vec to implement community2vec on the Reddit datasets. Run `python -m ihop.community2vec --help` to see options for training community2vec with hyperparameter tuning for best accuracy on the subreddit analogy task.
+- `ihop.clustering`: Use to fit sklearn cluster modules with subreddit embeddings or fit Gensim LDA modules on text data.  Run `python -m ihop.clustering --help` to see options.
+- `ihop.text_processing`: Text preprocessing utilities for tokenization and vectorizing documents. No script support.
 - `ihop.resources`: Data resources
 	- `ihop.resources.analogies`: Subreddit algebra analogies for tuning community2vec, taken from [social-dimensions](https://github.com/CSSLab/social-dimensions) with minor updates
 

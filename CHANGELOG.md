@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Object oriented approach to clustering and topic models in ihop/clustering.py
 - autopep8-ify modules
+- Updated README to reflect new module additions
 
 ### Added
 - Class in ihop/utils.py for serializing numpy float32 to json
