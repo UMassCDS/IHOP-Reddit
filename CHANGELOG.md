@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2022-02-26
+### Changed
+- Object oriented approach to clustering and topic models in ihop/clustering.py
+- autopep8-ify modules
+
+### Added
+- Class in ihop/utils.py for serializing numpy float32 to json
+- Option for importing data to bag-of-words format in ihop/import_data.py
+- Created ihop/text_processing.py for tokenization and tf-idf options when working with text data
+- GensimLDA class for training LDAMulticore models in ihop/clustering.py
+- In ihop/clustering.py added main method with argparse options for training clustering and topic models
+- Unit tests for ihop/text_processing.py and ihop/clustering.py
+
 ## [0.1.0] - 2022-02-14
 ### Added
 - This changelog
