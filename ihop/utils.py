@@ -1,10 +1,12 @@
-"""Utilities for working with Spark.
+"""Utilities for working with Spark, numpy, file utils and other misc. operations
 
 # TODO Eventually, we may need to read Spark config from a file, especially if we want to submit jobs to a cluster.
 """
-import os
+import json
 import logging
+import os
 
+import numpy as np
 from pyspark.sql import SparkSession
 
 logger = logging.getLogger(__name__)
@@ -38,3 +40,13 @@ def get_spark_session(name, driver_mem="8G", quiet=False):
         print(spark.sparkContext.getConf().getAll())
 
     return spark
+
+
+class NumpyFloatEncoder(json.JSONEncoder):
+    """Avoids issues serializing numpy float32 to json
+    """
+
+    def default(self, obj):
+        if isinstance(obj, np.float32):
+            return float(obj)
+        return json.JSONEncoder.default(self, obj)

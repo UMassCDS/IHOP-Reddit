@@ -20,7 +20,8 @@ import pytimeparse
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
 from sklearn import metrics
 
-import ihop
+import ihop.utils
+import ihop.text_processing
 
 logger = logging.getLogger(__name__)
 # TODO Logging should be configurable, but for now just turn it on for Gensim
@@ -49,7 +50,7 @@ class ClusteringModelFactory:
     def init_clustering_model(cls, model_choice, data, index, model_name=None, **kwargs):
         """Returns a ClusteringModel instance instantiated with the appropriate parameters and ready to train on the given data.
         :param model_choice: str, type of model to instantiate
-        :param data: data used to train the model, type is dependent on the model choice
+        :param data: data used to train the model, type is dependent on the model choice. For sklearn models, should be gensim KeyedVectors and for LDA can be SparkCorpusIterator or some other kind of iterable data
         :param index: dict, int -> str, how to name each data point, important for exporting data for users and visualizations
         :param model_name: str, used to identify the model in output and string representation. If left as None, then choice value will be used as model name
         :param kwargs: parameters to pass to the sklearn or Gensim model
@@ -66,23 +67,28 @@ class ClusteringModelFactory:
         parameters.update(cls.DEFAULT_MODEL_PARAMS[model_choice])
         parameters.update(kwargs)
 
-        if model_choice == cls.KMEANS:
-            return ClusteringModel(data, KMeans(**parameters), model_id, index)
-        elif model_choice == cls.AFFINITY_PROP:
-            if isinstance(data, gm.keyedvectors.KeyedVectors) and parameters['affinity'] == "precomputed":
-                precomputed_distances = np.zeros((len(index), len(index)))
+        if isinstance(data, gm.keyedvectors.KeyedVectors):
+            if parameters['affinity'] == "precomputed":
+                vectors = np.zeros((len(index), len(index)))
                 for i, v in index.items():
-                    precomputed_distances[i] = np.array(data.distances(v))
-
-                return ClusteringModel(precomputed_distances, AffinityPropagation(**parameters), model_choice, index)
+                    vectors[i] = np.array(data.distances(v))
             else:
-                return ClusteringModel(data, AffinityPropagation(**parameters), model_id, index)
+                vectors = data.get_normed_vectors()
+        else:
+            vectors = data
+
+        if model_choice == cls.LDA:
+            return GensimLDAModel(vectors, model_id, index, **parameters)
+        elif model_choice == cls.KMEANS:
+            model = KMeans(**parameters)
+        elif model_choice == cls.AFFINITY_PROP:
+            model = AffinityPropagation(**parameters)
         elif model_choice == cls.AGGLOMERATIVE:
-            return ClusteringModel(data, AgglomerativeClustering(**parameters), model_id, index)
-        elif model_choice == cls.LDA:
-            return GensimLDAModel(data, model_id, index, **parameters)
+            model = AgglomerativeClustering(**parameters)
         else:
             raise ValueError(f"Model type '{model_choice}' is not supported")
+
+        return ClusteringModel(vectors, model, model_id, index)
 
 
 class ClusteringModel:
@@ -410,10 +416,10 @@ def main(model_choice, data, index, experiment_dir, cluster_params,
     # TODO clean up - encapsulate the following in a save_experimental_results method for the models
     if not is_quiet or metrics_json is not None:
         metrics = model.get_metrics()
-        logger.info("Model performance metrics: %s", model.get_metrics())
+        logger.info("Model performance metrics: %s", metrics)
         if metrics_json is not None:
             with open(os.path.join(experiment_dir, metrics_json), 'w') as f:
-                json.dump(metrics, f)
+                json.dump(metrics, f, cls=ihop.utils.NumpyFloatEncoder)
 
     if clusters_csv_filename is not None:
         cluster_csv = os.path.join(experiment_dir, clusters_csv_filename)
@@ -469,8 +475,8 @@ if __name__ == "__main__":
             "Document clustering with sklearn models not implemented yet")
 
     if args.data_type == 'keyedvectors':
-        data = gm.KeyedVectors.load(args.input)
-        index = data.index
+        data = gm.KeyedVectors.load(args.input[0])
+        index = dict(enumerate(data.index_to_key))
     elif args.data_type == 'sparkcorpus':
         spark = ihop.utils.get_spark_session("LDA Clustering prep", args.quiet)
 
@@ -488,4 +494,4 @@ if __name__ == "__main__":
         index = pipeline.get_id_to_word()
 
     main(args.cluster_type, data, index, args.output_dir,
-         args.cluster_params, args.quiet)
+         args.cluster_params, is_quiet=args.quiet)
