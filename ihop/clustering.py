@@ -68,7 +68,7 @@ class ClusteringModelFactory:
         parameters.update(kwargs)
 
         if isinstance(data, gm.keyedvectors.KeyedVectors):
-            if parameters['affinity'] == "precomputed":
+            if parameters.get('affinity', None) == "precomputed":
                 vectors = np.zeros((len(index), len(index)))
                 for i, v in index.items():
                     vectors[i] = np.array(data.distances(v))
