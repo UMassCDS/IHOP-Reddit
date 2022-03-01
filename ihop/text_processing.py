@@ -19,14 +19,32 @@ logger = logging.getLogger(__name__)
 DEFAULT_DOC_COL_NAME = "document_text"
 VECTORIZED_COL_NAME = "vectorized"
 
+def print_document_length_statistics(dataframe, tokenized_col="tokenized", doc_length_col="doc_length"):
+    """Computes statistics about document length after tokenization and shows a snippet of the documents that have 0 tokens.
+    Returns the dataframe with a new column storing document length
 
-def prep_spark_corpus(spark, input_corpus_path, min_time_delta=3, max_time_delta=60*60*72,
+    :param dataframe: Spark DataFrame
+    :param tokenized_col: str, the tokenized column for computing stats
+    :param doc_length_col: str, the column name for computed doc lengths
+    """
+    doc_length_df = dataframe.withColumn(doc_length_col, fn.size(fn.col(tokenized_col)))
+    print("Overall document length statistics:")
+    doc_length_df.describe([doc_length_col]).show()
+
+    zero_length_docs = doc_length_df.where(doc_length_df[doc_length_col] == 0)
+    print("Number of documents with zero tokens:", zero_length_docs.count())
+    print("Snippet of documents with length zero after tokenization:")
+    zero_length_docs.show()
+
+    return doc_length_df
+
+
+def prep_spark_corpus(input_df, min_time_delta=3, max_time_delta=60*60*72,
                       min_doc_frequency=0.05, max_doc_frequency=0.95,
                       output_dir=None, corpus_output_name="vectorized_corpus.parquet"):
     """Transforms a text data frame using the specified text processing pipeline options.
     Returns the transformed dataframe as a SparkCorpus and the SparkTextPreProcessingPipeline
-    :param spark: Spark Session
-    :param input_corpus_path: str, path to parquet corpus produced by 'ihop.import_data bow'
+    :param input_df: Spark DataFrame, typically corpus produced by 'ihop.import_data bow'
     :param min_time_delta: int, Exclude comments that occur sooner than this number of seconds after the submission
     :param max_time_delta: int, Exclude comments that occur later than this number of seconds after the submission
     :param min_doc_frequency: int or float, minimum number or percentage of documents a term appear to be included in the vocab
@@ -35,10 +53,8 @@ def prep_spark_corpus(spark, input_corpus_path, min_time_delta=3, max_time_delta
     :param corpus_output_name: str, filename of corpus used when output_dir is not None
     """
     logger.info("Prepping corpus for LDA with parameters: %s", locals())
-
-    raw_joined_df = spark.read.parquet(input_corpus_path)
     time_filtered_corpus = SparkCorpus.init_from_joined_dataframe(
-        raw_joined_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta)
+        input_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta)
     preprocessing_pipeline = SparkTextPreprocessingPipeline(
         minDF=min_doc_frequency, maxDF=max_doc_frequency)
     vectorized_corpus = SparkCorpus(
@@ -186,7 +202,7 @@ class SparkTextPreprocessingPipeline:
     MODEL_OUTPUT_NAME = "SparkTextProcessingModel"
 
     def __init__(self, input_col=DEFAULT_DOC_COL_NAME, output_col=VECTORIZED_COL_NAME, tokens_col="tokenized",
-                 tokenization_pattern="([\p{L}\p{N}#@][\p{L}\p{N}\p{Pd}\p{Pc}\p{S}\p{P}]*[\p{L}\p{N}])|[\p{L}\p{N}]",
+                 tokenization_pattern="([\p{L}\p{N}#@][\p{L}\p{N}\p{Pd}\p{Pc}\p{S}\p{P}]*[\p{L}\p{N}])|[\p{L}\p{N}]|[^\p{P}\s]",
                  match_gaps=False, toLowercase=True,
                  maxDF=0.95, minDF=0.05, minTF=0.0, binary=False, useIDF=False):
         """Initializes a text preprocessing pipeline with Spark.
@@ -204,13 +220,15 @@ class SparkTextPreprocessingPipeline:
         :param binary: boolean, Set to True for binary term document flags, rather than term frequency counts
         :param useIDF: boolean, set to True to use inverse document frequency smoothing of counts.
         """
-        logger.debug(
+        logger.info(
             "Parameters for SparkTextPreprocessingPipeline: %s", locals())
         tokenizer = RegexTokenizer(inputCol=input_col, outputCol=tokens_col, toLowercase=toLowercase).\
             setPattern(tokenization_pattern).\
             setGaps(match_gaps)
-        logger.debug(
-            "Using RegexTokenizer with following parameters: %s", tokenizer.params)
+        logger.info(
+            "Using RegexTokenizer with following parameters: {inputCol: %s, outputCol: %s, pattern: %s, toLowercase: %s, gaps: %s}",
+            tokenizer.getInputCol(), tokenizer.getOutputCol(),
+            tokenizer.getPattern(), tokenizer.getToLowercase(), tokenizer.getGaps())
 
         count_vectorizer = CountVectorizer(
             inputCol=tokens_col, outputCol=output_col,
@@ -224,11 +242,13 @@ class SparkTextPreprocessingPipeline:
             idf_stage = IDF(inputCol=count_vectorized_col,
                             outputCol=output_col)
             pipeline_stages.append(idf_stage)
-            logger.debug(
-                "Using IDF with following parameters: %s", count_vectorizer.params)
+            logger.info(
+                "Using IDF with following parameters: {inputCol: %s, outputCol: %s}", idf_stage.getInputCol(), idf_stage.getOutputCol())
 
-        logger.debug(
-            "Using CountVectorizer with following parameters: %s", count_vectorizer.params)
+        logger.info(
+            "Using CountVectorizer with following parameters: {inputCol: %s, outputCol: %s, minDF: %s, maxDF: %s, minTF: %s, vocabSize: %s}",
+            count_vectorizer.getInputCol(), count_vectorizer.getOutputCol(),
+            count_vectorizer.getMinDF(), count_vectorizer.getMaxDF(), count_vectorizer.getMinTF(), count_vectorizer.getVocabSize())
         self.pipeline = Pipeline(stages=pipeline_stages)
 
         logger.debug("Text transformation pipeline created")
@@ -238,7 +258,7 @@ class SparkTextPreprocessingPipeline:
         """Fit the pipeline, then return results of the running transform on the docs_dataframe
         :param docs_dataframe: Spark DataFrame
         """
-        logger.debug("Fitting SparkTextPreprocessingPipeline")
+        logger.info("Fitting SparkTextPreprocessingPipeline")
         self.model = self.pipeline.fit(docs_dataframe)
         return self.model.transform(docs_dataframe)
 
@@ -259,20 +279,20 @@ class SparkTextPreprocessingPipeline:
 
         :param save_dir: Directory to save the model and pipeline
         """
-        logger.debug(
+        logger.info(
             "Saving SparkTextPreprocessingPipeline to directory: %s", save_dir)
         os.makedirs(save_dir, exist_ok=True)
         self.pipeline.save(os.path.join(save_dir, self.PIPELINE_OUTPUT_NAME))
         if self.model is not None:
             self.model.save(os.path.join(save_dir, self.MODEL_OUTPUT_NAME))
-        logger.debug("SparkTextPreprocessingPipeline saved")
+        logger.info("SparkTextPreprocessingPipeline saved")
 
     @classmethod
     def load(cls, load_dir):
         """Loads a SparkTextPreprocessingPipeline from the specified directory
         :param load_dir: Directory to load the model and pipeline from
         """
-        logger.debug(
+        logger.info(
             "Loading SparkTextPreProcessingPipeline from directory: %s", load_dir)
         result = cls("inplaceholder", "outplaceholder")
         result.pipeline = Pipeline.load(
@@ -281,5 +301,5 @@ class SparkTextPreprocessingPipeline:
         if os.path.exists(model_file):
             result.model = PipelineModel.load(model_file)
 
-        logger.debug("SparkTextPreprocessingPipeline sucessfully loaded")
+        logger.info("SparkTextPreprocessingPipeline sucessfully loaded")
         return result

@@ -481,14 +481,13 @@ if __name__ == "__main__":
         spark = ihop.utils.get_spark_session("LDA Clustering prep", args.quiet)
 
         vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(
-            spark, args.input,
+            spark.read.parquet(args.input),
             min_time_delta=args.min_time_delta, max_time_delta=args.max_time_delta,
             min_doc_frequency=args.min_doc_frequency, max_doc_frequency=args.max_doc_frequency,
             output_dir=args.output_dir)
 
         if not args.quiet:
-            # TODO Compute and print document length statistics after tokenization
-            pass
+            ihop.text_processing.print_document_length_statistics(vectorized_corpus.document_dataframe)
 
         data = vectorized_corpus.get_vectorized_column_iterator()
         index = pipeline.get_id_to_word()
