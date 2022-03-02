@@ -8,6 +8,7 @@ import os
 
 import numpy as np
 from pyspark.sql import SparkSession
+import pyspark.sql.functions as fn
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,21 @@ def get_spark_session(name, driver_mem="8G", quiet=False):
         print(spark.sparkContext.getConf().getAll())
 
     return spark
+
+
+def get_start_end_timeframes(spark_dataframe, utc_time_col="created_utc"):
+    """Returns a dataframe detailing the start and end times for input dataframe in both UTC time and a human readable format
+
+    :param spark_dataframe: Spark DataFrame
+    :param utc_time_col: column containing timestamps
+    """
+    timeframes = spark_dataframe.select(
+        fn.max(utc_time_col).alias('end_timeframe'),
+        fn.min(utc_time_col).alias('start_timeframe')
+    )
+    timeframes = timeframes.withColumn('human_readable_start', fn.from_unixtime(
+        'start_timeframe')).withColumn('human_readable_end', fn.from_unixtime('end_timeframe'))
+    return timeframes
 
 
 class NumpyFloatEncoder(json.JSONEncoder):
