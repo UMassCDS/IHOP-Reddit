@@ -13,7 +13,13 @@ def joined_reddit_dataframe(spark):
         {'id': 's1', 'selftext': 'Post 1 text.', 'title': 'MY FIRST POST!!!!', 'comments_id': 'c2',
             'body': "@someone some.one@email.com", 'time_to_comment_in_seconds': 10, 'subreddit': 'AskReddit'},
         {'id': 's2', 'selftext': '', 'title': 'Look @ this cute animal!', 'comments_id': 'c3',
-            'body': "aww- - adorable...", 'time_to_comment_in_seconds': 100, 'subreddit': 'aww'}
+            'body': "aww- - adorable...", 'time_to_comment_in_seconds': 100, 'subreddit': 'aww'},
+        # Empty tokenization doc
+        {'id': 's3', 'selftext': '', 'title': '....!', 'comments_id': 'c4',
+        'body': "", 'time_to_comment_in_seconds': 10, 'subreddit': 'testSubreddit'},
+        {'id': 's4', 'selftext': '', 'title': 'Emojis!', 'comments_id': 'c4',
+         'body': "\u1F601 \u1F970", 'time_to_comment_in_seconds': 10, 'subreddit': 'testSubreddit'},
+
     ]
 
     return spark.createDataFrame(test_data)
@@ -35,12 +41,14 @@ def corpus(joined_reddit_dataframe):
 def test_init_spark_reddit_corpus(joined_reddit_dataframe):
     corpus = SparkCorpus.init_from_joined_dataframe(
         joined_reddit_dataframe)
-    assert corpus.document_dataframe.count() == 2
+    assert corpus.document_dataframe.count() == 4
     assert corpus.document_dataframe.columns == [
         'id', 'subreddit', 'document_text']
     doc_set = set([d for d in corpus.get_column_iterator('document_text')])
     assert "MY FIRST POST!!!! Post 1 text. @someone some.one@email.com Ain't this hard to tokenize: #hashtag, yo-yo www.reddit.com?" in doc_set
     assert "Look @ this cute animal!  aww- - adorable..." in doc_set
+    assert "....!  " in doc_set
+    assert "Emojis!  \u1F601 \u1F970" in doc_set
 
 
 def test_init_spark_reddit_corpus_with_timedeltas(joined_reddit_dataframe):
@@ -60,9 +68,12 @@ def test_spark_text_processing_pipeline(corpus):
     results = sorted(transformed_corpus.collect(), key=lambda x: x.id)
     text_1 = "my first post post 1 text @someone some.one@email.com ain't this hard to tokenize #hashtag yo-yo www.reddit.com".split()
     text_2 = "look this cute animal aww adorable".split()
+    text_3 = "emojis \u1F601 \u1F970".split()
     assert results[0].tokenized == text_1
     assert results[1].tokenized == text_2
-    vocabulary = set(text_1).union(set(text_2))
+    assert results[2].tokenized == []
+    assert results[3].tokenized == text_3
+    vocabulary = set(text_1).union(set(text_2)).union(set(text_3))
     index = pipeline.get_id_to_word()
     assert len(index) == len(vocabulary)
     assert set(index.values()) == vocabulary

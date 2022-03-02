@@ -10,6 +10,7 @@ import argparse
 import copy
 import json
 import logging
+from multiprocessing.sharedctypes import Value
 import os
 
 import gensim.models as gm
@@ -27,6 +28,11 @@ logger = logging.getLogger(__name__)
 # TODO Logging should be configurable, but for now just turn it on for Gensim
 logging.basicConfig(
     format='%(name)s : %(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+
+# Constants for supported data types
+KEYED_VECTORS = "KeyedVectors"
+SPARK_DOCS = "SparkDocuments"
+SPARK_VEC = "SparkVectorized"
 
 
 class ClusteringModelFactory:
@@ -276,7 +282,9 @@ class GensimLDAModel(DocumentClusteringModel):
         """Returns {str-> list((int,float))}, the topic assignments for each document id as a list of list of (int, float) sorted in order of decreasing probability.
         :param corpus_iter: SparkCorpusIterator with is_return_id as true, if not specified, uses the training corpus
         """
+        logger.debug("Starting to retrieve topic assignments")
         if corpus_iter is None:
+            logger.debug("Getting iterator for vectorized docs")
             current_iterator = copy.copy(self.corpus_iter)
             current_iterator.is_return_id = True
         else:
@@ -444,8 +452,8 @@ parser.add_argument("input", nargs='+',
 parser.add_argument("--output_dir", '-o', required=True,
                     help="Directory to save the trained model and any additional data and parameters")
 
-parser.add_argument("--data_type", '-d', help="Specify the format of the input data fed to the clustering model",
-                    choices=["keyedvectors", "sparkcorpus"], default="keyedvectors")
+parser.add_argument("--data_type", '-d', help="Specify the format of the input data fed to the clustering model: Gensim KeyedVectors, SparkDocuments for raw Reddit submission and comment text documents in a parquet or SparkVectorized for a folder containing vectorized documents in parquet with a serialized Spark pipeline for the vocab index",
+                    choices=[KEYED_VECTORS, SPARK_DOCS, SPARK_VEC], default="keyedvectors")
 parser.add_argument("--cluster_type", "-c", help="The type of clustering model to train.",
                     choices=ClusteringModelFactory.DEFAULT_MODEL_PARAMS.keys(),
                     default=ClusteringModelFactory.KMEANS)
@@ -468,26 +476,33 @@ parser.add_argument("--min_time_delta", "-m", type=pytimeparse.parse,
 if __name__ == "__main__":
     # TODO Clean this up a bit
     args = parser.parse_args()
-    if args.data_type == 'keyedvectors' and args.cluster_type == ClusteringModelFactory.LDA:
-        raise ValueError("LDA models do not support KeyedVector data type")
-    if args.data_type == 'sparkcorpus' and args.cluster_type != ClusteringModelFactory.LDA:
+    if args.data_type == KEYED_VECTORS and args.cluster_type == ClusteringModelFactory.LDA:
+        raise ValueError("LDA models do not support KeyedVectors data type")
+    if args.data_type == KEYED_VECTORS and args.cluster_type != ClusteringModelFactory.LDA:
         raise ValueError(
             "Document clustering with sklearn models not implemented yet")
 
-    if args.data_type == 'keyedvectors':
+    if args.data_type == KEYED_VECTORS:
         data = gm.KeyedVectors.load(args.input[0])
         index = dict(enumerate(data.index_to_key))
-    elif args.data_type == 'sparkcorpus':
+    else:
         spark = ihop.utils.get_spark_session("LDA Clustering prep", args.quiet)
 
-        vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(
-            spark.read.parquet(args.input),
-            min_time_delta=args.min_time_delta, max_time_delta=args.max_time_delta,
-            min_doc_frequency=args.min_doc_frequency, max_doc_frequency=args.max_doc_frequency,
-            output_dir=args.output_dir)
+        if args.data_type == SPARK_DOCS:
+            vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(
+                spark.read.parquet(args.input),
+                min_time_delta=args.min_time_delta, max_time_delta=args.max_time_delta,
+                min_doc_frequency=args.min_doc_frequency, max_doc_frequency=args.max_doc_frequency,
+                output_dir=args.output_dir)
 
-        if not args.quiet:
-            ihop.text_processing.print_document_length_statistics(vectorized_corpus.document_dataframe)
+            if not args.quiet:
+                ihop.text_processing.print_document_length_statistics(vectorized_corpus.document_dataframe)
+
+        elif args.data_type == SPARK_VEC:
+            #TODO The actual corpus filename should be an argparse option
+            # For now, just assume this args.input is the path to a directory that was previous the output_dir for ihop.text_processing.prep_spark_corpus
+            vectorized_corpus = ihop.text_processing.SparkCorpus.load(os.path.join(args.input[0], "vectorized_corpus.parquet"))
+            pipeline = ihop.text_processing.SparkTextPreprocessingPipeline.load(args.input[0])
 
         data = vectorized_corpus.get_vectorized_column_iterator()
         index = pipeline.get_id_to_word()

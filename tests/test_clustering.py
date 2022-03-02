@@ -108,7 +108,9 @@ def test_lda(text_features):
         text_features.corpus.document_dataframe, "vectorized", True)
     lda = ic.GensimLDAModel(corpus_iter, "test_lda", index,
                             num_topics=2, iterations=5, random_state=8)
-    lda.train()
+    train_assignments = lda.train()
+    assert len(train_assignments) == 3
+    assert set(train_assignments.keys()) == {'a1', 'b2', 'c3'}
     topic_assignments = lda.get_topic_assignments()
     assert len(topic_assignments) == 3
     assert set(topic_assignments.keys()) == {'a1', 'b2', 'c3'}
