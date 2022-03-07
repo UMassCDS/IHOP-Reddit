@@ -299,7 +299,7 @@ def community2vec(inputs, spark, reddit_type=COMMENTS, top_n=DEFAULT_TOP_N, min_
     return top_n_df, context_word_df.drop("context_length")
 
 
-def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, top_n=DEFAULT_TOP_N, type_for_top_n=COMMENTS,
+def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, min_time_delta=None, top_n=DEFAULT_TOP_N, type_for_top_n=COMMENTS,
     exclude_top_perc=DEFAULT_USER_EXCLUDE,  quiet=False):
     """Returns the data for training bag of words models in a Spark DataFrame.
 
@@ -307,6 +307,7 @@ def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, 
     :param comments_paths: list of Paths to read JSON Reddit comments from
     :param submissions_paths: list of Paths to read JSON Reddit submissions/posts from
     :param max_time_delta: int or None, maximum time in seconds allowed between submission creation and creation of its comments
+    :param min_time_delta: int or None, minimum time in seconds allowed between submission creation and creation of its comments
     :param top_n: int, how many of the top most popular subreddits to keep
     :param type_for_top_n: 'comments' or 'submissions'
     :param exclude_top_perc: float, the percentage of top most active users by number of comments to exclude from the final dataset. Note that only comments are filtered, not submissions
@@ -332,7 +333,7 @@ def bag_of_words(spark, comments_paths, submissions_paths, max_time_delta=None, 
     filtered_submissions = prefix_id_column(filtered_submissions)
     joined_df = join_submissions_and_comments(filtered_submissions, filtered_comments)
     if max_time_delta:
-        joined_df = filter_by_time_between_submission_and_comment(joined_df, max_time_delta)
+        joined_df = filter_by_time_between_submission_and_comment(joined_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta)
 
     return joined_df
 
@@ -352,7 +353,8 @@ topic_modeling_parser = subparsers.add_parser('bow', help="Output data to parque
 topic_modeling_parser.add_argument('output', help="Destination pat of resulting parquet dataset.")
 topic_modeling_parser.add_argument("--submissions", "-s", nargs="+", help="Path to submissions input data in json format.")
 topic_modeling_parser.add_argument("--comments", "-c", nargs="+", help="Path to comments input in json format.")
-topic_modeling_parser.add_argument("--max_time_delta", "-d", type=pytimeparse.parse, help="Optionally specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
+topic_modeling_parser.add_argument("--max_time_delta", "-x", type=pytimeparse.parse, help="Optionally specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
+topic_modeling_parser.add_argument("--min_time_delta", "-m", type=pytimeparse.parse, help="Optionally specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. If this is not used, all comments are kept for every submission.")
 topic_modeling_parser.add_argument("-n", "--top_n", type=int, default=DEFAULT_TOP_N, help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.")
 topic_modeling_parser.add_argument('--type_for_top_n', '-t', default=COMMENTS, choices=[COMMENTS, SUBMISSIONS], help="Is the number of 'comments' or 'submissions' used to determine the top n most popular subreddits?")
 topic_modeling_parser.add_argument("-p", "--exclude_top_user_perc", type=float, default=DEFAULT_USER_EXCLUDE, help="The percentage of top most active users to exclude by number of comments over the time period")
@@ -379,6 +381,7 @@ if __name__ == "__main__":
     elif args.subparser_name=='bow':
         bag_of_words_df = bag_of_words(spark, args.comments, args.submissions,
                                 max_time_delta=args.max_time_delta,
+                                min_time_delta=args.min_time_delta,
                                 top_n=args.top_n,
                                 type_for_top_n=args.type_for_top_n,
                                 exclude_top_perc=args.exclude_top_user_perc,
