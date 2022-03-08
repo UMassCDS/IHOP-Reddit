@@ -9,7 +9,7 @@ import os
 
 import pyspark.sql.functions as fn
 from pyspark.ml import Pipeline, PipelineModel
-from pyspark.ml.feature import CountVectorizer, CountVectorizerModel, RegexTokenizer, IDF
+from pyspark.ml.feature import CountVectorizer, CountVectorizerModel, RegexTokenizer, IDF, StopWordsRemover
 
 
 import ihop.import_data
@@ -204,6 +204,7 @@ class SparkTextPreprocessingPipeline:
     def __init__(self, input_col=DEFAULT_DOC_COL_NAME, output_col=VECTORIZED_COL_NAME, tokens_col="tokenized",
                  tokenization_pattern="([\p{L}\p{N}#@][\p{L}\p{N}\p{Pd}\p{Pc}\p{S}\p{P}]*[\p{L}\p{N}])|[\p{L}\p{N}]|[^\p{P}\s]",
                  match_gaps=False, toLowercase=True,
+                 stopLanguage='english', stopCaseSensitive=False,
                  maxDF=0.95, minDF=0.05, minTF=0.0, binary=False, useIDF=False):
         """Initializes a text preprocessing pipeline with Spark.
         Note: The tokenization pattern throws away punctuation pretty aggresively, is probably throwing away emojis
@@ -214,6 +215,8 @@ class SparkTextPreprocessingPipeline:
         :param tokenization_pattern: regex pattern passed to tokenizer
         :param match_gaps: boolean, True if your regex matches gaps between words, False to match tokens
         :param toLowercase: boolean, True to covert characters to lowercase before tokenizing
+        :param stopLanguage: str or None, the name of the language to use for stop word removal or None to skip stopping
+        :param stopCaseSensitive: boolean, True to make stop word removal case sensitive
         :param maxDF: int or float, maximum document frequency expressed as a float percentage of documents in the corpus or a integer number of documents. Throw away terms that occur in more than that number of documents.
         :param minDF: int or float, minimum number of documents a term must be in as a percentage of documents in the corpus or an integer number of documents. Throw away terms that occur in fewer than that number of docs.
         :param minTF: int or float, ignore terms with frequency (float, fraction of document's token count) or count less than the given value for each document (affects transform only, not fitting)
@@ -229,12 +232,22 @@ class SparkTextPreprocessingPipeline:
             "Using RegexTokenizer with following parameters: {inputCol: %s, outputCol: %s, pattern: %s, toLowercase: %s, gaps: %s}",
             tokenizer.getInputCol(), tokenizer.getOutputCol(),
             tokenizer.getPattern(), tokenizer.getToLowercase(), tokenizer.getGaps())
+        pipeline_stages = [tokenizer]
+
+        count_vec_in_col = tokens_col
+        if stopLanguage is not None:
+            count_vec_in_col = "tokensNoStopWords"
+            stop_remover = StopWordsRemover(inputCol=tokens_col, outputCol=count_vec_in_col, stopWords=StopWordsRemover.loadDefaultStopWords(stopLanguage), caseSensitive=stopCaseSensitive)
+            logger.info("Using StopWordsRemover with the following parameters: {inputCol: %s, outputCol: %s, stopWords: %s, caseSensitive: %s}", stop_remover.getInputCol(), stop_remover.getOutputCol(),
+            stop_remover.getStopWords(), stop_remover.getCaseSensitive())
+            pipeline_stages.append(stop_remover)
+
 
         count_vectorizer = CountVectorizer(
-            inputCol=tokens_col, outputCol=output_col,
+            inputCol=count_vec_in_col, outputCol=output_col,
             maxDF=maxDF, minDF=minDF, minTF=minTF, binary=binary)
 
-        pipeline_stages = [tokenizer, count_vectorizer]
+        pipeline_stages.append(count_vectorizer)
 
         if useIDF:
             count_vectorized_col = "count_vectorized"

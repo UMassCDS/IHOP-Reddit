@@ -30,7 +30,7 @@ def text_features(spark):
         {'id': 'c3', 'text': 'The last sentence'}
     ]
     dataframe = spark.createDataFrame(test_data)
-    pipeline = tp.SparkTextPreprocessingPipeline('text', maxDF=10, minDF=0)
+    pipeline = tp.SparkTextPreprocessingPipeline('text', maxDF=10, minDF=0, stopLanguage=None)
     vectorized_df = tp.SparkCorpus(pipeline.fit_transform(dataframe))
     return Corpus(vectorized_df, pipeline.get_id_to_word())
 

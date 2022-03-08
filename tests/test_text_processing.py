@@ -1,5 +1,6 @@
 """Unit tests for ihop.topic_modeling.py
 """
+from copy import deepcopy
 import pytest
 
 from ihop.text_processing import SparkCorpus, SparkTextPreprocessingPipeline
@@ -59,9 +60,9 @@ def test_init_spark_reddit_corpus_with_timedeltas(joined_reddit_dataframe):
     assert "Look @ this cute animal!  aww- - adorable..." in doc_set
 
 
-def test_spark_text_processing_pipeline(corpus):
+def test_spark_text_processing_pipeline_no_stopwords(corpus):
     pipeline = SparkTextPreprocessingPipeline(
-        "document_text", "vectorized", maxDF=1000, minDF=0.0)
+        "document_text", "vectorized", maxDF=1000, minDF=0.0, stopLanguage=None)
     transformed_corpus = pipeline.fit_transform(corpus.document_dataframe)
     assert transformed_corpus.columns == [
         "id", "subreddit", "document_text", "tokenized", "vectorized"]
@@ -80,8 +81,34 @@ def test_spark_text_processing_pipeline(corpus):
     assert set(index.keys()) == set(range(len(vocabulary)))
 
 
+def test_spark_text_processing_pipeline(corpus):
+    pipeline = SparkTextPreprocessingPipeline(
+        "document_text", "vectorized", maxDF=1000, minDF=0.0)
+    transformed_corpus = pipeline.fit_transform(corpus.document_dataframe)
+    assert transformed_corpus.columns == [
+        "id", "subreddit", "document_text", "tokenized", "tokensNoStopWords", "vectorized"]
+    results = sorted(transformed_corpus.collect(), key=lambda x: x.id)
+    text_1 = "my first post post 1 text @someone some.one@email.com ain't this hard to tokenize #hashtag yo-yo www.reddit.com".split()
+    text_2 = "look this cute animal aww adorable".split()
+    text_3 = "emojis \u1F601 \u1F970".split()
+    text_1_filtered = "first post post 1 text @someone some.one@email.com ain't hard tokenize #hashtag yo-yo www.reddit.com".split()
+    text_2_filtered = "look cute animal aww adorable".split()
+    assert results[0].tokenized == text_1
+    assert results[0].tokensNoStopWords == text_1_filtered
+    assert results[1].tokenized == text_2
+    assert results[1].tokensNoStopWords == text_2_filtered
+    assert results[2].tokenized == []
+    assert results[3].tokenized == text_3
+    assert results[3].tokensNoStopWords == text_3
+    vocabulary = set(text_1_filtered).union(set(text_2_filtered)).union(set(text_3))
+    index = pipeline.get_id_to_word()
+    assert len(index) == len(vocabulary)
+    assert set(index.values()) == vocabulary
+    assert set(index.keys()) == set(range(len(vocabulary)))
+
+
 def test_index_words(simple_vocab_df):
-    pipeline = SparkTextPreprocessingPipeline("document_text", "vectorized")
+    pipeline = SparkTextPreprocessingPipeline("document_text", "vectorized", stopLanguage=None)
     corpus = SparkCorpus(pipeline.fit_transform(simple_vocab_df))
 
     vector_docs = list(corpus.get_vectorized_column_iterator("vectorized"))
