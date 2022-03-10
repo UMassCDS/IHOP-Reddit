@@ -21,6 +21,7 @@ VECTORIZED_COL_NAME = "vectorized"
 TOKENIZED_COL_NAME = "tokenized"
 FILTERED_TOKENS_COL_NAME = "tokensNoStopWords"
 
+
 def print_document_length_statistics(dataframe, tokenized_col=TOKENIZED_COL_NAME, doc_length_col="doc_length"):
     """Computes statistics about document length after tokenization and shows a snippet of the documents that have 0 tokens.
     Returns the dataframe with a new column storing document length
@@ -29,7 +30,8 @@ def print_document_length_statistics(dataframe, tokenized_col=TOKENIZED_COL_NAME
     :param tokenized_col: str, the tokenized column for computing stats
     :param doc_length_col: str, the column name for computed doc lengths
     """
-    doc_length_df = dataframe.withColumn(doc_length_col, fn.size(fn.col(tokenized_col)))
+    doc_length_df = dataframe.withColumn(
+        doc_length_col, fn.size(fn.col(tokenized_col)))
     print("Overall document length statistics:")
     doc_length_df.describe([doc_length_col]).show()
 
@@ -75,7 +77,7 @@ class SparkCorpus:
     Allows for iterating over documents for training models with Gensim.
     """
 
-    def __init__(self, dataframe, document_col_name=DEFAULT_DOC_COL_NAME, id_col="id", vectorized_col = VECTORIZED_COL_NAME, tokenized_col=FILTERED_TOKENS_COL_NAME):
+    def __init__(self, dataframe, document_col_name=DEFAULT_DOC_COL_NAME, id_col="id", vectorized_col=VECTORIZED_COL_NAME, tokenized_col=FILTERED_TOKENS_COL_NAME):
         """
         :param dataframe: Spark DataFrame
         :param document_col_name: str, column storing raw document text
@@ -91,11 +93,18 @@ class SparkCorpus:
         self.tokenized_col = tokenized_col
 
     def collect_column_to_list(self, col, is_vectorized_column=False):
+        """Returns the contents of a column in the corpus as a list.
+        This is useful for training Gensim models if the data is small enough to fit in memory
+        :param col: str, name of column to collect
+        :param is_vectorized_column: boolean, when true,
         """
-        TODO
-        """
-        pass
-        # TODO - so long as partitions aren't changed (and they shouldn't be here, the order returned by collect won't change)
+        # So long as partitions aren't changed (and they shouldn't be
+        # here, the order returned by collect won't change)
+        col_data = self.document_dataframe.select(col)
+        # Reshape vectors - this might be horribly slow
+        if is_vectorized_column:
+            return col_data.rdd.map(lambda x: (x[col].indices, x[col].values)).collect()
+        return col_data.rdd.map(lambda x: x[col]).collect()
 
     def get_column_iterator(self, column_name, use_id_col=False):
         """Returns an iterator over data in a particular column of the corpus that contains text or numerical data
@@ -117,7 +126,7 @@ class SparkCorpus:
         """
         self.document_dataframe.write.parquet(output_path)
 
-    @classmethod
+    @ classmethod
     def init_from_joined_dataframe(cls, raw_dataframe, submission_id_col="id",
                                    submission_text_col="selftext", submission_title_col="title",
                                    comments_text_col="body", category_col="subreddit", time_delta_col='time_to_comment_in_seconds',
@@ -256,11 +265,11 @@ class SparkTextPreprocessingPipeline:
         count_vec_in_col = tokens_col
         if stopLanguage is not None:
             count_vec_in_col = filtered_tokens_col
-            stop_remover = StopWordsRemover(inputCol=tokens_col, outputCol=count_vec_in_col, stopWords=StopWordsRemover.loadDefaultStopWords(stopLanguage), caseSensitive=stopCaseSensitive)
+            stop_remover = StopWordsRemover(inputCol=tokens_col, outputCol=count_vec_in_col, stopWords=StopWordsRemover.loadDefaultStopWords(
+                stopLanguage), caseSensitive=stopCaseSensitive)
             logger.info("Using StopWordsRemover with the following parameters: {inputCol: %s, outputCol: %s, stopWords: %s, caseSensitive: %s}", stop_remover.getInputCol(), stop_remover.getOutputCol(),
-            stop_remover.getStopWords(), stop_remover.getCaseSensitive())
+                        stop_remover.getStopWords(), stop_remover.getCaseSensitive())
             pipeline_stages.append(stop_remover)
-
 
         count_vectorizer = CountVectorizer(
             inputCol=count_vec_in_col, outputCol=output_col,
@@ -332,7 +341,8 @@ class SparkTextPreprocessingPipeline:
         model_file = os.path.join(load_dir, cls.MODEL_OUTPUT_NAME)
         # TODO this doesn't work on Databricks
         if os.path.exists(model_file):
-            logger.debug("PipelineModel file found %s, loading PipelineModel", model_file)
+            logger.debug(
+                "PipelineModel file found %s, loading PipelineModel", model_file)
             result.model = PipelineModel.load(model_file)
 
         logger.info("SparkTextPreprocessingPipeline sucessfully loaded")

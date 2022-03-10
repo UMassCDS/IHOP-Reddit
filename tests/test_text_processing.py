@@ -1,7 +1,9 @@
 """Unit tests for ihop.topic_modeling.py
 """
-from copy import deepcopy
 import pytest
+
+import numpy as np
+from pyspark.ml.linalg import SparseVector
 
 from ihop.text_processing import SparkCorpus, SparkTextPreprocessingPipeline
 
@@ -17,7 +19,7 @@ def joined_reddit_dataframe(spark):
             'body': "aww- - adorable...", 'time_to_comment_in_seconds': 100, 'subreddit': 'aww'},
         # Empty tokenization doc
         {'id': 's3', 'selftext': '', 'title': '....!', 'comments_id': 'c4',
-        'body': "", 'time_to_comment_in_seconds': 10, 'subreddit': 'testSubreddit'},
+         'body': "", 'time_to_comment_in_seconds': 10, 'subreddit': 'testSubreddit'},
         {'id': 's4', 'selftext': '', 'title': 'Emojis!', 'comments_id': 'c4',
          'body': "\u1F601 \u1F970", 'time_to_comment_in_seconds': 10, 'subreddit': 'testSubreddit'},
 
@@ -30,8 +32,17 @@ def joined_reddit_dataframe(spark):
 def simple_vocab_df(spark):
     simple_input = [{"id": "a1", "document_text": "a a a"},
                     {"id": "b2", "document_text": "b b b"},
-                    {"id": "c3", "document_text": "a b"}]
+                    {"id": "c3", "document_text": "a a b"}]
     return spark.createDataFrame(simple_input)
+
+
+@pytest.fixture
+def simple_corpus(spark):
+    simple_input = [{"id": "a1", "document_text": "a a a", "tokenized": ["a"] * 3, "vectorized": SparseVector(3, [0], [3.0])},
+                    {"id": "b2", "document_text": "b b b",
+                        "tokenized": ["b"] * 3, "vectorized": SparseVector(3, [1], [3.0])},
+                    {"id": "c3", "document_text": "a a b", "tokenized": ["a", "a", "b"], "vectorized": SparseVector(3, [0, 1], [2.0, 1.0])}]
+    return SparkCorpus(spark.createDataFrame(simple_input), tokenized_col="tokenized")
 
 
 @pytest.fixture
@@ -100,7 +111,8 @@ def test_spark_text_processing_pipeline(corpus):
     assert results[2].tokenized == []
     assert results[3].tokenized == text_3
     assert results[3].tokensNoStopWords == text_3
-    vocabulary = set(text_1_filtered).union(set(text_2_filtered)).union(set(text_3))
+    vocabulary = set(text_1_filtered).union(
+        set(text_2_filtered)).union(set(text_3))
     index = pipeline.get_id_to_word()
     assert len(index) == len(vocabulary)
     assert set(index.values()) == vocabulary
@@ -108,16 +120,17 @@ def test_spark_text_processing_pipeline(corpus):
 
 
 def test_index_words(simple_vocab_df):
-    pipeline = SparkTextPreprocessingPipeline("document_text", "vectorized", stopLanguage=None)
+    pipeline = SparkTextPreprocessingPipeline(
+        "document_text", "vectorized", stopLanguage=None)
     corpus = SparkCorpus(pipeline.fit_transform(simple_vocab_df))
 
     vector_docs = list(corpus.get_vectorized_column_iterator("vectorized"))
     inv_index = pipeline.get_word_to_id()
     a_id = inv_index['a']
     b_id = inv_index['b']
-    assert list(vector_docs[0]) == [(a_id, 3)]
-    assert list(vector_docs[1]) == [(b_id, 3)]
-    assert set(vector_docs[2]) == set([(a_id, 1), (b_id, 1)])
+    assert vector_docs[0][1] == [(a_id, 3.0)]
+    assert vector_docs[1][1] == [(b_id, 3.0)]
+    assert set(vector_docs[2][1]) == set([(a_id, 2.0), (b_id, 1.0)])
 
 
 def test_save_load_spark_pipeline(simple_vocab_df, tmp_path):
@@ -127,3 +140,19 @@ def test_save_load_spark_pipeline(simple_vocab_df, tmp_path):
 
     pipeline_to_load = SparkTextPreprocessingPipeline.load(tmp_path)
     assert pipeline_to_save.get_id_to_word() == pipeline_to_load.get_id_to_word()
+
+
+def test_corpus_functions(simple_corpus):
+    assert simple_corpus.collect_column_to_list("tokenized") == [
+        ["a"] * 3, ["b"] * 3, ["a", "a", "b"]]
+    collect_vectorized = simple_corpus.collect_column_to_list(
+        "vectorized", True)
+    print(collect_vectorized)
+    expected_vectorized = [
+        (np.array([0]), np.array([3.0])),
+        (np.array([1]), np.array([3.0])),
+        (np.array([0, 1]), np.array([2.0, 1.0]))
+    ]
+    for i, v in enumerate(collect_vectorized):
+        assert (v[0] == expected_vectorized[i][0]).all()
+        assert (v[1] == expected_vectorized[i][1]).all()

@@ -17,6 +17,8 @@ import joblib
 import numpy as np
 import pandas as pd
 import pyspark.ml.clustering as sparkmc
+import pyspark.sql.functions as fn
+import pyspark.sql.types as sparktypes
 import pytimeparse
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
 from sklearn import metrics
@@ -50,7 +52,8 @@ class ClusteringModelFactory:
         AGGLOMERATIVE: {'n_clusters': 250, 'linkage': 'average', 'affinity': 'cosine', 'compute_distances': True},
         KMEANS: {'n_clusters': 250, 'random_state': 100},
         GENSIM_LDA: {'num_topics': 250, 'alpha': 'asymmetric', 'eta': 'symmetric', 'iterations': 1000},
-        SPARK_LDA: {}
+        SPARK_LDA: {'num_topics': 250, 'maxIter': 50,
+                    'optimizer': 'online', 'use_asymmetric_alpha': True, 'miniBatchFraction': 0.1}
     }
 
     @classmethod
@@ -405,12 +408,13 @@ class SparkLDAModel(DocumentClusteringModel):
 
     See https://spark.apache.org/docs/latest/mllib-clustering.html#latent-dirichlet-allocation-lda for most parameter options
     """
+
     def __init__(self, corpus, model_name, id2word, num_topics=250, optimizer='online', use_asymmetric_alpha=True, alpha_doc_concentration=None, **kwargs):
         """
-
         :param corpus: SparkCorpus object, use its vectorized_col as input to LDA
-        :param model_name:
-        :param id2word:
+        :param id2word: dict, {int -> str}, indexes the words in the vocabulary
+        :param model_name: str, how to identify the model
+        :param num_topics: int, number of topics to use for this model
         :param num_topics: int, how many topics to train model for
         :param optimizer: The optimization algorithm to use, 'online' or 'em'
         :param use_asymmetric_alpha: boolean, use to create an asymmetric alpha (different alpha for each topic), cannot be used with 'em' optimizer
@@ -419,16 +423,23 @@ class SparkLDAModel(DocumentClusteringModel):
         self.corpus = corpus
         self.model_name = model_name
         self.num_topics = num_topics
+        self.id2word = id2word
 
-        alphas = self.get_starting_alphas(optimizer, use_asymmetric_alpha, alpha_doc_concentration)
-        self.lda = sparkmc.LDA(k = num_topics )
+        # This function is for putting document terms in topic-terms output, rather than indices
+        def lookup_terms(index_list): return " ".join(
+            [id2word[i] for i in index_list])
+        self.lookup_terms_udf = fn.udf(lookup_terms, sparktypes.StringType())
+
+        alphas = self.get_starting_alphas(
+            optimizer, use_asymmetric_alpha, alpha_doc_concentration, num_topics)
+        self.lda = sparkmc.LDA(featuresCol=corpus.vectorized_col, k=num_topics,
+                               optimizer=optimizer, docConcentration=alphas, **kwargs)
         self.lda_model = None
         self.coherence_model = None
 
-
-
     def train(self):
-        pass
+        self.lda_model = self.lda.fit(self.corpus.document_dataframe)
+        return self.get_topic_assignments()
 
     def predict(self, spark_corpus):
         pass
@@ -436,8 +447,16 @@ class SparkLDAModel(DocumentClusteringModel):
     def get_metrics(self):
         pass
 
-    def get_topic_assignments(self, spark_corpus):
-        pass
+    def get_topic_assignments(self, spark_corpus=None):
+        """Returns {str -> list((int, float))}, the topic assignments for each document id as a list of list of(int, float) sorted in order of decreasing probability.
+
+        :param spark_corpus: SparkCorpus object, must have a vectorized column with same name as the vectorized column in training data
+        """
+        input_data = self.corpus
+        if spark_corpus is not None:
+            input_data = spark_corpus.documents_dataframe
+
+        topic_assignments_df = self.lda_model.transform(input_data)
 
     def get_top_words_as_dataframe(self, num_words=20):
         pass
@@ -462,16 +481,31 @@ class SparkLDAModel(DocumentClusteringModel):
     def get_parameters(self):
         pass
 
-    def get_starting_alphas(cls, optimizer, use_asymmectric_alpha, starting_alpha, num_topics):
-        """Returns a scalar or list of starting alpha or document concentration parameters
+    def get_starting_alphas(cls, optimizer, use_asymmetric_alpha, starting_alpha, num_topics):
+        """Returns a scalar or list of starting alpha or document concentration parameters, checking that the options are allowed by Spark.
 
-        :param optimizer: _description_
-        :type optimizer: _type_
-        :param alpha: _description_
-        :type alpha: _type_
-        :param k: _description_
-        :type k: _type_
+        :param optimizer: str, 'em' or 'online'
+        :param use_asymmetric_alpha: boolean, when True returns a list of length num_topics
+        :param starting_alpha: float, value to override the default starting alpha values (see Spark documentation)
+        :param num_topics: int, how many topics in the model
         """
+        if use_asymmetric_alpha:
+            if optimizer == 'em':
+                raise NotImplementedError(
+                    "Spark 'em' LDA optimizer doesn't support asymmetric docConcentration")
+
+            if optimizer == 'online':
+                if starting_alpha is not None:
+                    return [starting_alpha] * num_topics
+                else:
+                    # This matches the Spark default
+                    return [1/num_topics] * num_topics
+
+        if starting_alpha is not None:
+            return starting_alpha
+        else:
+            return -1
+
 
 def main(model_choice, data, index, experiment_dir, cluster_params,
          clusters_csv_filename="clusters.csv", words_csv_filename="keywords.csv", metrics_json="metrics.json", model_name=None,
@@ -572,13 +606,16 @@ if __name__ == "__main__":
                 output_dir=args.output_dir)
 
             if not args.quiet:
-                ihop.text_processing.print_document_length_statistics(vectorized_corpus.document_dataframe)
+                ihop.text_processing.print_document_length_statistics(
+                    vectorized_corpus.document_dataframe)
 
         elif args.data_type == SPARK_VEC:
-            #TODO The actual corpus filename should be an argparse option
+            # TODO The actual corpus filename should be an argparse option
             # For now, just assume this args.input is the path to a directory that was previous the output_dir for ihop.text_processing.prep_spark_corpus
-            vectorized_corpus = ihop.text_processing.SparkCorpus.load(os.path.join(args.input[0], "vectorized_corpus.parquet"))
-            pipeline = ihop.text_processing.SparkTextPreprocessingPipeline.load(args.input[0])
+            vectorized_corpus = ihop.text_processing.SparkCorpus.load(
+                os.path.join(args.input[0], "vectorized_corpus.parquet"))
+            pipeline = ihop.text_processing.SparkTextPreprocessingPipeline.load(
+                args.input[0])
 
         if args.cluster_type == ClusteringModelFactory.GENSIM_LDA:
             data = vectorized_corpus.get_vectorized_column_iterator()
