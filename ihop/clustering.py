@@ -10,13 +10,13 @@ import argparse
 import copy
 import json
 import logging
-from multiprocessing.sharedctypes import Value
 import os
 
 import gensim.models as gm
 import joblib
 import numpy as np
 import pandas as pd
+import pyspark.ml.clustering as sparkmc
 import pytimeparse
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
 from sklearn import metrics
@@ -41,15 +41,16 @@ class ClusteringModelFactory:
     AFFINITY_PROP = "affinity"
     AGGLOMERATIVE = "agglomerative"
     KMEANS = "kmeans"
-    LDA = "lda"
+    GENSIM_LDA = "gensimlda"
+    SPARK_LDA = "sparklda"
 
     # Default parameters used when instantiating the model
     DEFAULT_MODEL_PARAMS = {
         AFFINITY_PROP: {'affinity': 'precomputed', 'max_iter': 1000, 'convergence_iter': 50, 'random_state': 100},
         AGGLOMERATIVE: {'n_clusters': 250, 'linkage': 'average', 'affinity': 'cosine', 'compute_distances': True},
         KMEANS: {'n_clusters': 250, 'random_state': 100},
-        LDA: {'num_topics': 250, 'alpha': 'asymmetric',
-              'eta': 'symmetric', 'iterations': 1000}
+        GENSIM_LDA: {'num_topics': 250, 'alpha': 'asymmetric', 'eta': 'symmetric', 'iterations': 1000},
+        SPARK_LDA: {}
     }
 
     @classmethod
@@ -83,8 +84,10 @@ class ClusteringModelFactory:
         else:
             vectors = data
 
-        if model_choice == cls.LDA:
+        if model_choice == cls.GENSIM_LDA:
             return GensimLDAModel(vectors, model_id, index, **parameters)
+        elif model_choice == cls.SPARK_LDA:
+            return SparkLDAModel(vectors, model_name, index, **parameters)
         elif model_choice == cls.KMEANS:
             model = KMeans(**parameters)
         elif model_choice == cls.AFFINITY_PROP:
@@ -397,6 +400,79 @@ class GensimLDAModel(DocumentClusteringModel):
         return loaded_model
 
 
+class SparkLDAModel(DocumentClusteringModel):
+    """Wrapper around Spark LDA to train on SparkRedditCorpus
+
+    See https://spark.apache.org/docs/latest/mllib-clustering.html#latent-dirichlet-allocation-lda for most parameter options
+    """
+    def __init__(self, corpus, model_name, id2word, num_topics=250, optimizer='online', use_asymmetric_alpha=True, alpha_doc_concentration=None, **kwargs):
+        """
+
+        :param corpus: SparkCorpus object, use its vectorized_col as input to LDA
+        :param model_name:
+        :param id2word:
+        :param num_topics: int, how many topics to train model for
+        :param optimizer: The optimization algorithm to use, 'online' or 'em'
+        :param use_asymmetric_alpha: boolean, use to create an asymmetric alpha (different alpha for each topic), cannot be used with 'em' optimizer
+        :param alpha_doc_concentration: float, specify to override the default alpha value
+        """
+        self.corpus = corpus
+        self.model_name = model_name
+        self.num_topics = num_topics
+
+        alphas = self.get_starting_alphas(optimizer, use_asymmetric_alpha, alpha_doc_concentration)
+        self.lda = sparkmc.LDA(k = num_topics )
+        self.lda_model = None
+        self.coherence_model = None
+
+
+
+    def train(self):
+        pass
+
+    def predict(self, spark_corpus):
+        pass
+
+    def get_metrics(self):
+        pass
+
+    def get_topic_assignments(self, spark_corpus):
+        pass
+
+    def get_top_words_as_dataframe(self, num_words=20):
+        pass
+
+    def get_cluster_results_as_df(self, spark_corpus=None, doc_col_name="id", join_df=None):
+        """
+        :param spark_corpus: SparkCorpus, if not specified uses the training corpus
+        :param doc_col_name: str, column name that identifies for documents
+        :param join_df: Pandas DataFrame, optionally inner join this dataframe on doc_col_name
+        """
+        pass
+
+    def get_metrics(self):
+        """Returns LDA coherence in dictionary
+        """
+        # TODO use GensimCoherence model with corpus iterator
+        pass
+
+    def get_term_topics(self, word):
+        pass
+
+    def get_parameters(self):
+        pass
+
+    def get_starting_alphas(cls, optimizer, use_asymmectric_alpha, starting_alpha, num_topics):
+        """Returns a scalar or list of starting alpha or document concentration parameters
+
+        :param optimizer: _description_
+        :type optimizer: _type_
+        :param alpha: _description_
+        :type alpha: _type_
+        :param k: _description_
+        :type k: _type_
+        """
+
 def main(model_choice, data, index, experiment_dir, cluster_params,
          clusters_csv_filename="clusters.csv", words_csv_filename="keywords.csv", metrics_json="metrics.json", model_name=None,
          is_quiet=False):
@@ -434,7 +510,7 @@ def main(model_choice, data, index, experiment_dir, cluster_params,
         logger.info("Saving clusters to CSV %s", cluster_csv)
         model.get_cluster_results_as_df().to_csv(cluster_csv, index=False)
 
-    if model_choice == ClusteringModelFactory.LDA and words_csv_filename is not None:
+    if model_choice in [ClusteringModelFactory.GENSIM_LDA, ClusteringModelFactory.SPARK_LDA] and words_csv_filename is not None:
         words_csv = os.path.join(experiment_dir, words_csv_filename)
         logger.info("Saving topic keywords to CSV %s", words_csv)
         model.get_top_words_as_dataframe().to_csv(words_csv, index=False)
@@ -476,9 +552,9 @@ parser.add_argument("--min_time_delta", "-m", type=pytimeparse.parse,
 if __name__ == "__main__":
     # TODO Clean this up a bit
     args = parser.parse_args()
-    if args.data_type == KEYED_VECTORS and args.cluster_type == ClusteringModelFactory.LDA:
+    if args.data_type == KEYED_VECTORS and args.cluster_type == ClusteringModelFactory.GENSIM_LDA:
         raise ValueError("LDA models do not support KeyedVectors data type")
-    if args.data_type == KEYED_VECTORS and args.cluster_type != ClusteringModelFactory.LDA:
+    if args.data_type == KEYED_VECTORS and args.cluster_type != ClusteringModelFactory.GENSIM_LDA:
         raise ValueError(
             "Document clustering with sklearn models not implemented yet")
 
@@ -504,7 +580,11 @@ if __name__ == "__main__":
             vectorized_corpus = ihop.text_processing.SparkCorpus.load(os.path.join(args.input[0], "vectorized_corpus.parquet"))
             pipeline = ihop.text_processing.SparkTextPreprocessingPipeline.load(args.input[0])
 
-        data = vectorized_corpus.get_vectorized_column_iterator()
+        if args.cluster_type == ClusteringModelFactory.GENSIM_LDA:
+            data = vectorized_corpus.get_vectorized_column_iterator()
+        else:
+            data = vectorized_corpus
+
         index = pipeline.get_id_to_word()
 
     main(args.cluster_type, data, index, args.output_dir,
