@@ -30,7 +30,8 @@ def text_features(spark):
         {'id': 'c3', 'text': 'The last sentence'}
     ]
     dataframe = spark.createDataFrame(test_data)
-    pipeline = tp.SparkTextPreprocessingPipeline('text', maxDF=10, minDF=0, stopLanguage=None)
+    pipeline = tp.SparkTextPreprocessingPipeline(
+        'text', maxDF=10, minDF=0, stopLanguage=None)
     vectorized_df = tp.SparkCorpus(pipeline.fit_transform(dataframe))
     return Corpus(vectorized_df, pipeline.get_id_to_word())
 
@@ -102,7 +103,7 @@ def test_main_sklearn(vector_data, tmp_path):
     assert clusters_csv.exists()
 
 
-def test_lda(text_features):
+def test_gensim_lda(text_features):
     index = text_features.index
     corpus_iter = tp.SparkCorpusIterator(
         text_features.corpus.document_dataframe, "vectorized", True)
@@ -138,13 +139,13 @@ def test_lda(text_features):
     assert len(lda.get_term_topics('sentence')) == 2
 
 
-def test_lda_serialization(text_features, tmp_path):
+def test_gesim_lda_serialization(text_features, tmp_path):
     index = text_features.index
     corpus_iter = tp.SparkCorpusIterator(
         text_features.corpus.document_dataframe, "vectorized", True)
     lda = ic.GensimLDAModel(corpus_iter, "test_lda", index,
                             num_topics=2, iterations=5, random_state=8)
-    lda.train()
+
     lda.save(tmp_path)
     loaded_lda = ic.GensimLDAModel.load(tmp_path, corpus_iter)
     assert loaded_lda.clustering_model.id2word == index
@@ -154,12 +155,31 @@ def test_lda_serialization(text_features, tmp_path):
     assert loaded_lda.get_parameters() == lda.get_parameters()
 
 
+def test_spark_lda(text_features):
+    vocab_index = text_features.index
+    lda_model = ic.SparkLDAModel(
+        text_features.corpus, "test_spark", vocab_index, num_topics=4)
+    lda_model.transformer.getDocConcentration() == [1/2, 1/3, 1/4, 1/5]
+
+    train_assignments = lda_model.train()
+    assert len(train_assignments) == 3
+    assert set(train_assignments.keys()) == {'a1', 'b2', 'c3'}
+    topic_assignments = lda_model.get_topic_assignments()
+    assert len(topic_assignments) == 3
+    assert set(topic_assignments.keys()) == {'a1', 'b2', 'c3'}
+
+
+def test_spark_lda_serialization(text_features, tmp_path):
+    # TODO
+    assert False
+
+
 def test_main_lda(text_features, tmp_path):
     index = text_features.index
     corpus_iter = tp.SparkCorpusIterator(
         text_features.corpus.document_dataframe, "vectorized", True)
 
-    model = ic.main('lda', corpus_iter,
+    model = ic.main('gensimlda', corpus_iter,
                     index, tmp_path, {'num_topics': 2, 'alpha': 'symmetric'}, model_name='test_lda')
     assert isinstance(model.clustering_model, gm.LdaMulticore)
     assert model.clustering_model.num_topics == 2

@@ -205,6 +205,16 @@ class ClusteringModel:
         self.clustering_model = joblib.load(model_path)
 
     @classmethod
+    def load_model_name(cls, param_json_path):
+        """Returns a model name stored in params json
+
+        :param param_json_path: str, path to json file
+        """
+        with open(param_json_path) as js:
+            params = json.load(js)
+        return params[cls.MODEL_NAME_KEY]
+
+    @classmethod
     def load(cls, directory, data, index_to_key):
         """Loads a ClusterModel object from a given directory, assuming the filenames are the defaults.
         Creates cluster predictions for the given data without re-fitting the clusters.
@@ -219,9 +229,8 @@ class ClusteringModel:
         clustermodel.data = data
         clustermodel.clusters = clustermodel.clustering_model.predict(data)
 
-        with open(os.path.join(directory, cls.PARAMETERS_JSON)) as js:
-            params = json.load(js)
-            clustermodel.model_name = params['model_name']
+        clustermodel.model_name = cls.load_model_name(
+            os.path.join(directory, cls.PARAMETERS_JSON))
         return clustermodel
 
 
@@ -285,7 +294,8 @@ class GensimLDAModel(DocumentClusteringModel):
         return result
 
     def get_topic_assignments(self, corpus_iter=None):
-        """Returns {str-> list((int,float))}, the topic assignments for each document id as a list of list of (int, float) sorted in order of decreasing probability.
+        """Returns {str-> list((int,float))}, the topic assignments for each document id as a list of list of (int, float)
+
         :param corpus_iter: SparkCorpusIterator with is_return_id as true, if not specified, uses the training corpus
         """
         logger.debug("Starting to retrieve topic assignments")
@@ -297,8 +307,8 @@ class GensimLDAModel(DocumentClusteringModel):
             current_iterator = corpus_iter
         results = dict()
         for doc_id, bow_doc in current_iterator:
-            results[doc_id] = sorted(self.clustering_model.get_document_topics(bow_doc),
-                                     key=lambda t: t[1])
+            results[doc_id] = self.clustering_model.get_document_topics(
+                bow_doc)
 
         return results
 
@@ -381,23 +391,26 @@ class GensimLDAModel(DocumentClusteringModel):
         self.clustering_model.save(path)
         logger.debug("Gensim LDA model successfully saved")
 
+    def load_model(self, model_path):
+        """Load a Gensim LdaMulticore into the current object and configure the CoherenceModel accordingly
+        :param model_path
+        """
+        self.clustering_model = gm.ldamulticore.LdaMulticore.load(model_path)
+        self.word2id = {v: k for k,
+                        v in self.clustering_model.id2word.items()}
+        self.coherence_model = gm.coherencemodel.CoherenceModel(
+            self.clustering_model, corpus=self.corpus_iter, coherence='u_mass')
+
     @classmethod
-    def load(cls, load_path, corpus_iter):
+    def load(cls, load_dir, corpus_iter):
         """
         :param load_path: str, directory to load LDA model files from
         :param corpus_iter: iterable over bag-of-words format documents
         """
         # Gensim
-        loaded_model = cls([[(0, 1.0)]], None, {0: 'dummy'})
-        loaded_model.clustering_model = gm.ldamulticore.LdaMulticore.load(
-            os.path.join(load_path, cls.MODEL_FILE))
-        loaded_model.word2id = {v: k for k,
-                                v in loaded_model.clustering_model.id2word.items()}
-        loaded_model.corpus_iter = corpus_iter
-        loaded_model.coherence_model = gm.coherencemodel.CoherenceModel(
-            loaded_model.clustering_model, corpus=corpus_iter, coherence='u_mass')
-
-        with open(os.path.join(load_path, cls.PARAMETERS_JSON)) as js:
+        loaded_model = cls(corpus_iter, None, {0: 'dummy'})
+        loaded_model.load_model(os.path.join(load_dir, cls.MODEL_FILE))
+        with open(os.path.join(load_dir, cls.PARAMETERS_JSON)) as js:
             params = json.load(js)
             loaded_model.model_name = params['model_name']
         return loaded_model
@@ -406,7 +419,8 @@ class GensimLDAModel(DocumentClusteringModel):
 class SparkLDAModel(DocumentClusteringModel):
     """Wrapper around Spark LDA to train on SparkRedditCorpus
 
-    See https://spark.apache.org/docs/latest/mllib-clustering.html#latent-dirichlet-allocation-lda for most parameter options
+    # latent-dirichlet-allocation-lda for most parameter options
+    See https://spark.apache.org/docs/latest/mllib-clustering.html
     """
 
     def __init__(self, corpus, model_name, id2word, num_topics=250, optimizer='online', use_asymmetric_alpha=True, alpha_doc_concentration=None, **kwargs):
@@ -432,13 +446,14 @@ class SparkLDAModel(DocumentClusteringModel):
 
         alphas = self.get_starting_alphas(
             optimizer, use_asymmetric_alpha, alpha_doc_concentration, num_topics)
-        self.lda = sparkmc.LDA(featuresCol=corpus.vectorized_col, k=num_topics,
-                               optimizer=optimizer, docConcentration=alphas, **kwargs)
-        self.lda_model = None
+        self.transformer = sparkmc.LDA(featuresCol=corpus.vectorized_col, k=num_topics,
+                                       optimizer=optimizer, docConcentration=alphas, **kwargs)
+        self.model = None
         self.coherence_model = None
 
     def train(self):
-        self.lda_model = self.lda.fit(self.corpus.document_dataframe)
+        self.model = self.transformer.fit(
+            self.corpus.document_dataframe)
         return self.get_topic_assignments()
 
     def predict(self, spark_corpus):
@@ -448,15 +463,25 @@ class SparkLDAModel(DocumentClusteringModel):
         pass
 
     def get_topic_assignments(self, spark_corpus=None):
-        """Returns {str -> list((int, float))}, the topic assignments for each document id as a list of list of(int, float) sorted in order of decreasing probability.
+        """Returns {str -> list((int, float))}, the topic assignments for each document id as a list of list of(int, float)
 
         :param spark_corpus: SparkCorpus object, must have a vectorized column with same name as the vectorized column in training data
         """
-        input_data = self.corpus
-        if spark_corpus is not None:
-            input_data = spark_corpus.documents_dataframe
+        if spark_corpus is None:
+            spark_corpus = self.corpus
 
-        topic_assignments_df = self.lda_model.transform(input_data)
+        input_data = spark_corpus.document_dataframe
+        id_col = spark_corpus.id_col
+
+        topic_dist_column = self.model.getTopicDistributionCol()
+        topic_assignments_df = self.model.transform(
+            input_data).select(id_col, topic_dist_column)
+        collected_topic_assignments = topic_assignments_df.rdd.map(
+            lambda x: (x[id_col], [(i, p)
+                       for i, p in enumerate(x[topic_dist_column]) if p > 0])
+        ).collect()
+
+        return dict(collected_topic_assignments)
 
     def get_top_words_as_dataframe(self, num_words=20):
         pass
@@ -479,8 +504,29 @@ class SparkLDAModel(DocumentClusteringModel):
         pass
 
     def get_parameters(self):
+        """Returns the model name and salient parameters as a dictionary
+        """
+        param_dict = {}
+        param_dict[self.MODEL_NAME_KEY] = self.model_name
+
+    def save(self, output_dir):
+        # TODO
         pass
 
+    def save_model(self, model_path):
+        # TODO
+        pass
+
+    def load_model(self, model_path):
+        # TODO
+        pass
+
+    @ classmethod
+    def load(cls, directory, data):
+        # TODO
+        pass
+
+    @ classmethod
     def get_starting_alphas(cls, optimizer, use_asymmetric_alpha, starting_alpha, num_topics):
         """Returns a scalar or list of starting alpha or document concentration parameters, checking that the options are allowed by Spark.
 
@@ -498,8 +544,13 @@ class SparkLDAModel(DocumentClusteringModel):
                 if starting_alpha is not None:
                     return [starting_alpha] * num_topics
                 else:
-                    # This matches the Spark default
-                    return [1/num_topics] * num_topics
+                    asymm_alphas = [] * num_topics
+                    offset = np.sqrt(num_topics)
+                    # This matches the Gensim default for asymmetric alpha
+                    for i in range(num_topics):
+                        asymm_alphas.append(1/(i + offset))
+
+                    return asymm_alphas
 
         if starting_alpha is not None:
             return starting_alpha
