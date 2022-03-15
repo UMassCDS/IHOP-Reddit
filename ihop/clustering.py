@@ -2,17 +2,18 @@
 
 .. TODO: Support clustering of documents based on TF-IDF, not just c2v embeddings
 .. TODO: Implement training of topic models on text: tf-idf-> KMeans, Hierarchical Dirichlet Processes
+.. TODO: Gensim Coherence model supported with Spark LDA implementation
 .. TODO: Lift document level clusters to subreddit level (will we need spark again or will pandas be sufficient?)
 .. TODO: AuthorTopic models with subreddits as the metadata field (instead of author)
-.. TODO: Data also needs to be serialized with the cluster models, preferably as a pandas dataframe and not a spark dataframe (for LDA)
 """
 import argparse
-import copy
 import json
 import logging
 import os
+import pickle
 
 import gensim.models as gm
+import gensim.corpora as gc
 import joblib
 import numpy as np
 import pandas as pd
@@ -29,7 +30,8 @@ import ihop.text_processing
 logger = logging.getLogger(__name__)
 # TODO Logging should be configurable, but for now just turn it on for Gensim
 logging.basicConfig(
-    format='%(name)s : %(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    format="%(name)s : %(asctime)s : %(levelname)s : %(message)s", level=logging.INFO
+)
 
 # Constants for supported data types
 KEYED_VECTORS = "KeyedVectors"
@@ -40,6 +42,7 @@ SPARK_VEC = "SparkVectorized"
 class ClusteringModelFactory:
     """Return appropriate class given input params
     """
+
     AFFINITY_PROP = "affinity"
     AGGLOMERATIVE = "agglomerative"
     KMEANS = "kmeans"
@@ -48,16 +51,38 @@ class ClusteringModelFactory:
 
     # Default parameters used when instantiating the model
     DEFAULT_MODEL_PARAMS = {
-        AFFINITY_PROP: {'affinity': 'precomputed', 'max_iter': 1000, 'convergence_iter': 50, 'random_state': 100},
-        AGGLOMERATIVE: {'n_clusters': 250, 'linkage': 'average', 'affinity': 'cosine', 'compute_distances': True},
-        KMEANS: {'n_clusters': 250, 'random_state': 100},
-        GENSIM_LDA: {'num_topics': 250, 'alpha': 'asymmetric', 'eta': 'symmetric', 'iterations': 1000},
-        SPARK_LDA: {'num_topics': 250, 'maxIter': 50,
-                    'optimizer': 'online', 'use_asymmetric_alpha': True, 'miniBatchFraction': 0.1}
+        AFFINITY_PROP: {
+            "affinity": "precomputed",
+            "max_iter": 1000,
+            "convergence_iter": 50,
+            "random_state": 100,
+        },
+        AGGLOMERATIVE: {
+            "n_clusters": 250,
+            "linkage": "average",
+            "affinity": "cosine",
+            "compute_distances": True,
+        },
+        KMEANS: {"n_clusters": 250, "random_state": 100},
+        GENSIM_LDA: {
+            "num_topics": 250,
+            "alpha": "asymmetric",
+            "eta": "symmetric",
+            "iterations": 1000,
+        },
+        SPARK_LDA: {
+            "num_topics": 250,
+            "maxIter": 50,
+            "optimizer": "online",
+            "use_asymmetric_alpha": True,
+            "miniBatchFraction": 0.1,
+        },
     }
 
     @classmethod
-    def init_clustering_model(cls, model_choice, data, index, model_name=None, **kwargs):
+    def init_clustering_model(
+        cls, model_choice, data, index, model_name=None, **kwargs
+    ):
         """Returns a ClusteringModel instance instantiated with the appropriate parameters and ready to train on the given data.
         :param model_choice: str, type of model to instantiate
         :param data: data used to train the model, type is dependent on the model choice. For sklearn models, should be gensim KeyedVectors and for LDA can be SparkCorpusIterator or some other kind of iterable data
@@ -78,7 +103,7 @@ class ClusteringModelFactory:
         parameters.update(kwargs)
 
         if isinstance(data, gm.keyedvectors.KeyedVectors):
-            if parameters.get('affinity', None) == "precomputed":
+            if parameters.get("affinity", None) == "precomputed":
                 vectors = np.zeros((len(index), len(index)))
                 for i, v in index.items():
                     vectors[i] = np.array(data.distances(v))
@@ -104,8 +129,9 @@ class ClusteringModelFactory:
 
 
 class ClusteringModel:
-    """Wrapper around sklearn clustering models
+    """Wrapper around sklearn clustering models. Clusters arbitrary data points
     """
+
     MODEL_NAME_KEY = "model_name"
     PARAMETERS_JSON = "parameters.json"
     MODEL_FILE = "sklearn_cluster_model.joblib"
@@ -142,15 +168,17 @@ class ClusteringModel:
         :param datapoint_col_name: str, name of column that serves as key for data points
         :param join_df: Pandas DataFrame, optionally inner join this dataframe on the datapoint_col_name in the returned results
         """
-        datapoints = [(val, self.clusters[idx])
-                      for idx, val in self.index_to_key.items()]
+        datapoints = [
+            (val, self.clusters[idx]) for idx, val in self.index_to_key.items()
+        ]
         cluster_df = pd.DataFrame(
-            datapoints, columns=[datapoint_col_name, self.model_name])
-        cluster_df[self.model_name] = cluster_df[self.model_name].astype(
-            'category')
+            datapoints, columns=[datapoint_col_name, self.model_name]
+        )
+        cluster_df[self.model_name] = cluster_df[self.model_name].astype("category")
         if join_df is not None:
-            cluster_df = pd.merge(cluster_df, join_df,
-                                  how='inner', on=datapoint_col_name, sort=False)
+            cluster_df = pd.merge(
+                cluster_df, join_df, how="inner", on=datapoint_col_name, sort=False
+            )
         return cluster_df
 
     def get_metrics(self):
@@ -159,14 +187,14 @@ class ClusteringModel:
         """
         labels = self.clustering_model.labels_
         if len(set(labels)) > 1:
-            silhouette = metrics.silhouette_score(
-                self.data, labels, metric="cosine")
-            ch_index = metrics.calinski_harabasz_score(
-                self.data, labels)
+            silhouette = metrics.silhouette_score(self.data, labels, metric="cosine")
+            ch_index = metrics.calinski_harabasz_score(self.data, labels)
             db_index = metrics.davies_bouldin_score(self.data, labels)
-            return {'Silhouette': silhouette,
-                    'Calinski-Harabasz': ch_index,
-                    'Davies-Bouldin': db_index}
+            return {
+                "Silhouette": silhouette,
+                "Calinski-Harabasz": ch_index,
+                "Davies-Bouldin": db_index,
+            }
         else:
             return {}
 
@@ -196,12 +224,16 @@ class ClusteringModel:
 
     def save_parameters(self, parameters_path):
         """Saves the parameters of this model as json
-        :param path: str, file type, path to write json to
+        :param parameters_path: str, file type, path to write json to
         """
-        with open(parameters_path, 'w') as f:
+        with open(parameters_path, "w") as f:
             json.dump(self.get_parameters(), f)
 
     def load_model(self, model_path):
+        """Loads the sklearn model to the specified path
+
+        :param model_path: str or path, joblib file
+        """
         self.clustering_model = joblib.load(model_path)
 
     @classmethod
@@ -210,9 +242,28 @@ class ClusteringModel:
 
         :param param_json_path: str, path to json file
         """
+        return cls.read_model_parameters(param_json_path)[cls.MODEL_NAME_KEY]
+
+    @classmethod
+    def read_model_parameters(cls, param_json_path):
+        """Returns parameters from json as a dictionary
+
+        :param param_json_path: str or path, path to json file
+        """
         with open(param_json_path) as js:
-            params = json.load(js)
-        return params[cls.MODEL_NAME_KEY]
+            return json.load(js)
+
+    @classmethod
+    def get_model_path(cls, directory):
+        """Returns the full path for a model file in the given directory
+        """
+        return os.path.join(directory, cls.MODEL_FILE)
+
+    @classmethod
+    def get_param_json_path(cls, directory):
+        """Returns the full path for parameters json file in the given directory
+        """
+        return os.path.join(directory, cls.PARAMETERS_JSON)
 
     @classmethod
     def load(cls, directory, data, index_to_key):
@@ -224,19 +275,47 @@ class ClusteringModel:
         :param index_to_key: dict, int -> str, how to name each data point, important for exporting data for users and visualizations
         """
         clustermodel = cls(None, None, None, None)
-        clustermodel.load_model(os.path.join(directory, cls.MODEL_FILE))
+        clustermodel.load_model(cls.get_model_path(directory))
         clustermodel.index_to_key = index_to_key
         clustermodel.data = data
         clustermodel.clusters = clustermodel.clustering_model.predict(data)
 
         clustermodel.model_name = cls.load_model_name(
-            os.path.join(directory, cls.PARAMETERS_JSON))
+            cls.get_param_json_path(directory)
+        )
         return clustermodel
 
 
 class DocumentClusteringModel(ClusteringModel):
-    # TODO
-    pass
+    def get_cluster_results_as_df(self, corpus=None, doc_col_name="id", join_df=None):
+        """Returns the topic probabilities for each document in the training corpus as a pandas DataFrame
+
+        :param corpus: SparkCorpus
+        :param doc_col_name: str, column name that identifies for documents
+        :param join_df: Pandas DataFrame, optionally inner join this dataframe on doc_col_name the in the returned results
+        """
+        topic_probabilities = list()
+
+        for doc_id, topics in self.get_topic_assignments(corpus).items():
+            topic_probabilities.extend([(doc_id, t[0], t[1]) for t in topics])
+
+        topics_df = pd.DataFrame(
+            topic_probabilities, columns=[doc_col_name, self.model_name, "probability"]
+        )
+
+        topics_df[self.model_name] = topics_df[self.model_name].astype("category")
+        if join_df is not None:
+            topics_df = pd.merge(
+                topics_df, join_df, how="inner", on=doc_col_name, sort=False
+            )
+
+        return topics_df
+
+    def get_metrics(self):
+        """Returns LDA coherence in dictionary
+        .. TODO Add exclusivity and other metrics
+        """
+        return {"Coherence": self.get_coherence_model().get_coherence()}
 
 
 class TfIdfDocumentClusters(DocumentClusteringModel):
@@ -248,11 +327,22 @@ class GensimLDAModel(DocumentClusteringModel):
     """Wrapper around the gensim LdaMulticore model to train on an iterable corpus or SparkRedditCorpus object
     See http://dirichlet.net/pdf/wallach09rethinking.pdf for notes on alpha and eta priors, where it was found an asymmetric prior on doc-topic dist and symmetric prior on topic-word dist performs best.
     """
+
     MODEL_FILE = "gensim_lda.gz"
 
-    def __init__(self, corpus_iter, model_name, id2word, num_topics=250, alpha='asymmetric', eta='symmetric', iterations=1000, **kwargs):
+    def __init__(
+        self,
+        corpus,
+        model_name,
+        id2word,
+        num_topics=250,
+        alpha="asymmetric",
+        eta="symmetric",
+        iterations=1000,
+        **kwargs,
+    ):
         """Initializes an LDA model in gensim
-        :param corpus_iter: SparkCorpusIterator, returns (int, float) for document BOW representations
+        :param corpus: SparkCorpus with vectorized column for document BOW representations
         :param id2word: dict, {int -> str}, indexes the words in the vocabulary
         :param model_name: str, how to identify the model
         :param num_topics: int, number of topics to use for this model
@@ -261,22 +351,26 @@ class GensimLDAModel(DocumentClusteringModel):
         :param iterations: int, maximum number of iterations when infering the model
         :param kwargs: Any other LDA params that should be set, especially consider setting and workers
         """
-        self.corpus_iter = corpus_iter
+        self.corpus = corpus
         self.word2id = {v: k for k, v in id2word.items()}
         self.clustering_model = gm.ldamulticore.LdaMulticore(
-            num_topics=num_topics, id2word=id2word,
-            alpha=alpha, eta=eta, iterations=iterations,
-            **kwargs)
+            num_topics=num_topics,
+            id2word=id2word,
+            alpha=alpha,
+            eta=eta,
+            iterations=iterations,
+            **kwargs,
+        )
         self.model_name = model_name
-        self.coherence_model = gm.coherencemodel.CoherenceModel(
-            self.clustering_model, corpus=self.corpus_iter, coherence='u_mass')
 
     def train(self):
         """Trains LDA topic model on the corpus
-        Returns topic assignments for each document in the training data
+        Returns topic assignments for each document in the training as {str -> list((int, float))}
         """
         logger.debug("Staring LDA training")
-        self.clustering_model.update(self.corpus_iter)
+        self.clustering_model.update(
+            self.corpus.collect_column_to_list(self.corpus.vectorized_col, True)
+        )
         logger.debug("Finished LDA training")
         return self.get_topic_assignments()
 
@@ -287,80 +381,71 @@ class GensimLDAModel(DocumentClusteringModel):
         """
         result = np.zeros((len(bow_docs), self.clustering_model.num_topics))
         for i, bow in enumerate(bow_docs):
-            indices, topic_probs = zip(
-                *self.clustering_model.get_document_topics(bow))
+            indices, topic_probs = zip(*self.clustering_model.get_document_topics(bow))
             result[i, indices] = topic_probs
 
         return result
 
-    def get_topic_assignments(self, corpus_iter=None):
+    def get_topic_assignments(self, corpus=None):
         """Returns {str-> list((int,float))}, the topic assignments for each document id as a list of list of (int, float)
 
-        :param corpus_iter: SparkCorpusIterator with is_return_id as true, if not specified, uses the training corpus
+        :param corpus_iter: SparkCorpus object
         """
         logger.debug("Starting to retrieve topic assignments")
-        if corpus_iter is None:
+        if corpus is None:
             logger.debug("Getting iterator for vectorized docs")
-            current_iterator = copy.copy(self.corpus_iter)
-            current_iterator.is_return_id = True
+            current_iterator = self.corpus.get_vectorized_column_iterator(
+                use_id_col=True
+            )
         else:
-            current_iterator = corpus_iter
+            current_iterator = corpus.get_vectorized_column_iterator(use_id_col=True)
         results = dict()
         for doc_id, bow_doc in current_iterator:
-            results[doc_id] = self.clustering_model.get_document_topics(
-                bow_doc)
+            results[doc_id] = self.clustering_model.get_document_topics(bow_doc)
 
         return results
 
-    # TODO: What we actually want is average coherence, like Mallet gives
-    # def get_topic_scores(self, corpus, **kwargs):
-    #    """Returns a dataframe of coherence scores and other scoring metrics for the model. Rows are documents, columns are topics with coherence
-    #    :param corpus: iterable of list of (int, float)
-    #    """
-    #    return self.lda_model.top_topics(corpus=corpus, **kwargs)
-
-    def get_top_words(self, num_words=20):
+    def get_top_terms(self, num_terms=20):
         """Returns the top words for each learned topic as list of [(topic_id, [(word, probability)...]),...]
-        :param num_words: int, How many of the top words to return for each topic
+        :param num_terms: int, How many of the top words to return for each topic
         """
-        return self.clustering_model.show_topics(num_topics=-1, num_words=num_words, formatted=False)
+        return self.clustering_model.show_topics(
+            num_topics=-1, num_words=num_terms, formatted=False
+        )
 
-    def get_top_words_as_dataframe(self, num_words=20):
+    def get_top_terms_as_dataframe(self, num_terms=20, output_col="top_terms"):
         """Returns the top words for each learned topic as a pandas dataframe
+        :param num_terms: int, How many of the top words to return for each topic
+        :param output_col: str, What to name the column that sotres terms in output
         """
-        topic_ids, word_probs = zip(*self.get_top_words(num_words=num_words))
-        word_strings = [" ".join([w[0] for w in topic_words])
-                        for topic_words in word_probs]
+        topic_ids, word_probs = zip(*self.get_top_terms(num_terms=num_terms))
+        term_strings = [
+            " ".join([w[0] for w in topic_words]) for topic_words in word_probs
+        ]
 
-        return pd.DataFrame({'topic_id': topic_ids, 'top_terms': word_strings})
+        return pd.DataFrame({"topic": topic_ids, output_col: term_strings})
 
-    def get_cluster_results_as_df(self, corpus_iter=None, doc_col_name="id", join_df=None):
-        """Returns the topic probabilities for each document in the training corpus as a pandas DataFrame
+    def get_coherence_model(self, topn=20):
+        """Returns a Gensim CoherenceModel used to calculate the trained model's coherence on the training corpus
 
-        :param corpus_iter: SparkCorpusIterator with is_return_id as true, if not specified, uses the training corpus
-        :param doc_col_name: str, column name that identifies for documents
-        :param join_df: Pandas DataFrame, optionally inner join this dataframe on doc_col_name the in the returned results
+        :param topn: int, number of top words to be extracted for each topic
         """
-        topic_probabilities = list()
-        for doc_id, topics in self.get_topic_assignments(corpus_iter).items():
-            topic_probabilities.extend([(doc_id, t[0], t[1]) for t in topics])
+        coherence_model = gm.coherencemodel.CoherenceModel(
+            self.clustering_model,
+            corpus=self.corpus.collect_column_to_list(self.corpus.vectorized_col, True),
+            coherence="u_mass",
+            topn=topn,
+        )
 
-        topics_df = pd.DataFrame(topic_probabilities, columns=[
-                                 doc_col_name, self.model_name, "probability"])
+        return coherence_model
 
-        topics_df[self.model_name] = topics_df[self.model_name].astype(
-            'category')
-        if join_df is not None:
-            topics_df = pd.merge(topics_df, join_df,
-                                 how='inner', on=doc_col_name, sort=False)
-
-        return topics_df
-
-    def get_metrics(self):
+    def get_metrics(self, topn=20):
         """Returns LDA coherence in dictionary
         .. TODO Add exclusivity and other metrics
+
+        :param topn: int, number of top words to be extracted for each topic
         """
-        return {'Coherence': self.coherence_model.get_coherence()}
+        return {"Coherence": self.get_coherence_model(topn).get_coherence()}
 
     def get_term_topics(self, word):
         """Returns the most relevant topics to the word as a list of (int, float) representing topic id and probability (relevence to the given word) worded by decreasing probability
@@ -368,7 +453,11 @@ class GensimLDAModel(DocumentClusteringModel):
         :param word: str, word of interest
         """
         if word in self.word2id:
-            return sorted(self.clustering_model.get_term_topics(self.word2id[word]), key=lambda x: x[1], reverse=True)
+            return sorted(
+                self.clustering_model.get_term_topics(self.word2id[word]),
+                key=lambda x: x[1],
+                reverse=True,
+            )
         else:
             return []
 
@@ -396,23 +485,17 @@ class GensimLDAModel(DocumentClusteringModel):
         :param model_path
         """
         self.clustering_model = gm.ldamulticore.LdaMulticore.load(model_path)
-        self.word2id = {v: k for k,
-                        v in self.clustering_model.id2word.items()}
-        self.coherence_model = gm.coherencemodel.CoherenceModel(
-            self.clustering_model, corpus=self.corpus_iter, coherence='u_mass')
+        self.word2id = {v: k for k, v in self.clustering_model.id2word.items()}
 
     @classmethod
-    def load(cls, load_dir, corpus_iter):
+    def load(cls, load_dir, corpus):
         """
-        :param load_path: str, directory to load LDA model files from
-        :param corpus_iter: iterable over bag-of-words format documents
+        :param load_dir: str, directory to load LDA model files from
+        :param corpus: SparkCorpus
         """
-        # Gensim
-        loaded_model = cls(corpus_iter, None, {0: 'dummy'})
-        loaded_model.load_model(os.path.join(load_dir, cls.MODEL_FILE))
-        with open(os.path.join(load_dir, cls.PARAMETERS_JSON)) as js:
-            params = json.load(js)
-            loaded_model.model_name = params['model_name']
+        loaded_model = cls(corpus, None, {0: "dummy"})
+        loaded_model.load_model(cls.get_model_path(load_dir))
+        loaded_model.model_name = cls.load_model_name(cls.get_param_json_path(load_dir))
         return loaded_model
 
 
@@ -423,7 +506,21 @@ class SparkLDAModel(DocumentClusteringModel):
     See https://spark.apache.org/docs/latest/mllib-clustering.html
     """
 
-    def __init__(self, corpus, model_name, id2word, num_topics=250, optimizer='online', use_asymmetric_alpha=True, alpha_doc_concentration=None, **kwargs):
+    TRANSFORMER_FILE = "spark_lda_transformer"
+    MODEL_FILE = "spark_lda_model"
+    INDEX_FILE = "index.pickle"
+
+    def __init__(
+        self,
+        corpus,
+        model_name,
+        id2word,
+        num_topics=250,
+        optimizer="online",
+        use_asymmetric_alpha=True,
+        alpha_doc_concentration=None,
+        **kwargs,
+    ):
         """
         :param corpus: SparkCorpus object, use its vectorized_col as input to LDA
         :param id2word: dict, {int -> str}, indexes the words in the vocabulary
@@ -436,31 +533,55 @@ class SparkLDAModel(DocumentClusteringModel):
         """
         self.corpus = corpus
         self.model_name = model_name
-        self.num_topics = num_topics
+
+        alphas = self.get_starting_alphas(
+            optimizer, use_asymmetric_alpha, alpha_doc_concentration, num_topics
+        )
+
+        self.transformer = sparkmc.LDA(
+            featuresCol=corpus.vectorized_col,
+            k=num_topics,
+            optimizer=optimizer,
+            docConcentration=alphas,
+            **kwargs,
+        )
+        self.clustering_model = None
+        self.set_index(id2word)
+
+    def set_index(self, id2word):
+        """Sets the vocabulary index for the model and creates a Spark function
+        for displaying terms in output dataframes, rather than term indices
+
+        :param id2word: dict, maps index to term
+        """
         self.id2word = id2word
 
         # This function is for putting document terms in topic-terms output, rather than indices
-        def lookup_terms(index_list): return " ".join(
-            [id2word[i] for i in index_list])
+        def lookup_terms(index_list):
+            return " ".join([id2word[i] for i in index_list])
+
         self.lookup_terms_udf = fn.udf(lookup_terms, sparktypes.StringType())
 
-        alphas = self.get_starting_alphas(
-            optimizer, use_asymmetric_alpha, alpha_doc_concentration, num_topics)
-        self.transformer = sparkmc.LDA(featuresCol=corpus.vectorized_col, k=num_topics,
-                                       optimizer=optimizer, docConcentration=alphas, **kwargs)
-        self.model = None
-        self.coherence_model = None
+    @property
+    def num_topics(self):
+        return self.transformer.getK()
 
     def train(self):
-        self.model = self.transformer.fit(
-            self.corpus.document_dataframe)
+        """Fits the LDA model to the corpus.
+        Returns topic assignments for each document in the training data as {str -> list((int, float))}
+        """
+        self.clustering_model = self.transformer.fit(self.corpus.document_dataframe)
         return self.get_topic_assignments()
 
     def predict(self, spark_corpus):
-        pass
+        """Returns topic assignments as a numpy array of shape (len(bow_docs), num_topics) where each cell represents the probability of a document being associated with a topic
 
-    def get_metrics(self):
-        pass
+        :param spark_corpus: SparkCorpus object, must have a vectorized column with the same name as the vectorized column in training data
+        """
+        predictions = ihop.text_processing.SparkCorpus(
+            self.clustering_model.transform(spark_corpus.document_dataframe)
+        )
+        return predictions.collect_column_to_list(self.clustering_model.getOutputCol())
 
     def get_topic_assignments(self, spark_corpus=None):
         """Returns {str -> list((int, float))}, the topic assignments for each document id as a list of list of(int, float)
@@ -473,32 +594,61 @@ class SparkLDAModel(DocumentClusteringModel):
         input_data = spark_corpus.document_dataframe
         id_col = spark_corpus.id_col
 
-        topic_dist_column = self.model.getTopicDistributionCol()
-        topic_assignments_df = self.model.transform(
-            input_data).select(id_col, topic_dist_column)
+        topic_dist_column = self.clustering_model.getTopicDistributionCol()
+        topic_assignments_df = self.clustering_model.transform(input_data).select(
+            id_col, topic_dist_column
+        )
         collected_topic_assignments = topic_assignments_df.rdd.map(
-            lambda x: (x[id_col], [(i, p)
-                       for i, p in enumerate(x[topic_dist_column]) if p > 0])
+            lambda x: (
+                x[id_col],
+                [(i, p) for i, p in enumerate(x[topic_dist_column]) if p > 0],
+            )
         ).collect()
 
         return dict(collected_topic_assignments)
 
-    def get_top_words_as_dataframe(self, num_words=20):
-        pass
+    def get_top_terms(self, num_words=20):
+        """Returns the top words for each learned topic as list of [(topic_id, [(word, probability)...]),...]
+        :param num_words: int, How many of the top words to return for each topic
+        """
+        # describeTopics produces a dataframe with columns 'topic','termIndices', 'termWeights'
+        topics_df = self.clustering_model.describeTopics(maxTermsPerTopic=num_words)
+        topics_list = topics_df.rdd.map(
+            lambda r: (r["topic"], r["termIndices"], r["termWeights"])
+        ).collect()
+        return [
+            (t[0], list(zip([self.id2word[i] for i in t[1]], t[2])))
+            for t in topics_list
+        ]
 
-    def get_cluster_results_as_df(self, spark_corpus=None, doc_col_name="id", join_df=None):
+    def get_top_terms_as_dataframe(self, num_terms=20, output_col="top_terms"):
+        """Returns the top terms for each learned topic as a pandas dataframe
+        :param num_terms: int, How many of the top words to return for each topic
         """
-        :param spark_corpus: SparkCorpus, if not specified uses the training corpus
-        :param doc_col_name: str, column name that identifies for documents
-        :param join_df: Pandas DataFrame, optionally inner join this dataframe on doc_col_name
-        """
-        pass
+        # describeTopics produces a dataframe with columns 'topic','termIndices', 'termWeights'
+        return (
+            self.clustering_model.describeTopics(maxTermsPerTopic=num_terms)
+            .withColumn(output_col, self.lookup_terms_udf("termIndices"))
+            .select("topic", "top_terms")
+            .toPandas()
+        )
 
-    def get_metrics(self):
-        """Returns LDA coherence in dictionary
+    def get_coherence_model(self, topn=20):
+        """Returns a Gensim CoherenceModel corresponding to the
+        topic assignments and vocabulary of the training data
+
+        :param topn: int, defaults to 20, how many top terms for a topic to use when computing coherence
         """
-        # TODO use GensimCoherence model with corpus iterator
-        pass
+        bow_corpus = self.corpus.collect_column_to_list(
+            self.corpus.vectorized_col, True
+        )
+
+        top_terms = self.get_top_terms(num_words=topn)
+        topics = [[w[0] for w in t[1]] for t in top_terms]
+        gensim_dict = gc.Dictionary.from_corpus(bow_corpus, self.id2word)
+        return gm.coherencemodel.CoherenceModel(
+            topics=topics, corpus=bow_corpus, dictionary=gensim_dict, coherence="u_mass"
+        )
 
     def get_term_topics(self, word):
         pass
@@ -508,27 +658,69 @@ class SparkLDAModel(DocumentClusteringModel):
         """
         param_dict = {}
         param_dict[self.MODEL_NAME_KEY] = self.model_name
+        param_dict["num_topics"] = self.num_topics
+        for p in [
+            "optimizer",
+            "maxIter",
+            "seed",
+            "learningOffset",
+            "learningDecay",
+            "subsamplingRate",
+            "docConcentration",
+        ]:
+            param_dict[p] = self.transformer.getOrDefault(p)
 
     def save(self, output_dir):
-        # TODO
-        pass
+        self.save_model(output_dir)
+        self.save_index(os.path.join(output_dir, self.INDEX_FILE))
 
     def save_model(self, model_path):
-        # TODO
-        pass
+        """Saves the Spark Transformer and Spark Model to the specified directory
+        :param model_path: str or Paht, directory containing the Spark model and transformer
+        """
+        self.clustering_model.save(os.path.join(model_path, self.MODEL_FILE))
+        self.transformer.save(os.path.join(model_path, self.TRANSFORMER_FILE))
 
-    def load_model(self, model_path):
-        # TODO
-        pass
+    def save_index(self, index_path):
+        """Save the index to a pickle file
+        :param index_path:
+        """
+        with open(index_path, "wb") as picklefile:
+            pickle.dump(self.id2word, picklefile)
 
-    @ classmethod
-    def load(cls, directory, data):
-        # TODO
-        pass
+    def load_model(self, directory):
+        """Loads the LDA transformer and LDA model in the directory to the
+        current object
 
-    @ classmethod
-    def get_starting_alphas(cls, optimizer, use_asymmetric_alpha, starting_alpha, num_topics):
-        """Returns a scalar or list of starting alpha or document concentration parameters, checking that the options are allowed by Spark.
+        :param directory: str or path, folder storing Spark LDA transformer and LDAModel
+        """
+        transformer_path = self.get_transformer_path(directory)
+        logger.info("Loading transformer from %s", transformer_path)
+        self.transformer = sparkmc.LDA.load(transformer_path)
+        logger.debug("Transformer loaded")
+        optimizer_type = self.transformer.getOptimizer()
+        model_path = self.get_model_path(directory)
+        if optimizer_type == "online":
+            self.clustering_model = sparkmc.LocalLDAModel.load(model_path)
+        elif optimizer_type == "em":
+            self.clustering_model = sparkmc.DistributedLDAModel.load(model_path)
+
+    def load_index(self, index_path):
+        with open(index_path, "rb") as picklefile:
+            self.set_index(pickle.load(picklefile))
+
+    @classmethod
+    def load(cls, directory, corpus):
+        loaded_lda_model = cls(corpus, None, {}, use_asymmetric_alpha=False)
+        loaded_lda_model.load_model(directory)
+        loaded_lda_model.load_index(os.path.join(directory, cls.INDEX_FILE))
+        return loaded_lda_model
+
+    @classmethod
+    def get_starting_alphas(
+        cls, optimizer, use_asymmetric_alpha, starting_alpha, num_topics
+    ):
+        """Returns a scalar or list of starting alpha or document concentration parameters, checking that the options are allowed by Spark. If no
 
         :param optimizer: str, 'em' or 'online'
         :param use_asymmetric_alpha: boolean, when True returns a list of length num_topics
@@ -536,11 +728,12 @@ class SparkLDAModel(DocumentClusteringModel):
         :param num_topics: int, how many topics in the model
         """
         if use_asymmetric_alpha:
-            if optimizer == 'em':
+            if optimizer == "em":
                 raise NotImplementedError(
-                    "Spark 'em' LDA optimizer doesn't support asymmetric docConcentration")
+                    "Spark 'em' LDA optimizer doesn't support asymmetric docConcentration"
+                )
 
-            if optimizer == 'online':
+            if optimizer == "online":
                 if starting_alpha is not None:
                     return [starting_alpha] * num_topics
                 else:
@@ -548,19 +741,31 @@ class SparkLDAModel(DocumentClusteringModel):
                     offset = np.sqrt(num_topics)
                     # This matches the Gensim default for asymmetric alpha
                     for i in range(num_topics):
-                        asymm_alphas.append(1/(i + offset))
+                        asymm_alphas.append(1 / (i + offset))
 
                     return asymm_alphas
 
-        if starting_alpha is not None:
-            return starting_alpha
-        else:
-            return -1
+        return starting_alpha
+
+    @classmethod
+    def get_transformer_path(cls, directory):
+        """Returns the filename for a transformer file in the given directory
+        """
+        return os.path.join(directory, cls.TRANSFORMER_FILE)
 
 
-def main(model_choice, data, index, experiment_dir, cluster_params,
-         clusters_csv_filename="clusters.csv", words_csv_filename="keywords.csv", metrics_json="metrics.json", model_name=None,
-         is_quiet=False):
+def main(
+    model_choice,
+    data,
+    index,
+    experiment_dir,
+    cluster_params,
+    clusters_csv_filename="clusters.csv",
+    words_csv_filename="keywords.csv",
+    metrics_json="metrics.json",
+    model_name=None,
+    is_quiet=False,
+):
     """Main method to train a clustering model, then save model and cluster outputs. Returns the trained model.
 
     :param model_choice: str, type of model to instantiate
@@ -575,7 +780,8 @@ def main(model_choice, data, index, experiment_dir, cluster_params,
     :param is_quiet: boolean, set to true to silence print statements for metrics
     """
     model = ClusteringModelFactory.init_clustering_model(
-        model_choice, data, index, model_name, **cluster_params)
+        model_choice, data, index, model_name, **cluster_params
+    )
     logger.info("Training model %s", model.model_name)
     model.train()
     logger.info("Finished training model %s", model.model_name)
@@ -587,7 +793,7 @@ def main(model_choice, data, index, experiment_dir, cluster_params,
         metrics = model.get_metrics()
         logger.info("Model performance metrics: %s", metrics)
         if metrics_json is not None:
-            with open(os.path.join(experiment_dir, metrics_json), 'w') as f:
+            with open(os.path.join(experiment_dir, metrics_json), "w") as f:
                 json.dump(metrics, f, cls=ihop.utils.NumpyFloatEncoder)
 
     if clusters_csv_filename is not None:
@@ -595,53 +801,103 @@ def main(model_choice, data, index, experiment_dir, cluster_params,
         logger.info("Saving clusters to CSV %s", cluster_csv)
         model.get_cluster_results_as_df().to_csv(cluster_csv, index=False)
 
-    if model_choice in [ClusteringModelFactory.GENSIM_LDA, ClusteringModelFactory.SPARK_LDA] and words_csv_filename is not None:
+    if (
+        model_choice
+        in [ClusteringModelFactory.GENSIM_LDA, ClusteringModelFactory.SPARK_LDA]
+        and words_csv_filename is not None
+    ):
         words_csv = os.path.join(experiment_dir, words_csv_filename)
         logger.info("Saving topic keywords to CSV %s", words_csv)
-        model.get_top_words_as_dataframe().to_csv(words_csv, index=False)
+        model.get_top_terms_as_dataframe().to_csv(words_csv, index=False)
 
     return model
 
 
-parser = argparse.ArgumentParser(
-    description="Produce clusterings of the input data")
-parser.add_argument("-q", "--quiet", action='store_true',
-                    help="Use to turn off verbose info statements that require extra computation.")
+parser = argparse.ArgumentParser(description="Produce clusterings of the input data")
+parser.add_argument(
+    "-q",
+    "--quiet",
+    action="store_true",
+    help="Use to turn off verbose info statements that require extra computation.",
+)
 
-parser.add_argument("input", nargs='+',
-                    help="Path to the file containing input data in the specified format")
-parser.add_argument("--output_dir", '-o', required=True,
-                    help="Directory to save the trained model and any additional data and parameters")
+parser.add_argument(
+    "input",
+    nargs="+",
+    help="Path to the file containing input data in the specified format",
+)
+parser.add_argument(
+    "--output_dir",
+    "-o",
+    required=True,
+    help="Directory to save the trained model and any additional data and parameters",
+)
 
-parser.add_argument("--data_type", '-d', help="Specify the format of the input data fed to the clustering model: Gensim KeyedVectors, SparkDocuments for raw Reddit submission and comment text documents in a parquet or SparkVectorized for a folder containing vectorized documents in parquet with a serialized Spark pipeline for the vocab index",
-                    choices=[KEYED_VECTORS, SPARK_DOCS, SPARK_VEC], default="keyedvectors")
-parser.add_argument("--cluster_type", "-c", help="The type of clustering model to train.",
-                    choices=ClusteringModelFactory.DEFAULT_MODEL_PARAMS.keys(),
-                    default=ClusteringModelFactory.KMEANS)
-parser.add_argument("--cluster_params", "-p", nargs='?', type=json.loads, default="{}",
-                    help="JSON defining overriding or additional parameters to pass to the sklearn or Gensim model")
+parser.add_argument(
+    "--data_type",
+    "-d",
+    help="Specify the format of the input data fed to the clustering model: Gensim KeyedVectors, SparkDocuments for raw Reddit submission and comment text documents in a parquet or SparkVectorized for a folder containing vectorized documents in parquet with a serialized Spark pipeline for the vocab index",
+    choices=[KEYED_VECTORS, SPARK_DOCS, SPARK_VEC],
+    default="keyedvectors",
+)
+parser.add_argument(
+    "--cluster_type",
+    "-c",
+    help="The type of clustering model to train.",
+    choices=ClusteringModelFactory.DEFAULT_MODEL_PARAMS.keys(),
+    default=ClusteringModelFactory.KMEANS,
+)
+parser.add_argument(
+    "--cluster_params",
+    "-p",
+    nargs="?",
+    type=json.loads,
+    default="{}",
+    help="JSON defining overriding or additional parameters to pass to the sklearn or Gensim model",
+)
 
 # Used for text data only
-parser.add_argument("--min_doc_frequency", default=0.05,
-                    type=float, help="Minimum document frequency. Defaults to 0.05.")
-parser.add_argument("--max_doc_frequency", type=float,
-                    default=0.95, help="Maximum document frequency. Defaults to 0.95.")
-parser.add_argument("--max_time_delta", "-x", type=pytimeparse.parse,
-                    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 72h.",
-                    default="72h")
-parser.add_argument("--min_time_delta", "-m", type=pytimeparse.parse,
-                    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 3s.",
-                    default="3s")
+parser.add_argument(
+    "--min_doc_frequency",
+    default=0.05,
+    type=float,
+    help="Minimum document frequency. Defaults to 0.05.",
+)
+parser.add_argument(
+    "--max_doc_frequency",
+    type=float,
+    default=0.95,
+    help="Maximum document frequency. Defaults to 0.95.",
+)
+parser.add_argument(
+    "--max_time_delta",
+    "-x",
+    type=pytimeparse.parse,
+    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 72h.",
+    default="72h",
+)
+parser.add_argument(
+    "--min_time_delta",
+    "-m",
+    type=pytimeparse.parse,
+    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 3s.",
+    default="3s",
+)
 
 
 if __name__ == "__main__":
     # TODO Clean this up a bit
     args = parser.parse_args()
-    if args.data_type == KEYED_VECTORS and args.cluster_type == ClusteringModelFactory.GENSIM_LDA:
+    if (
+        args.data_type == KEYED_VECTORS
+        and args.cluster_type == ClusteringModelFactory.GENSIM_LDA
+    ):
         raise ValueError("LDA models do not support KeyedVectors data type")
-    if args.data_type == KEYED_VECTORS and args.cluster_type != ClusteringModelFactory.GENSIM_LDA:
-        raise ValueError(
-            "Document clustering with sklearn models not implemented yet")
+    if (
+        args.data_type == KEYED_VECTORS
+        and args.cluster_type != ClusteringModelFactory.GENSIM_LDA
+    ):
+        raise ValueError("Document clustering with sklearn models not implemented yet")
 
     if args.data_type == KEYED_VECTORS:
         data = gm.KeyedVectors.load(args.input[0])
@@ -652,28 +908,38 @@ if __name__ == "__main__":
         if args.data_type == SPARK_DOCS:
             vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(
                 spark.read.parquet(args.input),
-                min_time_delta=args.min_time_delta, max_time_delta=args.max_time_delta,
-                min_doc_frequency=args.min_doc_frequency, max_doc_frequency=args.max_doc_frequency,
-                output_dir=args.output_dir)
+                min_time_delta=args.min_time_delta,
+                max_time_delta=args.max_time_delta,
+                min_doc_frequency=args.min_doc_frequency,
+                max_doc_frequency=args.max_doc_frequency,
+                output_dir=args.output_dir,
+            )
 
             if not args.quiet:
                 ihop.text_processing.print_document_length_statistics(
-                    vectorized_corpus.document_dataframe)
+                    vectorized_corpus.document_dataframe
+                )
 
         elif args.data_type == SPARK_VEC:
             # TODO The actual corpus filename should be an argparse option
             # For now, just assume this args.input is the path to a directory that was previous the output_dir for ihop.text_processing.prep_spark_corpus
             vectorized_corpus = ihop.text_processing.SparkCorpus.load(
-                os.path.join(args.input[0], "vectorized_corpus.parquet"))
+                os.path.join(args.input[0], "vectorized_corpus.parquet")
+            )
             pipeline = ihop.text_processing.SparkTextPreprocessingPipeline.load(
-                args.input[0])
+                args.input[0]
+            )
 
-        if args.cluster_type == ClusteringModelFactory.GENSIM_LDA:
-            data = vectorized_corpus.get_vectorized_column_iterator()
-        else:
-            data = vectorized_corpus
+        data = vectorized_corpus
 
         index = pipeline.get_id_to_word()
 
-    main(args.cluster_type, data, index, args.output_dir,
-         args.cluster_params, is_quiet=args.quiet)
+    main(
+        args.cluster_type,
+        data,
+        index,
+        args.output_dir,
+        args.cluster_params,
+        is_quiet=args.quiet,
+    )
+

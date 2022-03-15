@@ -9,7 +9,13 @@ import os
 
 import pyspark.sql.functions as fn
 from pyspark.ml import Pipeline, PipelineModel
-from pyspark.ml.feature import CountVectorizer, CountVectorizerModel, RegexTokenizer, IDF, StopWordsRemover
+from pyspark.ml.feature import (
+    CountVectorizer,
+    CountVectorizerModel,
+    RegexTokenizer,
+    IDF,
+    StopWordsRemover,
+)
 
 
 import ihop.import_data
@@ -22,7 +28,9 @@ TOKENIZED_COL_NAME = "tokenized"
 FILTERED_TOKENS_COL_NAME = "tokensNoStopWords"
 
 
-def print_document_length_statistics(dataframe, tokenized_col=TOKENIZED_COL_NAME, doc_length_col="doc_length"):
+def print_document_length_statistics(
+    dataframe, tokenized_col=TOKENIZED_COL_NAME, doc_length_col="doc_length"
+):
     """Computes statistics about document length after tokenization and shows a snippet of the documents that have 0 tokens.
     Returns the dataframe with a new column storing document length
 
@@ -30,8 +38,7 @@ def print_document_length_statistics(dataframe, tokenized_col=TOKENIZED_COL_NAME
     :param tokenized_col: str, the tokenized column for computing stats
     :param doc_length_col: str, the column name for computed doc lengths
     """
-    doc_length_df = dataframe.withColumn(
-        doc_length_col, fn.size(fn.col(tokenized_col)))
+    doc_length_df = dataframe.withColumn(doc_length_col, fn.size(fn.col(tokenized_col)))
     print("Overall document length statistics:")
     doc_length_df.describe([doc_length_col]).show()
 
@@ -43,9 +50,15 @@ def print_document_length_statistics(dataframe, tokenized_col=TOKENIZED_COL_NAME
     return doc_length_df
 
 
-def prep_spark_corpus(input_df, min_time_delta=3, max_time_delta=60*60*72,
-                      min_doc_frequency=0.05, max_doc_frequency=0.95,
-                      output_dir=None, corpus_output_name="vectorized_corpus.parquet"):
+def prep_spark_corpus(
+    input_df,
+    min_time_delta=3,
+    max_time_delta=60 * 60 * 72,
+    min_doc_frequency=0.05,
+    max_doc_frequency=0.95,
+    output_dir=None,
+    corpus_output_name="vectorized_corpus.parquet",
+):
     """Transforms a text data frame using the specified text processing pipeline options.
     Returns the transformed dataframe as a SparkCorpus and the SparkTextPreProcessingPipeline
     :param input_df: Spark DataFrame, typically corpus produced by 'ihop.import_data bow'
@@ -58,11 +71,14 @@ def prep_spark_corpus(input_df, min_time_delta=3, max_time_delta=60*60*72,
     """
     logger.info("Prepping corpus for LDA with parameters: %s", locals())
     time_filtered_corpus = SparkCorpus.init_from_joined_dataframe(
-        input_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta)
+        input_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta
+    )
     preprocessing_pipeline = SparkTextPreprocessingPipeline(
-        minDF=min_doc_frequency, maxDF=max_doc_frequency)
+        minDF=min_doc_frequency, maxDF=max_doc_frequency
+    )
     vectorized_corpus = SparkCorpus(
-        preprocessing_pipeline.fit_transform(time_filtered_corpus.document_dataframe))
+        preprocessing_pipeline.fit_transform(time_filtered_corpus.document_dataframe)
+    )
 
     if output_dir is not None:
         preprocessing_pipeline.save(output_dir)
@@ -77,7 +93,14 @@ class SparkCorpus:
     Allows for iterating over documents for training models with Gensim.
     """
 
-    def __init__(self, dataframe, document_col_name=DEFAULT_DOC_COL_NAME, id_col="id", vectorized_col=VECTORIZED_COL_NAME, tokenized_col=FILTERED_TOKENS_COL_NAME):
+    def __init__(
+        self,
+        dataframe,
+        document_col_name=DEFAULT_DOC_COL_NAME,
+        id_col="id",
+        vectorized_col=VECTORIZED_COL_NAME,
+        tokenized_col=FILTERED_TOKENS_COL_NAME,
+    ):
         """
         :param dataframe: Spark DataFrame
         :param document_col_name: str, column storing raw document text
@@ -101,9 +124,11 @@ class SparkCorpus:
         # So long as partitions aren't changed (and they shouldn't be
         # here, the order returned by collect won't change)
         col_data = self.document_dataframe.select(col)
-        # Reshape vectors - this might be horribly slow
+        # Reshape vectors
         if is_vectorized_column:
-            return col_data.rdd.map(lambda x: (x[col].indices, x[col].values)).collect()
+            return col_data.rdd.map(
+                lambda x: list(zip(x[col].indices, x[col].values))
+            ).collect()
         return col_data.rdd.map(lambda x: x[col]).collect()
 
     def get_column_iterator(self, column_name, use_id_col=False):
@@ -111,7 +136,12 @@ class SparkCorpus:
         :param column_name: str, name of column
         :param use_id_col: boolean, true to also return the id col during iteration
         """
-        return SparkCorpusIterator(self.document_dataframe, column_name, id_col=self.id_col, is_return_id=use_id_col)
+        return SparkCorpusIterator(
+            self.document_dataframe,
+            column_name,
+            id_col=self.id_col,
+            is_return_id=use_id_col,
+        )
 
     def get_vectorized_column_iterator(self, use_id_col=False):
         """Returns an iterator over data in a particular column of the corpus
@@ -119,18 +149,31 @@ class SparkCorpus:
         :param column_name: str, name of column
         :param use_id_col: boolean, true to also return the id col during iteration
         """
-        return SparkCorpusIterator(self.document_dataframe, self.vectorized_col, is_vectorized=True, is_return_id=use_id_col)
+        return SparkCorpusIterator(
+            self.document_dataframe,
+            self.vectorized_col,
+            is_vectorized=True,
+            is_return_id=use_id_col,
+        )
 
     def save(self, output_path):
         """Save the corpus to a parquet file
         """
         self.document_dataframe.write.parquet(output_path)
 
-    @ classmethod
-    def init_from_joined_dataframe(cls, raw_dataframe, submission_id_col="id",
-                                   submission_text_col="selftext", submission_title_col="title",
-                                   comments_text_col="body", category_col="subreddit", time_delta_col='time_to_comment_in_seconds',
-                                   max_time_delta=None, min_time_delta=None):
+    @classmethod
+    def init_from_joined_dataframe(
+        cls,
+        raw_dataframe,
+        submission_id_col="id",
+        submission_text_col="selftext",
+        submission_title_col="title",
+        comments_text_col="body",
+        category_col="subreddit",
+        time_delta_col="time_to_comment_in_seconds",
+        max_time_delta=None,
+        min_time_delta=None,
+    ):
         """Instantiate a SparkRedditCorpus using the a DataFrame of submission, comment pairs
 
         :param raw_dataframe: Spark DataFrame each row represents a submission, comment pair
@@ -144,35 +187,47 @@ class SparkCorpus:
         :param time_time_delta: int, the minimum time (typically in seconds) a comment is allowed to occur after a submission
         """
         logger.debug(
-            "Filtering Spark Reddit dataframe with following settings:, %s", locals())
+            "Filtering Spark Reddit dataframe with following settings:, %s", locals()
+        )
         filtered_df = ihop.import_data.filter_by_time_between_submission_and_comment(
-            raw_dataframe, max_time_delta, min_time_delta, time_delta_col)
+            raw_dataframe, max_time_delta, min_time_delta, time_delta_col
+        )
 
-        grouped_submissions = filtered_df.\
-            orderBy(time_delta_col).\
-            groupBy(submission_id_col).\
-            agg(
+        grouped_submissions = (
+            filtered_df.orderBy(time_delta_col)
+            .groupBy(submission_id_col)
+            .agg(
                 fn.first(category_col).alias(category_col),
                 fn.first(submission_text_col).alias(submission_text_col),
                 fn.first(submission_title_col).alias(submission_title_col),
                 fn.concat_ws(" ", fn.collect_list(comments_text_col)).alias(
-                    DEFAULT_DOC_COL_NAME)
+                    DEFAULT_DOC_COL_NAME
+                ),
             )
+        )
 
         document_dataframe = grouped_submissions.select(
             grouped_submissions[submission_id_col],
             grouped_submissions[category_col],
-            fn.concat_ws(" ",
-                         grouped_submissions[submission_title_col],
-                         grouped_submissions[submission_text_col],
-                         grouped_submissions[DEFAULT_DOC_COL_NAME]).
-            alias(DEFAULT_DOC_COL_NAME)
+            fn.concat_ws(
+                " ",
+                grouped_submissions[submission_title_col],
+                grouped_submissions[submission_text_col],
+                grouped_submissions[DEFAULT_DOC_COL_NAME],
+            ).alias(DEFAULT_DOC_COL_NAME),
         )
 
         return cls(document_dataframe)
 
     @classmethod
-    def load(cls, spark, df_path, document_col=DEFAULT_DOC_COL_NAME, format='parquet', **kwargs):
+    def load(
+        cls,
+        spark,
+        df_path,
+        document_col=DEFAULT_DOC_COL_NAME,
+        format="parquet",
+        **kwargs
+    ):
         """Returns a SparkRedditCorpus from the given data path.
         The data can be in any format readable by spark.
 
@@ -191,7 +246,14 @@ class SparkCorpusIterator:
     not generator functions.
     """
 
-    def __init__(self, corpus_df, column_name, is_vectorized=False, is_return_id=False, id_col="id"):
+    def __init__(
+        self,
+        corpus_df,
+        column_name,
+        is_vectorized=False,
+        is_return_id=False,
+        id_col="id",
+    ):
         """
         :param corpus: A SparkDataframe
         :param column_name: The name of the column to retrieve from the corpus
@@ -226,14 +288,27 @@ class SparkCorpusIterator:
 class SparkTextPreprocessingPipeline:
     """A text pre-processing pipeline that prepares text data for topic modeling
     """
+
     PIPELINE_OUTPUT_NAME = "SparkTextProcessingPipeline"
     MODEL_OUTPUT_NAME = "SparkTextProcessingModel"
 
-    def __init__(self, input_col=DEFAULT_DOC_COL_NAME, output_col=VECTORIZED_COL_NAME, tokens_col=TOKENIZED_COL_NAME, filtered_tokens_col=FILTERED_TOKENS_COL_NAME,
-                 tokenization_pattern="([\p{L}\p{N}#@][\p{L}\p{N}\p{Pd}\p{Pc}\p{S}\p{P}]*[\p{L}\p{N}])|[\p{L}\p{N}]|[^\p{P}\s]",
-                 match_gaps=False, toLowercase=True,
-                 stopLanguage='english', stopCaseSensitive=False,
-                 maxDF=0.95, minDF=0.05, minTF=0.0, binary=False, useIDF=False):
+    def __init__(
+        self,
+        input_col=DEFAULT_DOC_COL_NAME,
+        output_col=VECTORIZED_COL_NAME,
+        tokens_col=TOKENIZED_COL_NAME,
+        filtered_tokens_col=FILTERED_TOKENS_COL_NAME,
+        tokenization_pattern="([\p{L}\p{N}#@][\p{L}\p{N}\p{Pd}\p{Pc}\p{S}\p{P}]*[\p{L}\p{N}])|[\p{L}\p{N}]|[^\p{P}\s]",
+        match_gaps=False,
+        toLowercase=True,
+        stopLanguage="english",
+        stopCaseSensitive=False,
+        maxDF=0.95,
+        minDF=0.05,
+        minTF=0.0,
+        binary=False,
+        useIDF=False,
+    ):
         """Initializes a text preprocessing pipeline with Spark.
         Note: The tokenization pattern throws away punctuation pretty aggresively, is probably throwing away emojis
 
@@ -251,45 +326,73 @@ class SparkTextPreprocessingPipeline:
         :param binary: boolean, Set to True for binary term document flags, rather than term frequency counts
         :param useIDF: boolean, set to True to use inverse document frequency smoothing of counts.
         """
-        logger.info(
-            "Parameters for SparkTextPreprocessingPipeline: %s", locals())
-        tokenizer = RegexTokenizer(inputCol=input_col, outputCol=tokens_col, toLowercase=toLowercase).\
-            setPattern(tokenization_pattern).\
-            setGaps(match_gaps)
+        logger.info("Parameters for SparkTextPreprocessingPipeline: %s", locals())
+        tokenizer = (
+            RegexTokenizer(
+                inputCol=input_col, outputCol=tokens_col, toLowercase=toLowercase
+            )
+            .setPattern(tokenization_pattern)
+            .setGaps(match_gaps)
+        )
         logger.info(
             "Using RegexTokenizer with following parameters: {inputCol: %s, outputCol: %s, pattern: %s, toLowercase: %s, gaps: %s}",
-            tokenizer.getInputCol(), tokenizer.getOutputCol(),
-            tokenizer.getPattern(), tokenizer.getToLowercase(), tokenizer.getGaps())
+            tokenizer.getInputCol(),
+            tokenizer.getOutputCol(),
+            tokenizer.getPattern(),
+            tokenizer.getToLowercase(),
+            tokenizer.getGaps(),
+        )
         pipeline_stages = [tokenizer]
 
         count_vec_in_col = tokens_col
         if stopLanguage is not None:
             count_vec_in_col = filtered_tokens_col
-            stop_remover = StopWordsRemover(inputCol=tokens_col, outputCol=count_vec_in_col, stopWords=StopWordsRemover.loadDefaultStopWords(
-                stopLanguage), caseSensitive=stopCaseSensitive)
-            logger.info("Using StopWordsRemover with the following parameters: {inputCol: %s, outputCol: %s, stopWords: %s, caseSensitive: %s}", stop_remover.getInputCol(), stop_remover.getOutputCol(),
-                        stop_remover.getStopWords(), stop_remover.getCaseSensitive())
+            stop_remover = StopWordsRemover(
+                inputCol=tokens_col,
+                outputCol=count_vec_in_col,
+                stopWords=StopWordsRemover.loadDefaultStopWords(stopLanguage),
+                caseSensitive=stopCaseSensitive,
+            )
+            logger.info(
+                "Using StopWordsRemover with the following parameters: {inputCol: %s, outputCol: %s, stopWords: %s, caseSensitive: %s}",
+                stop_remover.getInputCol(),
+                stop_remover.getOutputCol(),
+                stop_remover.getStopWords(),
+                stop_remover.getCaseSensitive(),
+            )
             pipeline_stages.append(stop_remover)
 
         count_vectorizer = CountVectorizer(
-            inputCol=count_vec_in_col, outputCol=output_col,
-            maxDF=maxDF, minDF=minDF, minTF=minTF, binary=binary)
+            inputCol=count_vec_in_col,
+            outputCol=output_col,
+            maxDF=maxDF,
+            minDF=minDF,
+            minTF=minTF,
+            binary=binary,
+        )
 
         pipeline_stages.append(count_vectorizer)
 
         if useIDF:
             count_vectorized_col = "count_vectorized"
             count_vectorizer.setOutputCol(count_vectorized_col)
-            idf_stage = IDF(inputCol=count_vectorized_col,
-                            outputCol=output_col)
+            idf_stage = IDF(inputCol=count_vectorized_col, outputCol=output_col)
             pipeline_stages.append(idf_stage)
             logger.info(
-                "Using IDF with following parameters: {inputCol: %s, outputCol: %s}", idf_stage.getInputCol(), idf_stage.getOutputCol())
+                "Using IDF with following parameters: {inputCol: %s, outputCol: %s}",
+                idf_stage.getInputCol(),
+                idf_stage.getOutputCol(),
+            )
 
         logger.info(
             "Using CountVectorizer with following parameters: {inputCol: %s, outputCol: %s, minDF: %s, maxDF: %s, minTF: %s, vocabSize: %s}",
-            count_vectorizer.getInputCol(), count_vectorizer.getOutputCol(),
-            count_vectorizer.getMinDF(), count_vectorizer.getMaxDF(), count_vectorizer.getMinTF(), count_vectorizer.getVocabSize())
+            count_vectorizer.getInputCol(),
+            count_vectorizer.getOutputCol(),
+            count_vectorizer.getMinDF(),
+            count_vectorizer.getMaxDF(),
+            count_vectorizer.getMinTF(),
+            count_vectorizer.getVocabSize(),
+        )
         self.pipeline = Pipeline(stages=pipeline_stages)
 
         logger.debug("Text transformation pipeline created")
@@ -306,10 +409,10 @@ class SparkTextPreprocessingPipeline:
     def get_id_to_word(self):
         vocab = {}
         if self.model is not None:
-            vectorizers = [s for s in self.model.stages if isinstance(
-                s, CountVectorizerModel)]
-            vocab = {i: word for i,
-                     word in enumerate(vectorizers[0].vocabulary)}
+            vectorizers = [
+                s for s in self.model.stages if isinstance(s, CountVectorizerModel)
+            ]
+            vocab = {i: word for i, word in enumerate(vectorizers[0].vocabulary)}
         return vocab
 
     def get_word_to_id(self):
@@ -320,8 +423,7 @@ class SparkTextPreprocessingPipeline:
 
         :param save_dir: Directory to save the model and pipeline
         """
-        logger.info(
-            "Saving SparkTextPreprocessingPipeline to directory: %s", save_dir)
+        logger.info("Saving SparkTextPreprocessingPipeline to directory: %s", save_dir)
         os.makedirs(save_dir, exist_ok=True)
         self.pipeline.save(os.path.join(save_dir, self.PIPELINE_OUTPUT_NAME))
         if self.model is not None:
@@ -334,15 +436,18 @@ class SparkTextPreprocessingPipeline:
         :param load_dir: Directory to load the model and pipeline from
         """
         logger.info(
-            "Loading SparkTextPreProcessingPipeline from directory: %s", load_dir)
+            "Loading SparkTextPreProcessingPipeline from directory: %s", load_dir
+        )
         result = cls("inplaceholder", "outplaceholder")
         result.pipeline = Pipeline.load(
-            os.path.join(load_dir, cls.PIPELINE_OUTPUT_NAME))
+            os.path.join(load_dir, cls.PIPELINE_OUTPUT_NAME)
+        )
         model_file = os.path.join(load_dir, cls.MODEL_OUTPUT_NAME)
         # TODO this doesn't work on Databricks
         if os.path.exists(model_file):
             logger.debug(
-                "PipelineModel file found %s, loading PipelineModel", model_file)
+                "PipelineModel file found %s, loading PipelineModel", model_file
+            )
             result.model = PipelineModel.load(model_file)
 
         logger.info("SparkTextPreprocessingPipeline sucessfully loaded")
