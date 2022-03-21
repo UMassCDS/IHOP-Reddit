@@ -28,10 +28,6 @@ import ihop.utils
 import ihop.text_processing
 
 logger = logging.getLogger(__name__)
-# TODO Logging should be configurable, but for now just turn it on for Gensim
-logging.basicConfig(
-    format="%(name)s : %(asctime)s : %(levelname)s : %(message)s", level=logging.INFO
-)
 
 # Constants for supported data types
 KEYED_VECTORS = "KeyedVectors"
@@ -820,6 +816,12 @@ parser.add_argument(
     action="store_true",
     help="Use to turn off verbose info statements that require extra computation.",
 )
+parser.add_argument(
+    "--config",
+    type=ihop.utils.parse_config_file,
+    help="JSON file used to override default logging and spark configurations",
+)
+
 
 parser.add_argument(
     "input",
@@ -888,6 +890,8 @@ parser.add_argument(
 if __name__ == "__main__":
     # TODO Clean this up a bit
     args = parser.parse_args()
+    config = parser.config
+    ihop.utils.configure_logging(config[1])
     if (
         args.data_type == KEYED_VECTORS
         and args.cluster_type == ClusteringModelFactory.GENSIM_LDA
@@ -903,7 +907,7 @@ if __name__ == "__main__":
         data = gm.KeyedVectors.load(args.input[0])
         index = dict(enumerate(data.index_to_key))
     else:
-        spark = ihop.utils.get_spark_session("LDA Clustering", args.quiet)
+        spark = ihop.utils.get_spark_session("IHOP LDA Clustering", config[0])
 
         if args.data_type == SPARK_DOCS:
             vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(

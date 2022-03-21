@@ -477,7 +477,7 @@ def main(
     :param corpus_output_name: str, filename to save the transformed parquet corpus
     """
     logger.info("Fitting spark pipeline to input corpus")
-    vectorized_corpus, pipeline = prep_spark_corpus(
+    vectorized_corpus, _ = prep_spark_corpus(
         input_df,
         min_time_delta,
         max_time_delta,
@@ -494,6 +494,11 @@ def main(
 
 
 parser = argparse.ArgumentParser(description="Produce clusterings of the input data")
+parser.add_argument(
+    "--config",
+    type=ihop.utils.parse_config_file,
+    help="JSON file used to override default logging and spark configurations",
+)
 parser.add_argument(
     "-q",
     "--quiet",
@@ -544,7 +549,10 @@ parser.add_argument(
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    spark = ihop.utils.get_sparkSession("Text Processing", args.quiet)
+    config = parser.config
+    ihop.utils.configure_logging(config[1])
+    spark = ihop.utils.get_spark_session("IHOP Text Processing", config[0])
+
     main(
         spark.read.parquet(args.input),
         args.output_dir,

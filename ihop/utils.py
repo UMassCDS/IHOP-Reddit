@@ -14,31 +14,89 @@ logger = logging.getLogger(__name__)
 
 HADOOP_ENV = "HADOOP_HOME"
 
+DEFAULT_LOGGING_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default_formatter": {
+            "format": "[%(name)s : %(asctime)s : %(levelname)s : %(message)s"
+        },
+    },
+    "handlers": {
+        "stream_handler": {
+            "class": "logging.StreamHandler",
+            "formatter": "default_formatter",
+        },
+        "file_handler": {
+            "class": "logging.FileHandler",
+            "filename": "ihop.log",
+            "formatter": "default_formatter",
+        },
+    },
+    "loggers": {
+        "root": {
+            "handlers": ["stream_handler", "file_handler"],
+            "level": "DEBUG",
+            "propagate": True,
+        }
+    },
+}
 
-def get_spark_session(name, driver_mem="8G", quiet=False):
+DEFAULT_SPARK_CONFIG = {"spark.driver.memory": "8G"}
+
+
+def parse_config_file(config_file):
+    """Reads a config file from JSON, optionally expecting 'spark' and 'logger' keys. If a key isn't present, None is returned and the default config is used.
+    """
+    if config_file is None or not os.path.exists(config_file):
+        return None, None
+
+    with open(config_file, "r") as conf:
+        conf_dict = json.load(conf)
+        spark_conf = conf_dict.get("spark")
+        logger_conf = conf_dict.get("logger")
+
+    return spark_conf, logger_conf
+
+
+def configure_logging(log_dict=None):
+    """Configures the root logger for the application.
+
+    :param log_dict: dict, specify logging configurations to override the defaults
+    """
+    if log_dict is None:
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+    else:
+        logging.config.dictConfig(log_dict)
+
+
+def get_spark_session(name, config=None):
     """Return a SparkSession configured with checking HADOOP_HOME for additional library support.
 
     :param name: str, application name to pass to Spark
-    :param driver_mem, str, Spark configuration value for spark.driver.memory, defaults to '8G'. Make this large to prevent OOM errors from JVM
-    :param quiet: True to print session configuration
+    :param config: dict, dictionary where keys are Spark properites, see https://spark.apache.org/docs/latest/configuration.html
     """
+    use_config = {}
+    if config is None:
+        use_config.update(DEFAULT_SPARK_CONFIG)
+    else:
+        use_config.update(config)
 
     if HADOOP_ENV in os.environ:
         hadoop_lib_path = os.path.join(os.environ[HADOOP_ENV], "lib", "native")
-        spark = SparkSession.builder \
-                            .config("spark.driver.extraLibraryPath", hadoop_lib_path) \
-                            .config("spark.executor.extraLibraryPath", hadoop_lib_path) \
-                            .config("spark.driver.memory", driver_mem) \
-                            .appName(name).getOrCreate()
-    else:
-        print("WARNING: No HADOOP_HOME variable found, zstd decompression may not be available")
-        spark = SparkSession.builder \
-                            .config("spark.driver.memory", driver_mem) \
-                            .appName(name).getOrCreate()
+        lib_path_keys = [
+            "spark.driver.extraLibraryPath",
+            "spark.executor.extraLibraryPath",
+        ]
+        for k in lib_path_keys:
+            use_config[k] = hadoop_lib_path
 
-    if not quiet:
-        print("Spark configuration:")
-        print(spark.sparkContext.getConf().getAll())
+    else:
+        logger.warning(
+            "WARNING: No HADOOP_HOME variable found, zstd decompression may not be available"
+        )
+    spark = SparkSession.builder.appName(name).config(conf=use_config)
+    logger.info("Spark configuration: %s", spark.sparkContext.getConf().getAll())
 
     return spark
 
@@ -50,11 +108,12 @@ def get_start_end_timeframes(spark_dataframe, utc_time_col="created_utc"):
     :param utc_time_col: column containing timestamps
     """
     timeframes = spark_dataframe.select(
-        fn.max(utc_time_col).alias('end_timeframe'),
-        fn.min(utc_time_col).alias('start_timeframe')
+        fn.max(utc_time_col).alias("end_timeframe"),
+        fn.min(utc_time_col).alias("start_timeframe"),
     )
-    timeframes = timeframes.withColumn('human_readable_start', fn.from_unixtime(
-        'start_timeframe')).withColumn('human_readable_end', fn.from_unixtime('end_timeframe'))
+    timeframes = timeframes.withColumn(
+        "human_readable_start", fn.from_unixtime("start_timeframe")
+    ).withColumn("human_readable_end", fn.from_unixtime("end_timeframe"))
     return timeframes
 
 
