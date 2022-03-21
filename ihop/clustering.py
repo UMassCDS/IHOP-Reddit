@@ -91,6 +91,8 @@ class ClusteringModelFactory:
         else:
             model_id = model_name
 
+        logger.info("Instantiating %s model with name '%s'", model_choice, model_id)
+
         if model_choice not in cls.DEFAULT_MODEL_PARAMS:
             raise ValueError(f"Model choice {model_choice} is not supported")
 
@@ -98,12 +100,18 @@ class ClusteringModelFactory:
         parameters.update(cls.DEFAULT_MODEL_PARAMS[model_choice])
         parameters.update(kwargs)
 
+        logger.info("Specified model parameters: %s", parameters)
+
         if isinstance(data, gm.keyedvectors.KeyedVectors):
             if parameters.get("affinity", None) == "precomputed":
+                logger.debug(
+                    "Determining precomputed distances as vector input to model"
+                )
                 vectors = np.zeros((len(index), len(index)))
                 for i, v in index.items():
                     vectors[i] = np.array(data.distances(v))
             else:
+                logger.debug("Getting normed vectors as vector input to model")
                 vectors = data.get_normed_vectors()
         else:
             vectors = data
@@ -121,6 +129,7 @@ class ClusteringModelFactory:
         else:
             raise ValueError(f"Model type '{model_choice}' is not supported")
 
+        logger.debug("Finished instantiating model")
         return ClusteringModel(vectors, model, model_id, index)
 
 
@@ -149,7 +158,9 @@ class ClusteringModel:
         """Fits the model to data and predicts the cluster labels for each data point.
         Returns the predicted clusters for each data point in training data
         """
+        logger.info("Fitting ClusteringModel")
         self.clusters = self.clustering_model.fit_predict(self.data)
+        logger.info("Finished fitting ClusteringModel")
         return self.clusters
 
     def predict(self, new_data):
@@ -363,11 +374,11 @@ class GensimLDAModel(DocumentClusteringModel):
         """Trains LDA topic model on the corpus
         Returns topic assignments for each document in the training as {str -> list((int, float))}
         """
-        logger.debug("Staring LDA training")
+        logger.info("Staring GensimLDAModel training")
         self.clustering_model.update(
             self.corpus.collect_column_to_list(self.corpus.vectorized_col, True)
         )
-        logger.debug("Finished LDA training")
+        logger.info("Finished GensimLDAModel training")
         return self.get_topic_assignments()
 
     def predict(self, bow_docs):
@@ -375,11 +386,13 @@ class GensimLDAModel(DocumentClusteringModel):
 
         :param bow_docs: iterable of lists of (int, float) representing docs in bag-of-words format
         """
+        logger.info("Starting topic predictions using trained GensimLDAModel")
         result = np.zeros((len(bow_docs), self.clustering_model.num_topics))
         for i, bow in enumerate(bow_docs):
             indices, topic_probs = zip(*self.clustering_model.get_document_topics(bow))
             result[i, indices] = topic_probs
 
+        logger.info("Finished topic predictions with GensimLDAModel")
         return result
 
     def get_topic_assignments(self, corpus=None):
@@ -387,7 +400,9 @@ class GensimLDAModel(DocumentClusteringModel):
 
         :param corpus_iter: SparkCorpus object
         """
-        logger.debug("Starting to retrieve topic assignments")
+        logger.info(
+            "Starting topic assignments predictions using trained GensimLDAModel"
+        )
         if corpus is None:
             logger.debug("Getting iterator for vectorized docs")
             current_iterator = self.corpus.get_vectorized_column_iterator(
@@ -398,6 +413,8 @@ class GensimLDAModel(DocumentClusteringModel):
         results = dict()
         for doc_id, bow_doc in current_iterator:
             results[doc_id] = self.clustering_model.get_document_topics(bow_doc)
+
+        logger.info("Finished topic assignment predictions with GensimLDAModel")
 
         return results
 
@@ -441,7 +458,10 @@ class GensimLDAModel(DocumentClusteringModel):
 
         :param topn: int, number of top words to be extracted for each topic
         """
-        return {"Coherence": self.get_coherence_model(topn).get_coherence()}
+        logger.info("Starting computing LDA metrics")
+        metrics = {"Coherence": self.get_coherence_model(topn).get_coherence()}
+        logger.info("Finished computing LDA metrics: %s", metrics)
+        return metrics
 
     def get_term_topics(self, word):
         """Returns the most relevant topics to the word as a list of (int, float) representing topic id and probability (relevence to the given word) worded by decreasing probability
@@ -566,7 +586,9 @@ class SparkLDAModel(DocumentClusteringModel):
         """Fits the LDA model to the corpus.
         Returns topic assignments for each document in the training data as {str -> list((int, float))}
         """
+        logger.info("Starting training SparkLDAModel")
         self.clustering_model = self.transformer.fit(self.corpus.document_dataframe)
+        logger.info("Finished training SparkLDAModel")
         return self.get_topic_assignments()
 
     def predict(self, spark_corpus):
@@ -574,16 +596,23 @@ class SparkLDAModel(DocumentClusteringModel):
 
         :param spark_corpus: SparkCorpus object, must have a vectorized column with the same name as the vectorized column in training data
         """
+        logger.info("Starting predictions with trained SparkLDAModel")
         predictions = ihop.text_processing.SparkCorpus(
             self.clustering_model.transform(spark_corpus.document_dataframe)
         )
-        return predictions.collect_column_to_list(self.clustering_model.getOutputCol())
+        logger.debug("Collecting predictions to list")
+        collected_predictions = predictions.collect_column_to_list(
+            self.clustering_model.getOutputCol()
+        )
+        logger.info("Finished predictions using SparkLDAModel")
+        return collected_predictions
 
     def get_topic_assignments(self, spark_corpus=None):
         """Returns {str -> list((int, float))}, the topic assignments for each document id as a list of list of(int, float)
 
         :param spark_corpus: SparkCorpus object, must have a vectorized column with same name as the vectorized column in training data
         """
+        logger.info("Starting topic assignment predictions with SparkLDAModel")
         if spark_corpus is None:
             spark_corpus = self.corpus
 
@@ -600,7 +629,7 @@ class SparkLDAModel(DocumentClusteringModel):
                 [(i, p) for i, p in enumerate(x[topic_dist_column]) if p > 0],
             )
         ).collect()
-
+        logger.info("Finished topic assignment predictions with SparkLDAModel")
         return dict(collected_topic_assignments)
 
     def get_top_terms(self, num_words=20):

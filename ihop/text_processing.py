@@ -42,13 +42,20 @@ def print_document_length_statistics(
     """
     doc_length_df = dataframe.withColumn(doc_length_col, fn.size(fn.col(tokenized_col)))
     print("Overall document length statistics:")
-    doc_length_df.describe([doc_length_col]).show()
+    length_stats = doc_length_df.describe([doc_length_col])
+    length_stats.show()
+    logger.info("Overall document length statistics: %s", length_stats.collect())
 
     zero_length_docs = doc_length_df.where(doc_length_df[doc_length_col] == 0)
-    print("Number of documents with zero tokens:", zero_length_docs.count())
+    zero_length_count = zero_length_docs.count()
+    print("Number of documents with zero tokens:", zero_length_count)
+    logger.info("Number of documents with zero tokens:", zero_length_count)
     print("Snippet of documents with length zero after tokenization:")
     zero_length_docs.show()
-
+    logger.info(
+        "Snippet of documents with length zero after tokenization: %s",
+        zero_length_docs.head(),
+    )
     return doc_length_df
 
 

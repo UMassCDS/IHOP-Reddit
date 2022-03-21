@@ -51,6 +51,7 @@ def get_top_n_counts(dataframe, col="subreddit", n=DEFAULT_TOP_N):
     :param col: str, the column to groupBy for counts
     :param n: int, limit results to the top n most frequent values
     """
+    logger.debug("Gathering top %s values in column %s with counts", n, col)
     return (
         dataframe.groupBy(col)
         .count()
@@ -76,6 +77,7 @@ def remove_deleted_authors(dataframe):
 
     :param dataframe: Spark DataFrame to be filtered
     """
+    logger.debug("Removing authors matching '%s' from dataframe", DELETED)
     return dataframe.where(dataframe.author != DELETED)
 
 
@@ -86,6 +88,11 @@ def remove_deleted_text(dataframe, reddit_type):
     :param dataframe: Spark DataFrame to be filtered
     :param reddit_type: str, 'comments' or 'submissions'
     """
+    logger.debug(
+        "Removing rows where %s matches %s",
+        MAIN_TEXT_FIELD[reddit_type],
+        [REMOVED, DELETED],
+    )
     return dataframe.filter(
         ~dataframe[MAIN_TEXT_FIELD[reddit_type]].isin(REMOVED, DELETED)
     )
@@ -97,6 +104,7 @@ def print_comparison_stats(original_df, filtered_df, top_n_df):
     :param filtered_df: The original dataframe filtered to include only top
     :param top_n_df: The filtered SparkDataframe
     """
+    logger.debug("Generating corpus comparison stats")
     original_distinct_subreddits = (
         original_df.agg(fn.countDistinct(original_df.subreddit).alias("sr_count"))
         .collect()[0]
@@ -108,17 +116,28 @@ def print_comparison_stats(original_df, filtered_df, top_n_df):
         .sr_count
     )
     print("Number of subreddits overall:", original_distinct_subreddits)
+    logger.info("Number of subreddits overall: %s", original_distinct_subreddits)
     print(
         "Number of subreddits after filtering (sanity check, should match n):",
+        filtered_distinct_subreddits,
+    )
+    logger.info(
+        "Number of subreddits after filtering (sanity check, should match n): %s",
         filtered_distinct_subreddits,
     )
 
     original_comments = original_df.count()
     comments_after_filtering = filtered_df.count()
     print("Number comments before filtering:", original_comments)
+    logger.info("Number comments before filtering: %s", original_comments)
     print("Number comments after filtering:", comments_after_filtering)
+    logger.info("Number comments after filtering: %s", comments_after_filtering)
     print(
         "Percentage of original comments covered:",
+        comments_after_filtering / original_comments,
+    )
+    logger.info(
+        "Percentage of original comments covered: %s",
         comments_after_filtering / original_comments,
     )
 
@@ -135,6 +154,12 @@ def print_comparison_stats(original_df, filtered_df, top_n_df):
     print("Number users before filtering:", original_users)
     print("Number users after filtering:", filtered_users)
     print("Percentage of original users covered:", filtered_users / original_users)
+    logger.info("Number users before filtering: %s", original_users)
+    logger.info("Number users after filtering: %s", filtered_users)
+    logger.info(
+        "Percentage of original users covered: %s", filtered_users / original_users
+    )
+    logger.debug("Finished printing corpus comparison stats")
 
 
 def get_spark_dataframe(inputs, spark, reddit_type):
@@ -143,6 +168,7 @@ def get_spark_dataframe(inputs, spark, reddit_type):
     :param spark: SparkSession
     :param reddit_type: 'comments' or 'submissions'
     """
+    logger.debug("Reading data type %s from %s", reddit_type, inputs)
     return (
         spark.read.format("json")
         .option("mode", "PERMISSIVE")
@@ -162,8 +188,14 @@ def exclude_top_percentage_of_users(
     :param exclude_top_perc: float, the percentage of top commenting users to exclude
     """
     if exclude_top_perc == 0.0:
+        logger.debug("No rows excluded from dataframe using percentage of top values")
         return user_df
 
+    logger.debug(
+        "Removing rows in top %s percent of value in column %s",
+        exclude_top_perc,
+        count_col,
+    )
     percentile_col = "percentile"
     perc_rank = 1.0 - exclude_top_perc
     result_df = user_df.select(
@@ -202,6 +234,11 @@ def aggregate_for_vectorization(
     :param min_sentence_length: int, the minimum number of comments allowed for a user to be included in the dataset
     :param exclude_top_perc: float, the percentage of top commenting users to exclude
     """
+    logger.debug(
+        "Aggregating dataframe by %s to collect text in %s column",
+        context_col,
+        word_col,
+    )
     agg_df = dataframe.groupBy(context_col).agg(
         fn.concat_ws(" ", fn.collect_list(dataframe[word_col])).alias(word_out_col),
         fn.count(context_col).alias(context_len_col),
@@ -211,6 +248,9 @@ def aggregate_for_vectorization(
         agg_df, count_col=context_len_col, exclude_top_perc=exclude_top_perc
     )
 
+    logger.debug(
+        "Dropping %s values with count fewer than %s", context_col, min_sentence_length
+    )
     agg_df = agg_df.where(agg_df[context_len_col] >= min_sentence_length)
 
     return agg_df.drop(context_col)
@@ -222,9 +262,18 @@ def filter_out_top_users(
     """Returns a dataframe with the top most active users by number of rows removed.
     """
     if exclude_top_perc == 0.0:
+        logger.debug(
+            "No rows excluded from dataframe using percentage of top values in %s",
+            author_col,
+        )
         return dataframe
 
     count_col = "count"
+    logger.debug(
+        "Top %s percent of most frequent %s values will be removed",
+        exclude_top_perc,
+        author_col,
+    )
     agg_df = dataframe.groupBy(author_col).agg(fn.count("*").alias(count_col))
     keep_users_df = exclude_top_percentage_of_users(agg_df, count_col, exclude_top_perc)
     return dataframe.join(
@@ -242,6 +291,7 @@ def prefix_id_column(
     :param id_col: str, the name of the original unprefixed id column
     :param output_col: str, the name of the column to add
     """
+    logger.debug("Prefixing column %s with %s", output_col, id_col)
     return dataframe.withColumn(
         output_col, fn.concat_ws("", fn.lit(ID_PREFIX[reddit_type]), dataframe[id_col])
     )
@@ -252,6 +302,7 @@ def collect_max_context_length(aggregated_df, array_len_col="context_length"):
     :param aggregated_df: Spark dataframe with a column array_len_col storing integers
     :param array_len_col: str, the column to query for the maximum value
     """
+    logger.debug("Determining largest value in column %s", array_len_col)
     return aggregated_df.agg(fn.max(array_len_col)).head()[0]
 
 
@@ -267,6 +318,7 @@ def rename_columns(dataframe, columns=None, prefix=COMMENTS):
 
     result = dataframe
     for c in columns:
+        logger.debug("Prefixing column %s with %s", c, prefix)
         result = result.withColumnRenamed(c, f"{prefix}_{c}")
 
     return result
@@ -286,8 +338,14 @@ def filter_by_time_between_submission_and_comment(
     """
     result_df = dataframe
     if max_time_delta:
+        logger.debug(
+            "Removing rows where %s is greater than %s", time_delta_col, max_time_delta
+        )
         result_df = result_df.where(result_df[time_delta_col] < max_time_delta)
     if min_time_delta:
+        logger.debug(
+            "Removing rows where %s is less than %s", time_delta_col, min_time_delta
+        )
         result_df = result_df.where(result_df[time_delta_col] > min_time_delta)
     return result_df
 
@@ -312,8 +370,16 @@ def join_submissions_and_comments(
     :param timestamp_col: str, the name of the input column storing timestamps, assumed to be the same for both submissions and comment
     :param time_delta_col: str, the output column where timedelta between submission and comment will be stored
     """
+    logger.debug("Renaming comments columns prior to join")
     renamed_comments = rename_columns(comments_df, prefix=comments_duplicate_col_prefix)
+    logger.debug("Comments dataframe columns: %s", rename_columns.schema.names)
     comments_timestamp_col = f"{COMMENTS}_{timestamp_col}"
+
+    logger.debug(
+        "Joining submissons and comments where %s = %s",
+        submission_id_col,
+        comments_link_col,
+    )
     result_df = submissions_df.join(
         renamed_comments,
         submissions_df[submission_id_col] == renamed_comments[comments_link_col],
@@ -324,9 +390,14 @@ def join_submissions_and_comments(
         timestamp_col in result_df.columns
         and comments_timestamp_col in result_df.columns
     ):
+        logger.debug(
+            "Computing time delta between %s and %s",
+            time_delta_col,
+            comments_timestamp_col,
+        )
         result_df = result_df.withColumn(
             time_delta_col,
-            result_df[f"{COMMENTS}_{CREATED_UTC}"] - result_df[CREATED_UTC],
+            result_df[comments_timestamp_col] - result_df[timestamp_col],
         )
 
     return result_df
@@ -352,8 +423,10 @@ def community2vec(
     :param exclude_top_perc: float, the percentage of top most active users by number of comments to exclude from the final dataset
     :param quiet: Boolean, true to skip statsitics and plots
     """
+    logger.debug("Building community2vec training data for Reddit %s data", reddit_type)
     if reddit_type in [COMMENTS, SUBMISSIONS]:
         spark_df = get_spark_dataframe(inputs, spark, reddit_type)
+        logger.debug("Json data read, schema: %s", spark_df.schema.name)
         if not quiet:
             print("Spark dataframe from json:")
             spark_df.show()
@@ -370,10 +443,11 @@ def community2vec(
         )
         if not quiet:
             max_sentence_length = collect_max_context_length(context_word_df)
+            logger.info("Maximium sentence length in data: %s", max_sentence_length)
             print("Maximum sentence length in data:", max_sentence_length)
     else:
         raise ValueError(f"Reddit data type {reddit_type} is not valid.")
-
+    logger.info("Finished creating community2vec and subreddit count dataframes")
     return top_n_df, context_word_df.drop("context_length")
 
 
@@ -400,6 +474,9 @@ def bag_of_words(
     :param exclude_top_perc: float, the percentage of top most active users by number of comments to exclude from the final dataset. Note that only comments are filtered, not submissions
     :param quiet: boolean, set to True for verbose & computationally expensive dataframe comparisons
     """
+    logger.info(
+        "Joining Reddit comments and submissions data into submission thread-level documents"
+    )
     logger.debug("Reading in comments from %s", comments_paths)
     comments_df = get_spark_dataframe(comments_paths, spark, COMMENTS)
     logger.debug("Comments schema: %s", comments_df.schema.names)
@@ -433,7 +510,7 @@ def bag_of_words(
         joined_df = filter_by_time_between_submission_and_comment(
             joined_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta
         )
-
+    logger.debug("Finished joining submissions and comments data")
     return joined_df
 
 
@@ -551,6 +628,7 @@ if __name__ == "__main__":
     spark = ihop.utils.get_spark_session("IHOP import data", config[0])
     logger.debug("Script arguments: %s", args)
     if args.subparser_name == "c2v":
+        logger.info("Community2vec option selected")
         top_n_df, context_word_df = community2vec(
             args.input,
             spark,
@@ -560,15 +638,17 @@ if __name__ == "__main__":
             quiet=args.quiet,
         )
 
-        if not args.quiet:
-            print("Writing subreddit counts to", args.subreddit_counts_csv)
+        logger.info("Writing subreddit counts to %s", args.subreddit_counts_csv)
         top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)
 
-        if not args.quiet:
-            print("Writing user contexts to bzip2 in", args.context_word_dir)
+        logger.info(
+            "Writing user contexts to bzip2 compressed CSVs in %s",
+            args.context_word_dir,
+        )
         context_word_df.write.option("compression", "bzip2").csv(args.context_word_dir)
 
     elif args.subparser_name == "bow":
+        logger.info("Bag of words option selected")
         bag_of_words_df = bag_of_words(
             spark,
             args.comments,
@@ -580,4 +660,5 @@ if __name__ == "__main__":
             exclude_top_perc=args.exclude_top_user_perc,
             quiet=args.quiet,
         )
+        logger.info("Writing joined thread documents to %s", args.output)
         bag_of_words_df.write.parquet(args.output)
