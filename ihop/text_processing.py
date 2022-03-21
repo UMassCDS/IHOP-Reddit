@@ -1,9 +1,8 @@
 """Supports Spark pipelines for working with text data
 
 .. TODO: set submission timeframe start and end dates
-.. TODO: SparkRedditCorpus to pandas or numpy functions
-.. TODO: PandasCorpus and Corpus iterator objects - instantiate from reading parquet
 """
+import argparse
 import logging
 import os
 
@@ -16,6 +15,7 @@ from pyspark.ml.feature import (
     IDF,
     StopWordsRemover,
 )
+import pytimeparse
 
 
 import ihop.import_data
@@ -26,6 +26,7 @@ DEFAULT_DOC_COL_NAME = "document_text"
 VECTORIZED_COL_NAME = "vectorized"
 TOKENIZED_COL_NAME = "tokenized"
 FILTERED_TOKENS_COL_NAME = "tokensNoStopWords"
+VECTORIZED_CORPUS_FILENAME = "vectorized_corpus.parquet"
 
 
 def print_document_length_statistics(
@@ -57,7 +58,7 @@ def prep_spark_corpus(
     min_doc_frequency=0.05,
     max_doc_frequency=0.95,
     output_dir=None,
-    corpus_output_name="vectorized_corpus.parquet",
+    corpus_output_name=VECTORIZED_CORPUS_FILENAME,
 ):
     """Transforms a text data frame using the specified text processing pipeline options.
     Returns the transformed dataframe as a SparkCorpus and the SparkTextPreProcessingPipeline
@@ -81,6 +82,7 @@ def prep_spark_corpus(
     )
 
     if output_dir is not None:
+        logger.info("Saving pipeline and transformed corpus in %s", output_dir)
         preprocessing_pipeline.save(output_dir)
         vectorized_corpus.save(os.path.join(output_dir, corpus_output_name))
 
@@ -452,3 +454,104 @@ class SparkTextPreprocessingPipeline:
 
         logger.info("SparkTextPreprocessingPipeline sucessfully loaded")
         return result
+
+
+def main(
+    input_df,
+    output_dir,
+    min_time_delta=3,
+    max_time_delta=60 * 60 * 72,
+    min_doc_frequency=0.05,
+    max_doc_frequency=0.95,
+    corpus_output_name=VECTORIZED_CORPUS_FILENAME,
+    quiet=False,
+):
+    """Transforms the input corpus by fitting the document processing pipeline, saves results, then
+    prints corpus statistics as appropriate.
+    :param input_df: Spark DataFrame, typically corpus produced by 'ihop.import_data bow'
+    :param output_dir: str or path, directory to save the corpus and pipeline.
+    :param min_time_delta: int, Exclude comments that occur sooner than this number of seconds after the submission
+    :param max_time_delta: int, Exclude comments that occur later than this number of seconds after the submission
+    :param min_doc_frequency: int or float, minimum number or percentage of documents a term appear to be included in the vocab
+    :param max_doc_frequency: int or float, maximum number or percentage of documents a term appear to be included in the vocab
+    :param corpus_output_name: str, filename to save the transformed parquet corpus
+    """
+    logger.info("Fitting spark pipeline to input corpus")
+    vectorized_corpus, pipeline = prep_spark_corpus(
+        input_df,
+        min_time_delta,
+        max_time_delta,
+        min_doc_frequency,
+        max_doc_frequency,
+        output_dir,
+        corpus_output_name,
+    )
+
+    logger.info("Corpus transformed successfully")
+    if not quiet:
+        logger.info("Generating document length statistics")
+        print_document_length_statistics(vectorized_corpus.document_dataframe)
+
+
+parser = argparse.ArgumentParser(description="Produce clusterings of the input data")
+parser.add_argument(
+    "-q",
+    "--quiet",
+    action="store_true",
+    help="Use to turn off verbose info statements that require extra computation.",
+)
+
+parser.add_argument(
+    "input",
+    nargs="+",
+    help="Path to the parquet file joined submission and comment Reddit data. ",
+)
+parser.add_argument(
+    "--output_dir",
+    "-o",
+    required=True,
+    help="Directory to save the transformed text documents in parquet format and serialized Spark pipeline",
+)
+
+# Used for text data only
+parser.add_argument(
+    "--min_doc_frequency",
+    default=0.05,
+    type=float,
+    help="Minimum document frequency. Defaults to 0.05.",
+)
+parser.add_argument(
+    "--max_doc_frequency",
+    type=float,
+    default=0.95,
+    help="Maximum document frequency. Defaults to 0.95.",
+)
+parser.add_argument(
+    "--max_time_delta",
+    "-x",
+    type=pytimeparse.parse,
+    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 72h.",
+    default="72h",
+)
+parser.add_argument(
+    "--min_time_delta",
+    "-m",
+    type=pytimeparse.parse,
+    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 3s.",
+    default="3s",
+)
+
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    spark = ihop.utils.get_sparkSession("Text Processing", args.quiet)
+    main(
+        spark.read.parquet(args.input),
+        args.output_dir,
+        min_time_delta=args.min_time_delta,
+        max_time_delta=args.max_time_delta,
+        min_doc_frequency=args.min_doc_frequency,
+        max_doc_frequency=args.max_doc_frequency,
+        quiet=args.quiet,
+    )
+

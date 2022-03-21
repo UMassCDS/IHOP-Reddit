@@ -903,7 +903,7 @@ if __name__ == "__main__":
         data = gm.KeyedVectors.load(args.input[0])
         index = dict(enumerate(data.index_to_key))
     else:
-        spark = ihop.utils.get_spark_session("LDA Clustering prep", args.quiet)
+        spark = ihop.utils.get_spark_session("LDA Clustering", args.quiet)
 
         if args.data_type == SPARK_DOCS:
             vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(
@@ -921,10 +921,12 @@ if __name__ == "__main__":
                 )
 
         elif args.data_type == SPARK_VEC:
-            # TODO The actual corpus filename should be an argparse option
+            # TODO The actual corpus path should be an argparse option
             # For now, just assume this args.input is the path to a directory that was previous the output_dir for ihop.text_processing.prep_spark_corpus
             vectorized_corpus = ihop.text_processing.SparkCorpus.load(
-                os.path.join(args.input[0], "vectorized_corpus.parquet")
+                os.path.join(
+                    args.input[0], ihop.text_processing.VECTORIZED_CORPUS_FILENAME
+                )
             )
             pipeline = ihop.text_processing.SparkTextPreprocessingPipeline.load(
                 args.input[0]
