@@ -165,6 +165,8 @@ def test_spark_text_processing_pipeline(corpus):
         "tokensNoStopWords",
         "vectorized",
     ]
+
+    assert len(pipeline.get_param_maps()) == 4
     results = sorted(transformed_corpus.collect(), key=lambda x: x.id)
     text_1 = "my first post post 1 text @someone some.one@email.com ain't this hard to tokenize #hashtag yo-yo www.reddit.com".split()
     text_2 = "look this cute animal aww adorable".split()

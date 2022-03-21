@@ -372,7 +372,7 @@ def join_submissions_and_comments(
     """
     logger.debug("Renaming comments columns prior to join")
     renamed_comments = rename_columns(comments_df, prefix=comments_duplicate_col_prefix)
-    logger.debug("Comments dataframe columns: %s", rename_columns.schema.names)
+    logger.debug("Comments dataframe columns: %s", renamed_comments.schema.names)
     comments_timestamp_col = f"{COMMENTS}_{timestamp_col}"
 
     logger.debug(
@@ -426,7 +426,7 @@ def community2vec(
     logger.debug("Building community2vec training data for Reddit %s data", reddit_type)
     if reddit_type in [COMMENTS, SUBMISSIONS]:
         spark_df = get_spark_dataframe(inputs, spark, reddit_type)
-        logger.debug("Json data read, schema: %s", spark_df.schema.name)
+        logger.debug("Json data read, schema: %s", spark_df.schema.names)
         if not quiet:
             print("Spark dataframe from json:")
             spark_df.show()

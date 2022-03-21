@@ -701,6 +701,7 @@ class SparkLDAModel(DocumentClusteringModel):
     def save(self, output_dir):
         self.save_model(output_dir)
         self.save_index(os.path.join(output_dir, self.INDEX_FILE))
+        self.save_parameters(os.path.join(output_dir, self.PARAMETERS_JSON))
 
     def save_model(self, model_path):
         """Saves the Spark Transformer and Spark Model to the specified directory
@@ -742,6 +743,9 @@ class SparkLDAModel(DocumentClusteringModel):
     @classmethod
     def load(cls, directory, corpus):
         loaded_lda_model = cls(corpus, None, {}, use_asymmetric_alpha=False)
+        loaded_lda_model.model_name = cls.load_model_name(
+            cls.get_param_json_path(directory)
+        )
         loaded_lda_model.load_model(directory)
         loaded_lda_model.load_index(os.path.join(directory, cls.INDEX_FILE))
         return loaded_lda_model

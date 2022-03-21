@@ -236,7 +236,7 @@ class SparkCorpus:
         df_path,
         document_col=DEFAULT_DOC_COL_NAME,
         format="parquet",
-        **kwargs
+        **kwargs,
     ):
         """Returns a SparkRedditCorpus from the given data path.
         The data can be in any format readable by spark.
@@ -337,8 +337,7 @@ class SparkTextPreprocessingPipeline:
         :param binary: boolean, Set to True for binary term document flags, rather than term frequency counts
         :param useIDF: boolean, set to True to use inverse document frequency smoothing of counts.
         """
-        self.params = locals()
-        logger.info("Parameters for SparkTextPreprocessingPipeline: %s", self.params)
+        logger.info("Parameters for SparkTextPreprocessingPipeline: %s", locals())
         tokenizer = (
             RegexTokenizer(
                 inputCol=input_col, outputCol=tokens_col, toLowercase=toLowercase
@@ -430,6 +429,20 @@ class SparkTextPreprocessingPipeline:
     def get_word_to_id(self):
         return {v: k for k, v in self.get_id_to_word().items()}
 
+    def get_param_maps(self):
+        """Collect all the parameters from each stage.
+        Returns a dictionary.
+        """
+        result = {"stages": []}
+
+        for i, stage in enumerate(self.pipeline.getStages()):
+            stage_name = f"stage_{i}"
+            result["stages"].append(stage_name)
+            stage_map = {k.name: v for k, v in stage.extractParamMap().items()}
+            result[stage_name] = stage_map
+
+        return result
+
     def save(self, save_dir):
         """Saves the model and pipeline to the specified directory
 
@@ -443,7 +456,7 @@ class SparkTextPreprocessingPipeline:
         logger.info("SparkTextPreprocessingPipeline saved")
         # Human readable params for organization purposes
         with open(os.path.join(save_dir, self.PARAMS_JSON), "w") as f:
-            json.dump(self.params, f)
+            json.dump(self.get_param_maps(), f)
 
     @classmethod
     def load(cls, load_dir):
