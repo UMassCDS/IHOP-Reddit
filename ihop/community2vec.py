@@ -665,6 +665,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument(
     "--config",
+    default=(ihop.utils.DEFAULT_SPARK_CONFIG, ihop.utils.DEFAULT_LOGGING_CONFIG),
     type=ihop.utils.parse_config_file,
     help="JSON file used to override default logging and spark configurations",
 )
@@ -719,8 +720,9 @@ parser.add_argument(
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    config = parser.config
+    config = args.config
     ihop.utils.configure_logging(config[1])
+    logger.debug("Script arguments: %s", args)
     spark = ihop.utils.get_spark_session("IHOP Community2Vec", config[0])
 
     num_users, max_comments = get_w2v_params_from_spark_df(spark, args.contexts)

@@ -400,12 +400,16 @@ def bag_of_words(
     :param exclude_top_perc: float, the percentage of top most active users by number of comments to exclude from the final dataset. Note that only comments are filtered, not submissions
     :param quiet: boolean, set to True for verbose & computationally expensive dataframe comparisons
     """
+    logger.debug("Reading in comments from %s", comments_paths)
     comments_df = get_spark_dataframe(comments_paths, spark, COMMENTS)
+    logger.debug("Comments schema: %s", comments_df.schema.names)
+    logger.debug("Reading in submissions from %s", submissions_paths)
     submissions_df = get_spark_dataframe(submissions_paths, spark, SUBMISSIONS)
+    logger.debug("Submissions schema: %s", submissions_df.schema.names)
     if type_for_top_n == COMMENTS:
-        top_n_df = get_top_n_counts(comments_df, top_n)
+        top_n_df = get_top_n_counts(comments_df, n=top_n)
     else:
-        top_n_df = get_top_n_counts(submissions_df, top_n)
+        top_n_df = get_top_n_counts(submissions_df, n=top_n)
 
     filtered_comments = remove_deleted_authors(
         remove_deleted_text(filter_top_n(comments_df, top_n_df), COMMENTS)
@@ -444,6 +448,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--config",
+    default=(ihop.utils.DEFAULT_SPARK_CONFIG, ihop.utils.DEFAULT_LOGGING_CONFIG),
     type=ihop.utils.parse_config_file,
     help="JSON file used to override default logging and spark configurations",
 )
@@ -541,10 +546,10 @@ topic_modeling_parser.add_argument(
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    config = parser.config
+    config = args.config
     ihop.utils.configure_logging(config[1])
     spark = ihop.utils.get_spark_session("IHOP import data", config[0])
-
+    logger.debug("Script arguments: %s", args)
     if args.subparser_name == "c2v":
         top_n_df, context_word_df = community2vec(
             args.input,

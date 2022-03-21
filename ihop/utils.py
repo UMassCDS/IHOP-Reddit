@@ -4,9 +4,11 @@
 """
 import json
 import logging
+import logging.config
 import os
 
 import numpy as np
+import pyspark
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as fn
 
@@ -19,7 +21,7 @@ DEFAULT_LOGGING_CONFIG = {
     "disable_existing_loggers": False,
     "formatters": {
         "default_formatter": {
-            "format": "[%(name)s : %(asctime)s : %(levelname)s : %(message)s"
+            "format": "%(name)s : %(asctime)s : %(levelname)s : %(message)s"
         },
     },
     "handlers": {
@@ -33,22 +35,23 @@ DEFAULT_LOGGING_CONFIG = {
             "formatter": "default_formatter",
         },
     },
+    "root": {"handlers": ["stream_handler", "file_handler"], "level": logging.DEBUG,},
     "loggers": {
-        "root": {
-            "handlers": ["stream_handler", "file_handler"],
-            "level": "DEBUG",
-            "propagate": True,
+        "py4j": {
+            "handler": ["stream_handler", "file_handler"],
+            "level": logging.WARNING,
         }
     },
 }
 
-DEFAULT_SPARK_CONFIG = {"spark.driver.memory": "8G"}
+DEFAULT_SPARK_CONFIG = {"spark.driver.memory": "16G"}
 
 
 def parse_config_file(config_file):
-    """Reads a config file from JSON, optionally expecting 'spark' and 'logger' keys. If a key isn't present, None is returned and the default config is used.
+    """Reads a config file from JSON, optionally expecting 'spark' and 'logger' keys. If a key isn't present, None is returned for the key.
+    Returns (spark_config, logger_config)
     """
-    if config_file is None or not os.path.exists(config_file):
+    if not os.path.exists(config_file):
         return None, None
 
     with open(config_file, "r") as conf:
@@ -95,7 +98,8 @@ def get_spark_session(name, config=None):
         logger.warning(
             "WARNING: No HADOOP_HOME variable found, zstd decompression may not be available"
         )
-    spark = SparkSession.builder.appName(name).config(conf=use_config)
+    conf = pyspark.SparkConf().setAll(list(use_config.items()))
+    spark = SparkSession.builder.appName(name).config(conf=conf).getOrCreate()
     logger.info("Spark configuration: %s", spark.sparkContext.getConf().getAll())
 
     return spark

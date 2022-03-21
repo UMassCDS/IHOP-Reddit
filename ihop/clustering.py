@@ -64,14 +64,14 @@ class ClusteringModelFactory:
             "num_topics": 250,
             "alpha": "asymmetric",
             "eta": "symmetric",
-            "iterations": 1000,
+            "iterations": 500,
         },
         SPARK_LDA: {
             "num_topics": 250,
             "maxIter": 50,
             "optimizer": "online",
             "use_asymmetric_alpha": True,
-            "miniBatchFraction": 0.1,
+            "miniBatchFraction": 0.05,
         },
     }
 
@@ -635,6 +635,7 @@ class SparkLDAModel(DocumentClusteringModel):
 
         :param topn: int, defaults to 20, how many top terms for a topic to use when computing coherence
         """
+        logger.debug("Instantiating CoherenceModel with %s topic terms", topn)
         bow_corpus = self.corpus.collect_column_to_list(
             self.corpus.vectorized_col, True
         )
@@ -646,6 +647,7 @@ class SparkLDAModel(DocumentClusteringModel):
             topics=topics, corpus=bow_corpus, dictionary=gensim_dict, coherence="u_mass"
         )
 
+    # TODO  - not sure how to implement this for online LDA optimizer
     def get_term_topics(self, word):
         pass
 
@@ -665,6 +667,7 @@ class SparkLDAModel(DocumentClusteringModel):
             "docConcentration",
         ]:
             param_dict[p] = self.transformer.getOrDefault(p)
+        return param_dict
 
     def save(self, output_dir):
         self.save_model(output_dir)
@@ -697,8 +700,10 @@ class SparkLDAModel(DocumentClusteringModel):
         optimizer_type = self.transformer.getOptimizer()
         model_path = self.get_model_path(directory)
         if optimizer_type == "online":
+            logger.debug("Detected online optimizer, loading LocalLDAModel")
             self.clustering_model = sparkmc.LocalLDAModel.load(model_path)
         elif optimizer_type == "em":
+            logger.debug("Detected em optimizer, loading DistributedLDAModel")
             self.clustering_model = sparkmc.DistributedLDAModel.load(model_path)
 
     def load_index(self, index_path):
@@ -731,8 +736,10 @@ class SparkLDAModel(DocumentClusteringModel):
 
             if optimizer == "online":
                 if starting_alpha is not None:
+                    logger.debug("Using symmetric starting alpha: %s", starting_alpha)
                     return [starting_alpha] * num_topics
                 else:
+                    logger.debug("Using asymmetric alpha for %s topics", num_topics)
                     asymm_alphas = [] * num_topics
                     offset = np.sqrt(num_topics)
                     # This matches the Gensim default for asymmetric alpha
@@ -741,6 +748,7 @@ class SparkLDAModel(DocumentClusteringModel):
 
                     return asymm_alphas
 
+        logger.debug("Using symmetric starting alpha: %s", starting_alpha)
         return starting_alpha
 
     @classmethod
@@ -818,10 +826,10 @@ parser.add_argument(
 )
 parser.add_argument(
     "--config",
+    default=(ihop.utils.DEFAULT_SPARK_CONFIG, ihop.utils.DEFAULT_LOGGING_CONFIG),
     type=ihop.utils.parse_config_file,
     help="JSON file used to override default logging and spark configurations",
 )
-
 
 parser.add_argument(
     "input",
@@ -890,8 +898,9 @@ parser.add_argument(
 if __name__ == "__main__":
     # TODO Clean this up a bit
     args = parser.parse_args()
-    config = parser.config
+    config = args.config
     ihop.utils.configure_logging(config[1])
+    logger.debug("Script arguments: %s", args)
     if (
         args.data_type == KEYED_VECTORS
         and args.cluster_type == ClusteringModelFactory.GENSIM_LDA

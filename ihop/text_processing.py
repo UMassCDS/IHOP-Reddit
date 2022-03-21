@@ -3,6 +3,7 @@
 .. TODO: set submission timeframe start and end dates
 """
 import argparse
+import json
 import logging
 import os
 
@@ -293,6 +294,7 @@ class SparkTextPreprocessingPipeline:
 
     PIPELINE_OUTPUT_NAME = "SparkTextProcessingPipeline"
     MODEL_OUTPUT_NAME = "SparkTextProcessingModel"
+    PARAMS_JSON = "text_processing_params.json"
 
     def __init__(
         self,
@@ -328,7 +330,8 @@ class SparkTextPreprocessingPipeline:
         :param binary: boolean, Set to True for binary term document flags, rather than term frequency counts
         :param useIDF: boolean, set to True to use inverse document frequency smoothing of counts.
         """
-        logger.info("Parameters for SparkTextPreprocessingPipeline: %s", locals())
+        self.params = locals()
+        logger.info("Parameters for SparkTextPreprocessingPipeline: %s", self.params)
         tokenizer = (
             RegexTokenizer(
                 inputCol=input_col, outputCol=tokens_col, toLowercase=toLowercase
@@ -431,6 +434,9 @@ class SparkTextPreprocessingPipeline:
         if self.model is not None:
             self.model.save(os.path.join(save_dir, self.MODEL_OUTPUT_NAME))
         logger.info("SparkTextPreprocessingPipeline saved")
+        # Human readable params for organization purposes
+        with open(os.path.join(save_dir, self.PARAMS_JSON), "w") as f:
+            json.dump(self.params, f)
 
     @classmethod
     def load(cls, load_dir):
@@ -496,6 +502,7 @@ def main(
 parser = argparse.ArgumentParser(description="Produce clusterings of the input data")
 parser.add_argument(
     "--config",
+    default=(ihop.utils.DEFAULT_SPARK_CONFIG, ihop.utils.DEFAULT_LOGGING_CONFIG),
     type=ihop.utils.parse_config_file,
     help="JSON file used to override default logging and spark configurations",
 )
@@ -520,13 +527,13 @@ parser.add_argument(
 
 # Used for text data only
 parser.add_argument(
-    "--min_doc_frequency",
+    "--min_doc_freq",
     default=0.05,
     type=float,
     help="Minimum document frequency. Defaults to 0.05.",
 )
 parser.add_argument(
-    "--max_doc_frequency",
+    "--max_doc_freq",
     type=float,
     default=0.95,
     help="Maximum document frequency. Defaults to 0.95.",
@@ -549,8 +556,9 @@ parser.add_argument(
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    config = parser.config
+    config = args.config
     ihop.utils.configure_logging(config[1])
+    logger.debug("Script arguments: %s", args)
     spark = ihop.utils.get_spark_session("IHOP Text Processing", config[0])
 
     main(
