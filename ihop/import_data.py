@@ -68,7 +68,8 @@ def filter_top_n(dataframe, top_n_counts, col="subreddit"):
     :param top_n_counts: Spark dataframe with values to be filtered
     :param col: str, Column to use for top n elements
     """
-    return dataframe.join(top_n_counts, col, "inner")
+    logger.debug("Filtering dataframe by values matching column '%s'", col)
+    return dataframe.join(top_n_counts, col, "leftsemi")
 
 
 def remove_deleted_authors(dataframe):
