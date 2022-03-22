@@ -1,8 +1,6 @@
 """Loads Reddit json data to a Spark dataframe, which can be filtered using
 SQL-like operations, operated on using Spark's ML library or exported to pandas,
 sklearn, and gensim formats.
-
-.. TODO: Remove print statements in favor of logging
 """
 import argparse
 import logging

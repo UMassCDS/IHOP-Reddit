@@ -50,4 +50,4 @@ Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x
 - `uni_to_city.csv` only contains universities in English-speaking countries and French Canada
 
 # TODOs
-- Configure logging, replace print statements with logging
+

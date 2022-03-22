@@ -5,7 +5,6 @@ Inputs:
 
 2) Multiple CSVs with user,words used as document contexts
 
-.. TODO Logging clean up
 .. TODO Code cleanup: introduce an additional class/mixin for embedding operations post-training that don't need to be tied to Gensim and training (e.g. tsne, distance operations, etc...)
 """
 import argparse
