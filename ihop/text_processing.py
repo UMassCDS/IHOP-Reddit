@@ -49,12 +49,12 @@ def print_document_length_statistics(
     zero_length_docs = doc_length_df.where(doc_length_df[doc_length_col] == 0)
     zero_length_count = zero_length_docs.count()
     print("Number of documents with zero tokens:", zero_length_count)
-    logger.info("Number of documents with zero tokens:", zero_length_count)
+    logger.info("Number of documents with zero tokens: %s", zero_length_count)
     print("Snippet of documents with length zero after tokenization:")
     zero_length_docs.show()
     logger.info(
         "Snippet of documents with length zero after tokenization: %s",
-        zero_length_docs.head(),
+        zero_length_docs.head(5),
     )
     return doc_length_df
 
@@ -247,7 +247,8 @@ class SparkCorpus:
         :param format: str, data format option passed to Spark
         :param kwargs: any other options to pass to Spark when reading data
         """
-        cls(spark.read.load(df_path, format=format, **kwargs), document_col)
+        logger.debug("Loaded Spark DataFrame with format %s from %s", format, df_path)
+        return cls(spark.read.load(df_path, format=format, **kwargs), document_col)
 
 
 class SparkCorpusIterator:
@@ -575,19 +576,22 @@ parser.add_argument(
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-    config = args.config
-    ihop.utils.configure_logging(config[1])
-    logger.debug("Script arguments: %s", args)
-    spark = ihop.utils.get_spark_session("IHOP Text Processing", config[0])
+    try:
+        args = parser.parse_args()
+        config = args.config
+        ihop.utils.configure_logging(config[1])
+        logger.debug("Script arguments: %s", args)
+        spark = ihop.utils.get_spark_session("IHOP Text Processing", config[0])
 
-    main(
-        spark.read.parquet(*args.input),
-        args.output_dir,
-        min_time_delta=args.min_time_delta,
-        max_time_delta=args.max_time_delta,
-        min_doc_frequency=args.min_doc_freq,
-        max_doc_frequency=args.max_doc_freq,
-        quiet=args.quiet,
-    )
+        main(
+            spark.read.parquet(*args.input),
+            args.output_dir,
+            min_time_delta=args.min_time_delta,
+            max_time_delta=args.max_time_delta,
+            min_doc_frequency=args.min_doc_freq,
+            max_doc_frequency=args.max_doc_freq,
+            quiet=args.quiet,
+        )
+    except Exception as e:
+        logger.error("Fatal error during text_processing", exc_info=True)
 

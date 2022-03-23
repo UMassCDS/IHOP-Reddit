@@ -621,43 +621,48 @@ topic_modeling_parser.add_argument(
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-    config = args.config
-    ihop.utils.configure_logging(config[1])
-    spark = ihop.utils.get_spark_session("IHOP import data", config[0])
-    logger.debug("Script arguments: %s", args)
-    if args.subparser_name == "c2v":
-        logger.info("Community2vec option selected")
-        top_n_df, context_word_df = community2vec(
-            args.input,
-            spark,
-            reddit_type=args.type,
-            top_n=args.top_n,
-            exclude_top_perc=args.exclude_top_user_perc,
-            quiet=args.quiet,
-        )
+    try:
+        args = parser.parse_args()
+        config = args.config
+        ihop.utils.configure_logging(config[1])
+        spark = ihop.utils.get_spark_session("IHOP import data", config[0])
+        logger.debug("Script arguments: %s", args)
+        if args.subparser_name == "c2v":
+            logger.info("Community2vec option selected")
+            top_n_df, context_word_df = community2vec(
+                args.input,
+                spark,
+                reddit_type=args.type,
+                top_n=args.top_n,
+                exclude_top_perc=args.exclude_top_user_perc,
+                quiet=args.quiet,
+            )
 
-        logger.info("Writing subreddit counts to %s", args.subreddit_counts_csv)
-        top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)
+            logger.info("Writing subreddit counts to %s", args.subreddit_counts_csv)
+            top_n_df.toPandas().to_csv(args.subreddit_counts_csv, index=False)
 
-        logger.info(
-            "Writing user contexts to bzip2 compressed CSVs in %s",
-            args.context_word_dir,
-        )
-        context_word_df.write.option("compression", "bzip2").csv(args.context_word_dir)
+            logger.info(
+                "Writing user contexts to bzip2 compressed CSVs in %s",
+                args.context_word_dir,
+            )
+            context_word_df.write.option("compression", "bzip2").csv(
+                args.context_word_dir
+            )
 
-    elif args.subparser_name == "bow":
-        logger.info("Bag of words option selected")
-        bag_of_words_df = bag_of_words(
-            spark,
-            args.comments,
-            args.submissions,
-            max_time_delta=args.max_time_delta,
-            min_time_delta=args.min_time_delta,
-            top_n=args.top_n,
-            type_for_top_n=args.type_for_top_n,
-            exclude_top_perc=args.exclude_top_user_perc,
-            quiet=args.quiet,
-        )
-        logger.info("Writing joined thread documents to %s", args.output)
-        bag_of_words_df.write.parquet(args.output)
+        elif args.subparser_name == "bow":
+            logger.info("Bag of words option selected")
+            bag_of_words_df = bag_of_words(
+                spark,
+                args.comments,
+                args.submissions,
+                max_time_delta=args.max_time_delta,
+                min_time_delta=args.min_time_delta,
+                top_n=args.top_n,
+                type_for_top_n=args.type_for_top_n,
+                exclude_top_perc=args.exclude_top_user_perc,
+                quiet=args.quiet,
+            )
+            logger.info("Writing joined thread documents to %s", args.output)
+            bag_of_words_df.write.parquet(args.output)
+    except Exception:
+        logger.error("Fatal error during import data", exc_info=True)

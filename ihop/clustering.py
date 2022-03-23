@@ -904,90 +904,99 @@ parser.add_argument(
     "--min_doc_frequency",
     default=0.05,
     type=float,
-    help="Minimum document frequency. Defaults to 0.05.",
+    help="Minimum document frequency. Only used when data type is 'SparkDocuments'. Defaults to 0.05.",
 )
 parser.add_argument(
     "--max_doc_frequency",
     type=float,
     default=0.95,
-    help="Maximum document frequency. Defaults to 0.95.",
+    help="Maximum document frequency. Only used when data type is 'SparkDocuments'. Defaults to 0.95.",
 )
 parser.add_argument(
     "--max_time_delta",
     "-x",
     type=pytimeparse.parse,
-    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 72h.",
+    help="Specify a maximum allowed time between the creation time of a submission creation and when a comment is added. Only used when data type is 'SparkDocuments'. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 72h.",
     default="72h",
 )
 parser.add_argument(
     "--min_time_delta",
     "-m",
     type=pytimeparse.parse,
-    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 3s.",
+    help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Only used when data type is 'SparkDocuments'. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 3s.",
     default="3s",
 )
 
 
 if __name__ == "__main__":
-    # TODO Clean this up a bit
-    args = parser.parse_args()
-    config = args.config
-    ihop.utils.configure_logging(config[1])
-    logger.debug("Script arguments: %s", args)
-    if (
-        args.data_type == KEYED_VECTORS
-        and args.cluster_type == ClusteringModelFactory.GENSIM_LDA
-    ):
-        raise ValueError("LDA models do not support KeyedVectors data type")
-    if (
-        args.data_type == KEYED_VECTORS
-        and args.cluster_type != ClusteringModelFactory.GENSIM_LDA
-    ):
-        raise ValueError("Document clustering with sklearn models not implemented yet")
-
-    if args.data_type == KEYED_VECTORS:
-        data = gm.KeyedVectors.load(args.input[0])
-        index = dict(enumerate(data.index_to_key))
-    else:
-        spark = ihop.utils.get_spark_session("IHOP LDA Clustering", config[0])
-
-        if args.data_type == SPARK_DOCS:
-            vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(
-                spark.read.parquet(*args.input),
-                min_time_delta=args.min_time_delta,
-                max_time_delta=args.max_time_delta,
-                min_doc_frequency=args.min_doc_frequency,
-                max_doc_frequency=args.max_doc_frequency,
-                output_dir=args.output_dir,
+    try:
+        # TODO Clean this up a bit
+        args = parser.parse_args()
+        config = args.config
+        ihop.utils.configure_logging(config[1])
+        logger.debug("Script arguments: %s", args)
+        if (
+            args.data_type == KEYED_VECTORS
+            and args.cluster_type == ClusteringModelFactory.GENSIM_LDA
+        ):
+            raise ValueError("LDA models do not support KeyedVectors data type")
+        if (
+            args.data_type == KEYED_VECTORS
+            and args.cluster_type != ClusteringModelFactory.GENSIM_LDA
+        ):
+            raise ValueError(
+                "Document clustering with sklearn models not implemented yet"
             )
 
-            if not args.quiet:
-                ihop.text_processing.print_document_length_statistics(
-                    vectorized_corpus.document_dataframe
+        if args.data_type == KEYED_VECTORS:
+            logger.debug("Loading KeyedVectors")
+            data = gm.KeyedVectors.load(args.input[0])
+            index = dict(enumerate(data.index_to_key))
+        else:
+            spark = ihop.utils.get_spark_session("IHOP LDA Clustering", config[0])
+
+            if args.data_type == SPARK_DOCS:
+                logger.debug("Loading SparkDocuments")
+                vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(
+                    spark.read.parquet(*args.input),
+                    min_time_delta=args.min_time_delta,
+                    max_time_delta=args.max_time_delta,
+                    min_doc_frequency=args.min_doc_frequency,
+                    max_doc_frequency=args.max_doc_frequency,
+                    output_dir=args.output_dir,
                 )
 
-        elif args.data_type == SPARK_VEC:
-            # TODO The actual corpus path should be an argparse option
-            # For now, just assume this args.input is the path to a directory that was previous the output_dir for ihop.text_processing.prep_spark_corpus
-            vectorized_corpus = ihop.text_processing.SparkCorpus.load(
-                os.path.join(
-                    args.input[0], ihop.text_processing.VECTORIZED_CORPUS_FILENAME
+                if not args.quiet:
+                    ihop.text_processing.print_document_length_statistics(
+                        vectorized_corpus.document_dataframe
+                    )
+
+            elif args.data_type == SPARK_VEC:
+                logger.debug("Loading SparkVectorized")
+                # TODO The actual corpus path should be an argparse option
+                # For now, just assume this args.input is the path to a directory that was previous the output_dir for ihop.text_processing.prep_spark_corpus
+                vectorized_corpus = ihop.text_processing.SparkCorpus.load(
+                    spark,
+                    os.path.join(
+                        args.input[0], ihop.text_processing.VECTORIZED_CORPUS_FILENAME
+                    ),
                 )
-            )
-            pipeline = ihop.text_processing.SparkTextPreprocessingPipeline.load(
-                args.input[0]
-            )
+                pipeline = ihop.text_processing.SparkTextPreprocessingPipeline.load(
+                    args.input[0]
+                )
 
-        data = vectorized_corpus
+            data = vectorized_corpus
 
-        index = pipeline.get_id_to_word()
+            index = pipeline.get_id_to_word()
 
-    main(
-        args.cluster_type,
-        data,
-        index,
-        args.output_dir,
-        args.cluster_params,
-        is_quiet=args.quiet,
-    )
+        main(
+            args.cluster_type,
+            data,
+            index,
+            args.output_dir,
+            args.cluster_params,
+            is_quiet=args.quiet,
+        )
+    except Exception:
+        logger.error("Fatal error during cluster training", exc_info=True)
 

@@ -718,23 +718,25 @@ parser.add_argument(
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-    config = args.config
-    ihop.utils.configure_logging(config[1])
-    logger.debug("Script arguments: %s", args)
-    spark = ihop.utils.get_spark_session("IHOP Community2Vec", config[0])
+    try:
+        args = parser.parse_args()
+        config = args.config
+        ihop.utils.configure_logging(config[1])
+        logger.debug("Script arguments: %s", args)
+        spark = ihop.utils.get_spark_session("IHOP Community2Vec", config[0])
 
-    num_users, max_comments = get_w2v_params_from_spark_df(spark, args.contexts)
-    spark.stop()
-    train_with_hyperparam_tuning(
-        args.vocab_csv,
-        args.contexts,
-        args.param_grid,
-        num_users,
-        max_comments,
-        args.output_dir,
-        args.workers,
-        args.epochs,
-        args.analogies,
-    )
-
+        num_users, max_comments = get_w2v_params_from_spark_df(spark, args.contexts)
+        spark.stop()
+        train_with_hyperparam_tuning(
+            args.vocab_csv,
+            args.contexts,
+            args.param_grid,
+            num_users,
+            max_comments,
+            args.output_dir,
+            args.workers,
+            args.epochs,
+            args.analogies,
+        )
+    except Exception:
+        logger.error("Fatal error while training community2vec", exc_info=True)
