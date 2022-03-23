@@ -582,7 +582,7 @@ if __name__ == "__main__":
     spark = ihop.utils.get_spark_session("IHOP Text Processing", config[0])
 
     main(
-        spark.read.parquet(args.input),
+        spark.read.parquet(*args.input),
         args.output_dir,
         min_time_delta=args.min_time_delta,
         max_time_delta=args.max_time_delta,

@@ -953,7 +953,7 @@ if __name__ == "__main__":
 
         if args.data_type == SPARK_DOCS:
             vectorized_corpus, pipeline = ihop.text_preprocessing.prep_spark_corpus(
-                spark.read.parquet(args.input),
+                spark.read.parquet(*args.input),
                 min_time_delta=args.min_time_delta,
                 max_time_delta=args.max_time_delta,
                 min_doc_frequency=args.min_doc_frequency,
