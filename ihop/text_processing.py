@@ -586,8 +586,8 @@ if __name__ == "__main__":
         args.output_dir,
         min_time_delta=args.min_time_delta,
         max_time_delta=args.max_time_delta,
-        min_doc_frequency=args.min_doc_frequency,
-        max_doc_frequency=args.max_doc_frequency,
+        min_doc_frequency=args.min_doc_freq,
+        max_doc_frequency=args.max_doc_freq,
         quiet=args.quiet,
     )
 
