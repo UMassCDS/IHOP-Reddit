@@ -44,7 +44,11 @@ DEFAULT_LOGGING_CONFIG = {
     },
 }
 
-DEFAULT_SPARK_CONFIG = {"spark.driver.memory": "16G"}
+DEFAULT_SPARK_CONFIG = {
+    "spark.driver.memory": "24G",
+    "spark.driver.maxResultSize": "24G",
+    "spark.executor.memory": "24G",
+}
 
 
 def parse_config_file(config_file):

@@ -64,14 +64,14 @@ class ClusteringModelFactory:
             "num_topics": 250,
             "alpha": "asymmetric",
             "eta": "symmetric",
-            "iterations": 500,
+            "iterations": 100,
         },
         SPARK_LDA: {
             "num_topics": 250,
             "maxIter": 50,
             "optimizer": "online",
             "use_asymmetric_alpha": True,
-            "miniBatchFraction": 0.05,
+            "subsamplingRate": 0.05,
         },
     }
 
@@ -119,7 +119,7 @@ class ClusteringModelFactory:
         if model_choice == cls.GENSIM_LDA:
             return GensimLDAModel(vectors, model_id, index, **parameters)
         elif model_choice == cls.SPARK_LDA:
-            return SparkLDAModel(vectors, model_name, index, **parameters)
+            return SparkLDAModel(vectors, model_id, index, **parameters)
         elif model_choice == cls.KMEANS:
             model = KMeans(**parameters)
         elif model_choice == cls.AFFINITY_PROP:

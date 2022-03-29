@@ -48,6 +48,8 @@ Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x
 - Spark can't read the origial zst compressed files from Pushshift, due to the window size being larger than 27 and I didn't know how to change the Spark/Hadoop settings to fix this (see note in [zstd man page](https://manpages.debian.org/unstable/zstd/zstd.1.en.html and [Stackoverflow: Read zst to pandas](https://stackoverflow.com/questions/61067762/how-to-extract-zst-files-into-a-pandas-dataframe))). Moreover, if you try to read in large .zst files in Spark, you are limited by memory and if there's not enough, the dataframe just gets filled with `null`. The workaround is re-compress the file as a bzip2 before running `ihop.import_data.py`. This takes a long time, but is simple on the command line and `scripts/export_c2v.sh` is provided as a wrapper for the import.
 - Sports analogies in `ihop/resources/analogies` only contains sports leagues & teams from North America
 - `uni_to_city.csv` only contains universities in English-speaking countries and French Canada
+- If you see an error about missing linear algebra acceleration from Spark (`Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS`) when running locally, check this [Spark Doc page](https://spark.apache.org/docs/latest/ml-linalg-guide.html) or the [netlib-java Github page](https://github.com/fommil/netlib-java/) for library installation instructions. You can also safely ignore this warning, it just makes Spark a bit slower.
 
 # TODOs
+
 
