@@ -472,12 +472,9 @@ class SparkTextPreprocessingPipeline:
             os.path.join(load_dir, cls.PIPELINE_OUTPUT_NAME)
         )
         model_file = os.path.join(load_dir, cls.MODEL_OUTPUT_NAME)
-        # TODO this doesn't work on Databricks
-        if os.path.exists(model_file):
-            logger.debug(
-                "PipelineModel file found %s, loading PipelineModel", model_file
-            )
-            result.model = PipelineModel.load(model_file)
+
+        logger.debug("PipelineModel file found %s, loading PipelineModel", model_file)
+        result.model = PipelineModel.load(model_file)
 
         logger.info("SparkTextPreprocessingPipeline sucessfully loaded")
         return result
