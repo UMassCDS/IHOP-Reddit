@@ -45,9 +45,8 @@ DEFAULT_LOGGING_CONFIG = {
 }
 
 DEFAULT_SPARK_CONFIG = {
-    "spark.driver.memory": "24G",
-    "spark.driver.maxResultSize": "24G",
-    "spark.executor.memory": "24G",
+    "spark.driver.memory": "4G",
+    "spark.executor.memory": "4G",
 }
 
 
