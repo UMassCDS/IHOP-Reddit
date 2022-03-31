@@ -379,7 +379,6 @@ class GensimLDAModel(DocumentClusteringModel):
             self.corpus.collect_column_to_list(self.corpus.vectorized_col, True)
         )
         logger.info("Finished GensimLDAModel training")
-        return self.get_topic_assignments()
 
     def predict(self, bow_docs):
         """Returns topic assignments as a numpy array of shape (len(bow_docs), num_topics) where each cell represents the probability of a document being associated with a topic
@@ -589,7 +588,6 @@ class SparkLDAModel(DocumentClusteringModel):
         logger.info("Starting training SparkLDAModel")
         self.clustering_model = self.transformer.fit(self.corpus.document_dataframe)
         logger.info("Finished training SparkLDAModel")
-        return self.get_topic_assignments()
 
     def predict(self, spark_corpus):
         """Returns topic assignments as a numpy array of shape (len(bow_docs), num_topics) where each cell represents the probability of a document being associated with a topic

@@ -45,7 +45,8 @@ def test_clustering_model(vector_data):
         "test",
         {0: "AskReddit", 1: "aww", 2: "NBA"},
     )
-    clusters = model.train()
+    model.train()
+    clusters = model.clusters
     assert clusters.shape == (3,)
     assert set(model.get_metrics().keys()) == set(
         ["Calinski-Harabasz", "Davies-Bouldin", "Silhouette"]
@@ -128,9 +129,7 @@ def test_gensim_lda(text_features):
         iterations=5,
         random_state=8,
     )
-    train_assignments = lda.train()
-    assert len(train_assignments) == 3
-    assert set(train_assignments.keys()) == {"a1", "b2", "c3"}
+    lda.train()
     topic_assignments = lda.get_topic_assignments()
     assert len(topic_assignments) == 3
     assert set(topic_assignments.keys()) == {"a1", "b2", "c3"}
@@ -193,10 +192,7 @@ def test_spark_lda(text_features):
         text_features.corpus, "test_spark", text_features.index, num_topics=4
     )
     lda_model.transformer.getDocConcentration() == [1 / 2, 1 / 3, 1 / 4, 1 / 5]
-
-    train_assignments = lda_model.train()
-    assert len(train_assignments) == 3
-    assert set(train_assignments.keys()) == {"a1", "b2", "c3"}
+    lda_model.train()
     topic_assignments = lda_model.get_topic_assignments()
     assert len(topic_assignments) == 3
     assert set(topic_assignments.keys()) == {"a1", "b2", "c3"}
