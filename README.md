@@ -2,7 +2,9 @@
 The Center for Data Science repository for the International Hate Observatory Project.
 The `ihop` directory is a python module with submodules that can also be run as command line programs:
 - `ihop.import_data`: Uses Spark to import Reddit data from the Pushshift json dumps to formats more easily used for topic modeling. Run `python -m ihop.import_data --help` for details
-- `ihop.community2vec`: Wrappers for training and tuning word2vec to implement community2vec on the Reddit datasets.
+- `ihop.community2vec`: Wrappers for training and tuning word2vec to implement community2vec on the Reddit datasets. Run `python -m ihop.community2vec --help` to see options for training community2vec with hyperparameter tuning for best accuracy on the subreddit analogy task.
+- `ihop.clustering`: Use to fit sklearn cluster modules with subreddit embeddings or fit Gensim LDA modules on text data.  Run `python -m ihop.clustering --help` to see options.
+- `ihop.text_processing`: Text preprocessing utilities for tokenization and vectorizing documents. No script support.
 - `ihop.resources`: Data resources
 	- `ihop.resources.analogies`: Subreddit algebra analogies for tuning community2vec, taken from [social-dimensions](https://github.com/CSSLab/social-dimensions) with minor updates
 
@@ -46,6 +48,8 @@ Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x
 - Spark can't read the origial zst compressed files from Pushshift, due to the window size being larger than 27 and I didn't know how to change the Spark/Hadoop settings to fix this (see note in [zstd man page](https://manpages.debian.org/unstable/zstd/zstd.1.en.html and [Stackoverflow: Read zst to pandas](https://stackoverflow.com/questions/61067762/how-to-extract-zst-files-into-a-pandas-dataframe))). Moreover, if you try to read in large .zst files in Spark, you are limited by memory and if there's not enough, the dataframe just gets filled with `null`. The workaround is re-compress the file as a bzip2 before running `ihop.import_data.py`. This takes a long time, but is simple on the command line and `scripts/export_c2v.sh` is provided as a wrapper for the import.
 - Sports analogies in `ihop/resources/analogies` only contains sports leagues & teams from North America
 - `uni_to_city.csv` only contains universities in English-speaking countries and French Canada
+- If you see an error about missing linear algebra acceleration from Spark (`Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS`) when running locally, check this [Spark Doc page](https://spark.apache.org/docs/latest/ml-linalg-guide.html) or the [netlib-java Github page](https://github.com/fommil/netlib-java/) for library installation instructions. You can also safely ignore this warning, it just makes Spark a bit slower.
 
 # TODOs
-- Configure logging, replace print statements with logging
+
+

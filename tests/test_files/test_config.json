@@ -1,0 +1,19 @@
+{
+	"spark": {
+		"spark.app.name": "utils test",
+		"spark.driver.memory": "1G"
+	},
+	"logger": {
+		"handlers": {
+			"stream_handler": {
+				"class": "logging.StreamHandler"
+			}
+		},
+		"root": {
+			"handler": [
+				"stream_handler"
+			],
+			"level": 30
+		}
+	}
+}

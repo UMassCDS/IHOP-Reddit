@@ -11,5 +11,6 @@ dependencies:
   - pip:
     - pyspark==3.2.0
   - plotly==5.5.0
+  - pytimeparse==1.1.8
   - scikit-learn==1.0.1
   - seaborn=0.11.2
