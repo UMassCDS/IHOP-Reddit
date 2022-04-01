@@ -6,6 +6,7 @@ setup(
     packages=find_packages(include=["ihop", "ihop.*"]),
     install_requires=[
         "dash==2.3.1",
+        "dash-bootstrap-components==1.0.3",
         "gensim==4.1.2",
         "joblib==1.1.0",
         "numpy==1.21.2",
