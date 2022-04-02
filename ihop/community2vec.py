@@ -369,6 +369,11 @@ class GensimCommunity2Vec:
         """
         return self.w2v_model.wv.index_to_key
 
+    def get_index_as_dict(self):
+        """Returns the index of the Word2Vec embeddings as a dictionary mapping int -> string
+        """
+        return dict(enumerate(self.w2v_model.wv.index_to_key))
+
     def score_analogies(self, analogies_path=None, case_insensitive=False):
         """"Returns the trained embedding's accuracy for solving subreddit algebra analogies and detailed section results. If not file path is specified, return results on the default sports and university-city analogies from ihop.resources.analogies.
 

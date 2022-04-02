@@ -161,7 +161,6 @@ class ClusteringModel:
         logger.info("Fitting ClusteringModel")
         self.clusters = self.clustering_model.fit_predict(self.data)
         logger.info("Finished fitting ClusteringModel")
-        return self.clusters
 
     def predict(self, new_data):
         """Returns cluster assignments for the given data as
@@ -183,6 +182,10 @@ class ClusteringModel:
         )
         cluster_df[self.model_name] = cluster_df[self.model_name].astype("category")
         if join_df is not None:
+            logger.debug(
+                "Joining cluster results with input dataframe on '%s'",
+                datapoint_col_name,
+            )
             cluster_df = pd.merge(
                 cluster_df, join_df, how="inner", on=datapoint_col_name, sort=False
             )
