@@ -14,6 +14,7 @@ import pandas as pd
 import ihop.utils
 import ihop.community2vec
 import ihop.clustering
+import ihop.resources.collections
 
 logger = logging.getLogger(__name__)
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -81,7 +82,18 @@ KMEANS_PARAM_SECTION = [
 ]
 
 SUBREDDIT_FILTERING_SECTION = [
-    dash.html.Div(children=[dash.html.P("some placeholder text")])
+    dash.html.Div(
+        children=[
+            dash.html.Label("Select subreddits"),
+            dash.dcc.Dropdown(
+                subreddits,
+                ihop.resources.collections.get_collection_members(
+                    "Denigrating toward immigrants"
+                ),
+                multi=True,
+            ),
+        ]
+    )
 ]
 
 BODY = dash.html.Div(
@@ -94,9 +106,9 @@ BODY = dash.html.Div(
                         dash.html.H2(id="model-name"),
                         dash.html.P(model_description),
                         dash.dcc.Loading(
+                            dash.dcc.Graph(id="cluster-visualization"),
                             id="loading-plot",
                             type="default",
-                            children=[dash.dcc.Graph(id="cluster-visualization")],
                         ),
                     ],
                 )

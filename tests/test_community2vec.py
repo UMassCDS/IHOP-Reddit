@@ -22,11 +22,6 @@ def sample_compressed(fixture_dir):
     return os.path.join(fixture_dir, "test_import_data_output.bz2")
 
 
-@pytest.fixture
-def analogies_csv(fixture_dir):
-    return [os.path.join(fixture_dir, "test_analogies.csv")]
-
-
 def test_get_vocab(vocab_csv):
     expected_vocab = {
         "AskReddit": 4,
@@ -42,25 +37,6 @@ def test_get_vocab(vocab_csv):
     }
     vocab = c2v.get_vocabulary(vocab_csv)
     assert vocab == expected_vocab
-
-
-def test_default_analogies():
-    analogies = c2v.get_analogies()
-    assert len(analogies) == 113842
-    assert ("boston", "redsox", "toronto", "Torontobluejays") in analogies
-    assert ("philadelphia", "sixers", "tulsa", "Thunder") in analogies
-    assert ("Buffalo", "buffalobills", "sanfrancisco", "49ers") in analogies
-    assert ("montreal", "Habs", "phoenix", "Coyotes") in analogies
-    assert ("Drexel", "philadelphia", "umass", "amherst")
-
-
-def test_generate_analogies(analogies_csv):
-    analogies = c2v.get_analogies(analogies_csv)
-    assert analogies == [
-        ("a", "b", "c", "d"),
-        ("a", "b", "e", "f"),
-        ("c", "d", "e", "f"),
-    ]
 
 
 def test_init_gensim_community2vec(spark, vocab_csv, sample_sentences):
