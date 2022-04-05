@@ -26,37 +26,56 @@ STARTING_RANDOM_SEED = 100
 c2v = ihop.community2vec.GensimCommunity2Vec.load(
     "data/community2vec/RC_2021-05_5percentTopUsersExcluded_02142022/models/alpha0.05_negative10_sample0.005_vectorSize100"
 )
+model_description = "TODO: add some nice blurb about the model"
 tsne_df, _ = c2v.get_tsne_dataframe()
+subreddits = tsne_df["subreddit"].sort_values().unique()
 
 KMEANS_PARAM_SECTION = [
     dash.html.Div(
-        [
-            dash.html.Label("Number of clusters"),
-            dbc.Input(
-                id="n-clusters",
-                type="number",
-                placeholder="number of clusters",
-                min=0,
-                debounce=True,
-                value=STARTING_NUM_CLUSTERS,
+        children=[
+            dash.html.H2("Select clustering parameters"),
+            dbc.Row(
+                children=[
+                    dbc.Col(
+                        children=[
+                            dash.html.Label("Number of clusters"),
+                            dbc.Input(
+                                id="n-clusters",
+                                type="number",
+                                placeholder="number of clusters",
+                                min=0,
+                                debounce=True,
+                                value=STARTING_NUM_CLUSTERS,
+                            ),
+                        ]
+                    ),
+                    dbc.Col(
+                        children=[
+                            dash.html.Label("Random seed"),
+                            dbc.Input(
+                                id="random-seed",
+                                type="number",
+                                placeholder="random seed",
+                                min=0,
+                                debounce=True,
+                                value=STARTING_RANDOM_SEED,
+                            ),
+                        ]
+                    ),
+                ]
             ),
+            dash.html.Button("Train clustering model", id="clustering_button"),
         ]
     ),
+    dash.html.Br(),
     dash.html.Div(
-        [
-            dash.html.Label("Random seed"),
-            dbc.Input(
-                id="random-seed",
-                type="number",
-                placeholder="random seed",
-                min=0,
-                debounce=True,
-                value=STARTING_RANDOM_SEED,
-            ),
+        children=[
+            dash.html.H2("K-means clustering metrics"),
+            dash.html.Article(id="cluster-metrics"),
         ]
     ),
-    dash.html.Button("Train clustering model", id="clustering_button"),
 ]
+SUBREDDIT_FILTERING_SECTION = [dash.html.Div(children=[])]
 
 BODY = dash.html.Div(
     children=[
@@ -65,12 +84,10 @@ BODY = dash.html.Div(
             dbc.Col(
                 dash.html.Div(
                     children=[
-                        dbc.Accordion(
-                            dbc.AccordionItem(
-                                KMEANS_PARAM_SECTION, title="K-means Cluster Parameters"
-                            )
-                        )
-                    ]
+                        dash.html.H2(id="model-name"),
+                        dash.html.P(model_description),
+                        dash.dcc.Graph(id="cluster-visualization",),
+                    ],
                 )
             )
         ),
@@ -78,9 +95,16 @@ BODY = dash.html.Div(
             dbc.Col(
                 dash.html.Div(
                     children=[
-                        dash.html.H2(id="model-name"),
-                        dash.dcc.Graph(id="cluster-visualization",),
-                    ],
+                        dbc.Accordion(
+                            dbc.AccordionItem(
+                                KMEANS_PARAM_SECTION, title="K-means Cluster Parameters"
+                            ),
+                            dbc.AccordionItem(
+                                SUBREDDIT_FILTERING_SECTION,
+                                title="Filter by Subreddits and Clusters",
+                            ),
+                        )
+                    ]
                 )
             )
         ),
@@ -92,17 +116,29 @@ app.layout = dash.html.Div(children=dbc.Container([BODY]))
 
 # TODO Add metrics display to output
 def get_metrics_display(metrics_dict):
-    return dash.html.Article(children = [])
+    display_output = []
+    for metric_name, metric_value in metrics_dict.items():
+        display_output.extend([dash.html.H3(metric_name), dash.html.P(metric_value)])
+    return display_output
+
 
 @app.callback(
     dash.Output("cluster-assignment", "data"),
     dash.Output("model-name", "children"),
-    dash.Output("cluster-metrics", "children")
+    dash.Output("cluster-metrics", "children"),
     dash.Input("clustering_button", "n_clicks"),
     dash.State("n-clusters", "value"),
     dash.State("random-seed", "value"),
 )
 def train_clusters(n_clicks, n_clusters, random_seed):
+    """Trains kmeans cluster with given number of clusters and random seed.
+
+    :param n_clicks: int, button click indicator
+    :param n_clusters: int, number of clusters to create
+    :param random_seed: int, random seed for reproducibility
+
+    :return: Return cluster assignments with a model name as a json {'name': 'model name', 'clusters': json_serialized_pandas_dataframe}
+    """
     # TODO: eventually we may want to support different types of models. The ClusteringModelFactory should allow that fairly easily
     model_name = f"Kmeans Cluster Assignment {n_clusters} clusters and random state {random_seed}"
     cluster_model = ihop.clustering.ClusteringModelFactory.init_clustering_model(
@@ -124,6 +160,7 @@ def train_clusters(n_clicks, n_clusters, random_seed):
             ).to_json(orient="split"),
         },
         model_name,
+        get_metrics_display(metrics_dict),
     )
 
 
