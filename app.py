@@ -71,11 +71,18 @@ KMEANS_PARAM_SECTION = [
     dash.html.Div(
         children=[
             dash.html.H2("K-means clustering metrics"),
-            dash.html.Article(id="cluster-metrics"),
+            dash.dcc.Loading(
+                id="loading-metrics",
+                type="default",
+                children=[dash.html.Article(id="cluster-metrics")],
+            ),
         ]
     ),
 ]
-SUBREDDIT_FILTERING_SECTION = [dash.html.Div(children=[])]
+
+SUBREDDIT_FILTERING_SECTION = [
+    dash.html.Div(children=[dash.html.P("some placeholder text")])
+]
 
 BODY = dash.html.Div(
     children=[
@@ -86,7 +93,11 @@ BODY = dash.html.Div(
                     children=[
                         dash.html.H2(id="model-name"),
                         dash.html.P(model_description),
-                        dash.dcc.Graph(id="cluster-visualization",),
+                        dash.dcc.Loading(
+                            id="loading-plot",
+                            type="default",
+                            children=[dash.dcc.Graph(id="cluster-visualization")],
+                        ),
                     ],
                 )
             )
@@ -96,13 +107,16 @@ BODY = dash.html.Div(
                 dash.html.Div(
                     children=[
                         dbc.Accordion(
-                            dbc.AccordionItem(
-                                KMEANS_PARAM_SECTION, title="K-means Cluster Parameters"
-                            ),
-                            dbc.AccordionItem(
-                                SUBREDDIT_FILTERING_SECTION,
-                                title="Filter by Subreddits and Clusters",
-                            ),
+                            [
+                                dbc.AccordionItem(
+                                    KMEANS_PARAM_SECTION,
+                                    title="K-means Cluster Parameters",
+                                ),
+                                dbc.AccordionItem(
+                                    SUBREDDIT_FILTERING_SECTION,
+                                    title="Filter by Subreddits and Clusters",
+                                ),
+                            ]
                         )
                     ]
                 )
