@@ -25,10 +25,8 @@ def get_collection_members(collection_name):
     :param collection_name: str, name of collection to retrieve
     """
     results = []
-    with open(
-        importlib.resources.open_text(
-            "ihop.resources.collections", SUBREDDIT_GROUPINGS[collection_name].file
-        )
+    with importlib.resources.open_text(
+        "ihop.resources.collections", SUBREDDIT_GROUPINGS[collection_name].file
     ) as f:
         results = [l.strip() for l in f.readlines()]
     return results
