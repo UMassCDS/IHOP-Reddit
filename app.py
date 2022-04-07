@@ -8,7 +8,9 @@ import logging
 
 import dash
 import dash_bootstrap_components as dbc
+import dash_daq
 import plotly.express as px
+import plotly.graph_objects as go
 import pandas as pd
 
 import ihop.utils
@@ -65,7 +67,8 @@ KMEANS_PARAM_SECTION = [
                     ),
                 ]
             ),
-            dash.html.Button("Train clustering model", id="clustering_button"),
+            dash.html.Br(),
+            dbc.Button("Train clustering model", id="clustering_button"),
         ]
     ),
     dash.html.Br(),
@@ -77,6 +80,7 @@ KMEANS_PARAM_SECTION = [
                 type="default",
                 children=[dash.html.Article(id="cluster-metrics")],
             ),
+            dash.html.Br(),
         ]
     ),
 ]
@@ -96,24 +100,35 @@ SUBREDDIT_FILTERING_SECTION = [
     )
 ]
 
+MODEL_PLOT_SECTION = dbc.Col(
+    dash.html.Div(
+        children=[
+            dash.html.H2(id="model-name"),
+            dbc.Row(
+                children=[
+                    dbc.Col(dash.html.P(model_description), width=10),
+                    # dbc.Col(
+                    #    children=[
+                    #        dash.html.Label("Subreddit labels"),
+                    #        dash_daq.BooleanSwitch(id="toggle-subreddits", on=True,),
+                    #    ],
+                    #    width=2,
+                    # ),
+                ]
+            ),
+            dash.dcc.Loading(
+                dash.dcc.Graph(id="cluster-visualization"),
+                id="loading-plot",
+                type="default",
+            ),
+        ],
+    )
+)
+
 BODY = dash.html.Div(
     children=[
         dash.html.H1("Community2Vec Subreddit Clusters"),
-        dbc.Row(
-            dbc.Col(
-                dash.html.Div(
-                    children=[
-                        dash.html.H2(id="model-name"),
-                        dash.html.P(model_description),
-                        dash.dcc.Loading(
-                            dash.dcc.Graph(id="cluster-visualization"),
-                            id="loading-plot",
-                            type="default",
-                        ),
-                    ],
-                )
-            )
-        ),
+        MODEL_PLOT_SECTION,
         dbc.Row(
             dbc.Col(
                 dash.html.Div(
@@ -140,8 +155,34 @@ BODY = dash.html.Div(
 
 app.layout = dash.html.Div(children=dbc.Container([BODY]))
 
-# TODO Add metrics display to output
+
+def jsonify_stored_df(dataframe):
+    """To keep dataframes in local cache, they must be in JSON, see https://dash.plotly.com/sharing-data-between-callbacks.
+    Returns the dataframe in json format
+
+    :param dataframe: pandas DataFrame
+    """
+    return dataframe.to_json(orient="split")
+
+
+def unjsonify_stored_df(dataframe_as_json, categorical_columns=None):
+    """Deserialize pandas from JSON
+
+    :param dataframe_as_json: json mapping storing a dataframe
+    :param categorical_columns: list of columns to be recast as categorical columns
+    """
+    result = pd.read_json(dataframe_as_json, orient="split")
+    if categorical_columns is not None:
+        result[categorical_columns] = result[categorical_columns].astype("category")
+    return result
+
+
 def get_metrics_display(metrics_dict):
+    """Returns the html output used for displaying model metrics.
+
+    :param metrics_dict: dict, name of metric -> value
+    :return: a list of dash.html objects
+    """
     display_output = []
     for metric_name, metric_value in metrics_dict.items():
         display_output.extend([dash.html.H3(metric_name), dash.html.P(metric_value)])
@@ -159,7 +200,7 @@ def get_metrics_display(metrics_dict):
 def train_clusters(n_clicks, n_clusters, random_seed):
     """Trains kmeans cluster with given number of clusters and random seed.
 
-    :param n_clicks: int, button click indicator
+    :param n_clicks: int, button click indicator which triggers training the model (value unused)
     :param n_clusters: int, number of clusters to create
     :param random_seed: int, random seed for reproducibility
 
@@ -181,9 +222,9 @@ def train_clusters(n_clicks, n_clusters, random_seed):
     return (
         {
             "name": model_name,
-            "clusters": cluster_model.get_cluster_results_as_df(
-                join_df=tsne_df
-            ).to_json(orient="split"),
+            "clusters": jsonify_stored_df(
+                cluster_model.get_cluster_results_as_df(join_df=tsne_df)
+            ),
         },
         model_name,
         get_metrics_display(metrics_dict),
@@ -198,9 +239,9 @@ def get_cluster_visualization(cluster_json):
     """Build the plotly visualization for a model
     """
     model_name = cluster_json["name"]
-    cluster_df = pd.read_json(cluster_json["clusters"], orient="split")
-    cluster_df[model_name] = cluster_df[model_name].astype("category")
-    return px.scatter(
+    cluster_df = unjsonify_stored_df(cluster_json["clusters"], [model_name])
+
+    figpx = px.scatter(
         cluster_df,
         x="tsne_x",
         y="tsne_y",
@@ -208,6 +249,32 @@ def get_cluster_visualization(cluster_json):
         text="subreddit",
         hover_data=["subreddit", model_name],
     )
+
+    layout = go.Layout(
+        updatemenus=[
+            dict(
+                type="buttons",
+                showactive=True,
+                xanchor="left",
+                y=1.3,
+                buttons=[
+                    dict(
+                        method="restyle",
+                        label="Toggle subreddit labels",
+                        visible=True,
+                        args=["text", {"visible": False}],
+                        args2=["text", {"visible": True}],
+                    )
+                ],
+            )
+        ],
+        showlegend=True,
+        legend_title_text=model_name,
+    )
+
+    fig = go.Figure(data=figpx.data, layout=layout)
+
+    return fig
 
 
 parser = argparse.ArgumentParser(
