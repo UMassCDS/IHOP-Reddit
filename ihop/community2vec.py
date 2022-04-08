@@ -277,22 +277,34 @@ class GensimCommunity2Vec:
         """
         return self.w2v_model.wv.get_normed_vectors()
 
-    def get_tsne_dataframe(self, key_col="subreddit", **kwargs):
+    def get_tsne_dataframe(self, key_col="subreddit", n_components=2, **kwargs):
         """Fits a TSNE representation of the dataframe.
         Returns the results as both a pandas dataframe and the resulting TSNE projection as a numpy array
 
+        :param key_col: str, column name for indexed values
+        :param n_components: int, usually 2 or 3, since the purpose of this is for creating visualizations
         :param kwargs: dict params passed to sklearn's TNSE model
         """
-        tsne_fitter = TSNE(**kwargs, init="pca", metric="cosine", learning_rate="auto")
+        tsne_fitter = TSNE(
+            **kwargs,
+            n_components=n_components,
+            init="pca",
+            metric="cosine",
+            learning_rate="auto",
+            square_distances=True,
+        )
         tsne_projection = tsne_fitter.fit_transform(self.get_normed_vectors())
         dataframe_elements = list()
         for i, vocab_elem in enumerate(self.w2v_model.wv.index_to_key):
             elem_proj = tsne_projection[i]
-            dataframe_elements.append((vocab_elem, elem_proj[0], elem_proj[1]))
+            dataframe_elements.append((vocab_elem, *elem_proj))
 
-        dataframe = pd.DataFrame.from_records(
-            dataframe_elements, columns=[key_col, "tsne_x", "tsne_y"]
-        )
+        # Generate columns for dataframe
+        cols = [key_col]
+        for i in range(1, n_components + 1):
+            cols.append(f"tsne_{i}")
+
+        dataframe = pd.DataFrame.from_records(dataframe_elements, columns=cols)
         return dataframe, tsne_projection
 
     def get_index_to_key(self):

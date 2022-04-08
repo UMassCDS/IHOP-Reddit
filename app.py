@@ -13,6 +13,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 
+import ihop.visualizations as iv
 import ihop.utils
 import ihop.community2vec
 import ihop.clustering
@@ -85,35 +86,51 @@ KMEANS_PARAM_SECTION = [
     ),
 ]
 
-SUBREDDIT_FILTERING_SECTION = [
-    dash.html.Div(
-        children=[
-            dash.html.Label("Select subreddits"),
-            dash.dcc.Dropdown(
-                subreddits,
-                ihop.resources.collections.get_collection_members(
-                    "Denigrating toward immigrants"
+SUBREDDIT_FILTERING_SECTION = dash.html.Div(
+    children=[
+        dash.html.H2("Filter by Subreddits and Clusters"),
+        dash.html.Label("Select subreddits"),
+        dbc.Row(
+            children=[
+                dbc.Col(
+                    children=[
+                        dash.dcc.Dropdown(
+                            subreddits,
+                            # TODO Could allow user to select form list of possible collections
+                            ihop.resources.collections.get_collection_members(
+                                "Denigrating toward immigrants"
+                            ),
+                            multi=True,
+                            id="subreddit-dropdown",
+                        ),
+                    ],
+                    width=9,
                 ),
-                multi=True,
-            ),
-        ]
-    )
-]
+                dbc.Col(
+                    dash_daq.BooleanSwitch(
+                        id="show-in-cluster-neighbors",
+                        label="Display subreddits in the same clusters",
+                    )
+                ),
+            ]
+        ),
+        dash.html.Br(),
+        dash.html.Label("Select clusters"),
+        dash.dcc.Dropdown(multi=True, id="cluster-dropdown"),
+        dash.html.Br(),
+        dash.dcc.Loading(type="default", id="subreddit-cluster-table"),
+    ]
+)
 
 MODEL_PLOT_SECTION = dbc.Col(
     dash.html.Div(
         children=[
-            dash.html.H2(id="model-name"),
-            dbc.Row(
+            dash.html.Div(
                 children=[
-                    dbc.Col(dash.html.P(model_description), width=10),
-                    # dbc.Col(
-                    #    children=[
-                    #        dash.html.Label("Subreddit labels"),
-                    #        dash_daq.BooleanSwitch(id="toggle-subreddits", on=True,),
-                    #    ],
-                    #    width=2,
-                    # ),
+                    dash.html.H2(id="model-name"),
+                    dash.html.Br(),
+                    dash.html.P(model_description),
+                    dash.html.Br(),
                 ]
             ),
             dash.dcc.Loading(
@@ -129,52 +146,22 @@ BODY = dash.html.Div(
     children=[
         dash.html.H1("Community2Vec Subreddit Clusters"),
         MODEL_PLOT_SECTION,
-        dbc.Row(
-            dbc.Col(
-                dash.html.Div(
-                    children=[
-                        dbc.Accordion(
-                            [
-                                dbc.AccordionItem(
-                                    KMEANS_PARAM_SECTION,
-                                    title="K-means Cluster Parameters",
-                                ),
-                                dbc.AccordionItem(
-                                    SUBREDDIT_FILTERING_SECTION,
-                                    title="Filter by Subreddits and Clusters",
-                                ),
-                            ]
-                        )
-                    ]
+        dbc.Accordion(
+            start_collapsed=False,
+            children=[
+                dbc.AccordionItem(
+                    KMEANS_PARAM_SECTION, title="K-means Cluster Parameters",
                 )
-            )
+            ],
         ),
+        dash.html.Br(),
+        SUBREDDIT_FILTERING_SECTION,
+        dash.html.Br(),
         dash.dcc.Store(id="cluster-assignment"),
     ]
 )
 
 app.layout = dash.html.Div(children=dbc.Container([BODY]))
-
-
-def jsonify_stored_df(dataframe):
-    """To keep dataframes in local cache, they must be in JSON, see https://dash.plotly.com/sharing-data-between-callbacks.
-    Returns the dataframe in json format
-
-    :param dataframe: pandas DataFrame
-    """
-    return dataframe.to_json(orient="split")
-
-
-def unjsonify_stored_df(dataframe_as_json, categorical_columns=None):
-    """Deserialize pandas from JSON
-
-    :param dataframe_as_json: json mapping storing a dataframe
-    :param categorical_columns: list of columns to be recast as categorical columns
-    """
-    result = pd.read_json(dataframe_as_json, orient="split")
-    if categorical_columns is not None:
-        result[categorical_columns] = result[categorical_columns].astype("category")
-    return result
 
 
 def get_metrics_display(metrics_dict):
@@ -222,7 +209,7 @@ def train_clusters(n_clicks, n_clusters, random_seed):
     return (
         {
             "name": model_name,
-            "clusters": jsonify_stored_df(
+            "clusters": iv.jsonify_stored_df(
                 cluster_model.get_cluster_results_as_df(join_df=tsne_df)
             ),
         },
@@ -239,12 +226,12 @@ def get_cluster_visualization(cluster_json):
     """Build the plotly visualization for a model
     """
     model_name = cluster_json["name"]
-    cluster_df = unjsonify_stored_df(cluster_json["clusters"], [model_name])
+    cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
 
     figpx = px.scatter(
         cluster_df,
-        x="tsne_x",
-        y="tsne_y",
+        x="tsne_1",
+        y="tsne_2",
         color=model_name,
         text="subreddit",
         hover_data=["subreddit", model_name],
@@ -262,8 +249,8 @@ def get_cluster_visualization(cluster_json):
                         method="restyle",
                         label="Toggle subreddit labels",
                         visible=True,
-                        args=["text", {"visible": False}],
-                        args2=["text", {"visible": True}],
+                        args2=["text", {"visible": False}],
+                        args=[{"text": [d.customdata[:, 0] for d in figpx.data],}],
                     )
                 ],
             )
@@ -275,6 +262,58 @@ def get_cluster_visualization(cluster_json):
     fig = go.Figure(data=figpx.data, layout=layout)
 
     return fig
+
+
+@app.callback(
+    dash.Output("cluster-dropdown", "options"), dash.Input("n-clusters", "value")
+)
+def set_cluster_dropdown(n_clusters):
+    """Give the cluster selection options the cluster index numbers to choose from
+    """
+    return [i for i in range(int(n_clusters))]
+
+
+@app.callback(
+    dash.Output("subreddit-cluster-table", "children"),
+    dash.Input("cluster-assignment", "data"),
+    dash.Input("subreddit-dropdown", "value"),
+    dash.Input("cluster-dropdown", "value"),
+    dash.Input("show-in-cluster-neighbors", "on"),
+)
+def get_display_table(
+    cluster_json, selected_subreddits, selected_clusters, is_show_cluster_neighbors
+):
+    """Builds the DataTable showing all selected subreddits and clusters
+    """
+    model_name = cluster_json["name"]
+    cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
+
+    selected_subreddits_df = cluster_df[
+        cluster_df["subreddit"].isin(selected_subreddits)
+    ].copy()
+
+    all_selected_clusters = list()
+    if selected_clusters is not None:
+        all_selected_clusters += selected_clusters
+
+    if is_show_cluster_neighbors:
+        all_selected_clusters.extend(selected_subreddits_df[model_name].unique())
+
+    selected_clusters_df = cluster_df[
+        cluster_df[model_name].isin(all_selected_clusters)
+    ]
+    selected_subreddits_df = pd.concat(
+        [selected_subreddits_df, selected_clusters_df]
+    ).drop_duplicates()
+
+    tsne_cols = [c for c in selected_subreddits_df.columns if c.startswith("tsne")]
+    selected_subreddits_df.drop(columns=tsne_cols, inplace=True)
+    return dash.dash_table.DataTable(
+        selected_subreddits_df.to_dict("records"),
+        [{"name": i, "id": i} for i in selected_subreddits_df.columns],
+        sort_action="native",
+        export_format="csv",
+    )
 
 
 parser = argparse.ArgumentParser(
