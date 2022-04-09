@@ -25,6 +25,10 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 STARTING_NUM_CLUSTERS = 250
 STARTING_RANDOM_SEED = 100
 
+CLUSTER_ASSIGNMENT_DISPLAY_NAME = "Cluster Assignment"
+UNSELECTED_CLUSTER_KEY = "other"
+UNSELECTED_COLOR = "#D3D3D3"
+
 
 # TODO Config and select from multiple models
 c2v = ihop.community2vec.GensimCommunity2Vec.load(
@@ -86,26 +90,30 @@ KMEANS_PARAM_SECTION = [
     ),
 ]
 
+SUBREDDIT_DROPDOWN = [
+    dash.html.Label("Select subreddits"),
+    dash.dcc.Dropdown(
+        subreddits,
+        # TODO Could allow user to select form list of possible collections
+        ihop.resources.collections.get_collection_members(
+            "Denigrating toward immigrants"
+        ),
+        multi=True,
+        id="subreddit-dropdown",
+    ),
+]
+
+CLUSTER_DROPDOWN = [
+    dash.html.Label("Select clusters"),
+    dash.dcc.Dropdown(multi=True, id="cluster-dropdown"),
+]
+
 SUBREDDIT_FILTERING_SECTION = dash.html.Div(
     children=[
         dash.html.H2("Filter by Subreddits and Clusters"),
-        dash.html.Label("Select subreddits"),
         dbc.Row(
             children=[
-                dbc.Col(
-                    children=[
-                        dash.dcc.Dropdown(
-                            subreddits,
-                            # TODO Could allow user to select form list of possible collections
-                            ihop.resources.collections.get_collection_members(
-                                "Denigrating toward immigrants"
-                            ),
-                            multi=True,
-                            id="subreddit-dropdown",
-                        ),
-                    ],
-                    width=9,
-                ),
+                dbc.Col(children=SUBREDDIT_DROPDOWN, width=9,),
                 dbc.Col(
                     dash_daq.BooleanSwitch(
                         id="show-in-cluster-neighbors",
@@ -115,8 +123,17 @@ SUBREDDIT_FILTERING_SECTION = dash.html.Div(
             ]
         ),
         dash.html.Br(),
-        dash.html.Label("Select clusters"),
-        dash.dcc.Dropdown(multi=True, id="cluster-dropdown"),
+        dbc.Row(
+            children=[
+                dbc.Col(children=CLUSTER_DROPDOWN, width=9),
+                dbc.Col(
+                    dbc.Button(
+                        label="Highlight selected clusters in graph",
+                        id="highlight-selected-clusters",
+                    )
+                ),
+            ]
+        ),
         dash.html.Br(),
         dash.dcc.Loading(type="default", id="subreddit-cluster-table"),
     ]
@@ -145,7 +162,6 @@ MODEL_PLOT_SECTION = dbc.Col(
 BODY = dash.html.Div(
     children=[
         dash.html.H1("Community2Vec Subreddit Clusters"),
-        MODEL_PLOT_SECTION,
         dbc.Accordion(
             start_collapsed=False,
             children=[
@@ -155,6 +171,7 @@ BODY = dash.html.Div(
             ],
         ),
         dash.html.Br(),
+        MODEL_PLOT_SECTION,
         SUBREDDIT_FILTERING_SECTION,
         dash.html.Br(),
         dash.dcc.Store(id="cluster-assignment"),
@@ -221,29 +238,66 @@ def train_clusters(n_clicks, n_clusters, random_seed):
 @app.callback(
     dash.Output("cluster-visualization", "figure"),
     dash.Input("cluster-assignment", "data"),
+    dash.State("subreddit-dropdown", "value"),
+    dash.State("cluster-dropdown", "value"),
+    dash.Input("highlight-selected-clusters", "n"),
 )
-def get_cluster_visualization(cluster_json):
+def get_cluster_visualization(
+    cluster_json, subreddit_selection, cluster_selection, is_only_highlight_selection
+):
     """Build the plotly visualization for a model
     """
     model_name = cluster_json["name"]
+    logger.info("Updating graph visualization, model: %s", model_name)
     cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
+    cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME] = cluster_df[model_name]
+
+    if is_only_highlight_selection:
+        logger.info("Highlight selected clusters is selected")
+        logger.info("Subreddit list given: %s", subreddit_selection)
+        logger.info("Cluster list given: %s", cluster_selection)
+        cluster_list = list()
+        if subreddit_selection is not None:
+            subreddit_clusters = cluster_df[
+                cluster_df["subreddit"].isin(subreddit_selection)
+            ][CLUSTER_ASSIGNMENT_DISPLAY_NAME].unique()
+            cluster_list.extend(subreddit_clusters)
+            logger.info("Clusters used by subreddits: %s", cluster_list)
+        if cluster_selection is not None:
+            cluster_list.extend(cluster_selection)
+
+        # Set unselected clusters to 'other'
+        if len(cluster_list) > 0:
+            logger.info("Highlighted clusters will be: %s", cluster_list)
+            cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME].cat.set_categories(
+                cluster_list + [UNSELECTED_CLUSTER_KEY], rename=True, inplace=True
+            )
+            cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME].fillna(
+                UNSELECTED_CLUSTER_KEY, inplace=True
+            )
 
     figpx = px.scatter(
         cluster_df,
         x="tsne_1",
         y="tsne_2",
-        color=model_name,
+        color=CLUSTER_ASSIGNMENT_DISPLAY_NAME,
         text="subreddit",
         hover_data=["subreddit", model_name],
     )
+
+    if is_only_highlight_selection:
+        logger.info("Updating color for unselected clusters")
+        for d in figpx.data:
+            if d.name == UNSELECTED_CLUSTER_KEY:
+                d.marker.color = UNSELECTED_COLOR
 
     layout = go.Layout(
         updatemenus=[
             dict(
                 type="buttons",
-                showactive=True,
-                xanchor="left",
-                y=1.3,
+                # xanchor="left",
+                # yanchor="bottom",
+                # y=1.3,
                 buttons=[
                     dict(
                         method="restyle",
@@ -256,11 +310,12 @@ def get_cluster_visualization(cluster_json):
             )
         ],
         showlegend=True,
-        legend_title_text=model_name,
+        legend_title_text=CLUSTER_ASSIGNMENT_DISPLAY_NAME,
+        title=f"TSNE Projection of Community2Vec Subreddit Clusterings\nwith {model_name}",
     )
 
     fig = go.Figure(data=figpx.data, layout=layout)
-
+    logger.info("Figure successfully generated")
     return fig
 
 
@@ -285,6 +340,10 @@ def get_display_table(
 ):
     """Builds the DataTable showing all selected subreddits and clusters
     """
+    logger.info("Generating display table")
+    logger.info("Selected subreddits: %s", selected_subreddits)
+    logger.info("Show cluster neighbors option: %s", is_show_cluster_neighbors)
+    logger.info("Selected clusters: %s", selected_subreddits)
     model_name = cluster_json["name"]
     cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
 
@@ -299,6 +358,9 @@ def get_display_table(
     if is_show_cluster_neighbors:
         all_selected_clusters.extend(selected_subreddits_df[model_name].unique())
 
+    logger.info(
+        "Selecting these clusters for display in table: %s", all_selected_clusters
+    )
     selected_clusters_df = cluster_df[
         cluster_df[model_name].isin(all_selected_clusters)
     ]
@@ -342,6 +404,8 @@ if __name__ == "__main__":
     logger.info("Logging configured")
     logger.info("Starting app")
     try:
+        # TODO Plotly handles logging strangely, so use logger.info or workaround to not silence logging,
+        # see https://community.plotly.com/t/logging-debug-messages-suppressed-in-callbacks/17854
         app.run_server(debug=args.debug)
     except Exception as e:
         logger.error(e)
