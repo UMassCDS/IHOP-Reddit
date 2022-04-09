@@ -113,24 +113,32 @@ SUBREDDIT_FILTERING_SECTION = dash.html.Div(
         dash.html.H2("Filter by Subreddits and Clusters"),
         dbc.Row(
             children=[
-                dbc.Col(children=SUBREDDIT_DROPDOWN, width=9,),
+                dbc.Col(children=SUBREDDIT_DROPDOWN, width=8,),
                 dbc.Col(
-                    dash_daq.BooleanSwitch(
-                        id="show-in-cluster-neighbors",
-                        label="Display subreddits in the same clusters",
-                    )
+                    dash.html.Div(
+                        dbc.Button(
+                            "Highlight selected clusters in graph",
+                            id="highlight-selected-clusters",
+                        ),
+                        style={"verticalAlign": "middle"},
+                    ),
+                    align="center",
                 ),
             ]
         ),
         dash.html.Br(),
         dbc.Row(
             children=[
-                dbc.Col(children=CLUSTER_DROPDOWN, width=9),
+                dbc.Col(children=CLUSTER_DROPDOWN, width=8),
                 dbc.Col(
-                    dbc.Button(
-                        label="Highlight selected clusters in graph",
-                        id="highlight-selected-clusters",
-                    )
+                    dash.html.Div(
+                        dash_daq.BooleanSwitch(
+                            id="show-in-cluster-neighbors",
+                            label="Display entire cluster in table",
+                        ),
+                        style={"verticalAlign": "middle"},
+                    ),
+                    align="center",
                 ),
             ]
         ),
@@ -139,17 +147,18 @@ SUBREDDIT_FILTERING_SECTION = dash.html.Div(
     ]
 )
 
+INTRODUCTION_SECTION = dash.html.Div(
+    children=[
+        dash.html.H2(id="model-name"),
+        dash.html.Br(),
+        dash.html.P(model_description),
+        dash.html.Br(),
+    ]
+)
+
 MODEL_PLOT_SECTION = dbc.Col(
     dash.html.Div(
         children=[
-            dash.html.Div(
-                children=[
-                    dash.html.H2(id="model-name"),
-                    dash.html.Br(),
-                    dash.html.P(model_description),
-                    dash.html.Br(),
-                ]
-            ),
             dash.dcc.Loading(
                 dash.dcc.Graph(id="cluster-visualization"),
                 id="loading-plot",
@@ -162,6 +171,7 @@ MODEL_PLOT_SECTION = dbc.Col(
 BODY = dash.html.Div(
     children=[
         dash.html.H1("Community2Vec Subreddit Clusters"),
+        INTRODUCTION_SECTION,
         dbc.Accordion(
             start_collapsed=False,
             children=[
@@ -178,7 +188,7 @@ BODY = dash.html.Div(
     ]
 )
 
-app.layout = dash.html.Div(children=dbc.Container([BODY]))
+app.layout = dbc.Container([BODY])
 
 
 def get_metrics_display(metrics_dict):
@@ -240,7 +250,7 @@ def train_clusters(n_clicks, n_clusters, random_seed):
     dash.Input("cluster-assignment", "data"),
     dash.State("subreddit-dropdown", "value"),
     dash.State("cluster-dropdown", "value"),
-    dash.Input("highlight-selected-clusters", "n"),
+    dash.Input("highlight-selected-clusters", "n_clicks"),
 )
 def get_cluster_visualization(
     cluster_json, subreddit_selection, cluster_selection, is_only_highlight_selection
