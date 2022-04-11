@@ -34,7 +34,28 @@ UNSELECTED_COLOR = "#D3D3D3"
 c2v = ihop.community2vec.GensimCommunity2Vec.load(
     "data/community2vec/RC_2021-05_5percentTopUsersExcluded_02142022/models/alpha0.05_negative10_sample0.005_vectorSize100"
 )
-model_description = "TODO: add some nice blurb about the model"
+
+MODEL_DESCRIPTION_MD = """This a [Community2Vec model](https://aclanthology.org/W17-2904/) trained on a month's worth of Reddit comments and tuned to perform well on a set of pre-defined analogy tasks, like matching up sports teams with the cities they play in, `r/Nationals - r/washingtondc + r/toronto = r/Torontobluejays`. The model positions subreddit communities in multidimensional space such that subreddits with similar user bases are close together.
+
+This particular community2vec model was trained on May 2021 Reddit comments and achieved a 65% accuracy on the [predetermined analogy set](https://github.com/UMassCDS/IHOP/tree/main/ihop/resources/analogies).
+
+You can use clustering to create groupingss of subreddits based on overlapping users.  This strategy can be used to understand social dimensions in Reddit, such as political polarization, as shown by Waller and Anderson in [Quantifying social organization and political polarization in online platforms](https://www.nature.com/articles/s41586-021-04167-x).
+"""
+
+KMEANS_METRICS_MD = """The quality of topics produced by clustering the community embeddings can be subjective. However, a human should be able to intuit each cluster’s theme based on the dominant topic, such as ‘politics’, ‘music’, or ‘sports’. Changing the number of clusters should correspond to a change in granularity of the labels, e.g. ‘sports’ vs ‘basketball'.
+
+Generating gold-standard labels for clusters isn’t feasible, so instead we can rely on metrics that measure the overlap and dispersion of clusters:
+
+- **Silhouette Coefficient**: Ranges between -1 (clustering is totally incorrect) and 1 (clusters are dense and well separated), scores around 0 indicate overlapping clusters.
+
+- **Calinski-Harabasz Index**: Higher for models with clusters that are dense and well separated.
+
+- **Davies-Bouldin Index**: Measures separation/similarity between clusters by taking ratio of within-cluster distances to between-cluster distances. The minimum is zero, lower scores indicate better separation
+
+These scores can help you compare different groupings of the data using the same number of clusters. The scores for your current model are:
+"""
+
+
 tsne_df, _ = c2v.get_tsne_dataframe()
 subreddits = tsne_df["subreddit"].sort_values().unique()
 
@@ -80,6 +101,7 @@ KMEANS_PARAM_SECTION = [
     dash.html.Div(
         children=[
             dash.html.H2("K-means clustering metrics"),
+            dash.dcc.Markdown(KMEANS_METRICS_MD),
             dash.dcc.Loading(
                 id="loading-metrics",
                 type="default",
@@ -151,7 +173,7 @@ INTRODUCTION_SECTION = dash.html.Div(
     children=[
         dash.html.H2(id="model-name"),
         dash.html.Br(),
-        dash.html.P(model_description),
+        dash.dcc.Markdown(MODEL_DESCRIPTION_MD),
         dash.html.Br(),
     ]
 )
@@ -177,11 +199,11 @@ BODY = dash.html.Div(
             children=[
                 dbc.AccordionItem(
                     KMEANS_PARAM_SECTION, title="K-means Cluster Parameters",
-                )
+                ),
+                dbc.AccordionItem(MODEL_PLOT_SECTION, title="TSNE visualization"),
             ],
         ),
         dash.html.Br(),
-        MODEL_PLOT_SECTION,
         SUBREDDIT_FILTERING_SECTION,
         dash.html.Br(),
         dash.dcc.Store(id="cluster-assignment"),
@@ -199,7 +221,7 @@ def get_metrics_display(metrics_dict):
     """
     display_output = []
     for metric_name, metric_value in metrics_dict.items():
-        display_output.extend([dash.html.H3(metric_name), dash.html.P(metric_value)])
+        display_output.extend([dash.html.H4(metric_name), dash.html.P(metric_value)])
     return display_output
 
 
@@ -291,7 +313,6 @@ def get_cluster_visualization(
         x="tsne_1",
         y="tsne_2",
         color=CLUSTER_ASSIGNMENT_DISPLAY_NAME,
-        text="subreddit",
         hover_data=["subreddit", model_name],
     )
 
@@ -313,8 +334,8 @@ def get_cluster_visualization(
                         method="restyle",
                         label="Toggle subreddit labels",
                         visible=True,
-                        args2=["text", {"visible": False}],
-                        args=[{"text": [d.customdata[:, 0] for d in figpx.data],}],
+                        args=["text", {"visible": False}],
+                        args2=[{"text": [d.customdata[:, 0] for d in figpx.data],}],
                     )
                 ],
             )
