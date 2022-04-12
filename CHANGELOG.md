@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Restructured analogies resources, moving from Community2Vec module
+- t-sne projection of embeddings can have more than 2 components
+- Parsing configuration file returns the spark config, logging config and full configuration dictionary
+- Fixed a bug around reading configuration file using argparse
+
+### Added
+- Dash app to browse and visualize community2vec clusters
+- ihop/visualization.py for supporting the Dash app
+- Resource for collections of subreddits
 
 ## [0.2.0] - 2022-03-31
 ### Changed
