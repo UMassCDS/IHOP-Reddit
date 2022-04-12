@@ -1,7 +1,16 @@
-"""Visualize subreddit clusters
+"""Visualize subreddit clusters using a dash app.
 Run using `python app.py` and visit http://127.0.0.1:8050
 
-# TODO vector models should be configurable
+The app can be configured to accept a different model path by feeding a JSON format config file structured as:
+{
+    'logger': {<log config>},
+    'model_path': '<path to output of ihop.community2vec.py model training>'
+}
+
+
+
+# TODO vector models should be configurable (one model for each available time range? )
+# TODO list of subreddits can be chosen from a collection with descriptions
 """
 import argparse
 import logging
@@ -20,20 +29,51 @@ import ihop.clustering
 import ihop.resources.collections
 
 logger = logging.getLogger(__name__)
+
+parser = argparse.ArgumentParser(
+    description="Runs a Dash application for browsing subreddit clusters"
+)
+# TODO Add application confiugration as needed
+parser.add_argument(
+    "--config",
+    default=(
+        None,
+        ihop.utils.DEFAULT_LOGGING_CONFIG,
+        {
+            "model_path": "data/community2vec/RC_2021-05_5percentTopUsersExcluded_02142022/models/alpha0.05_negative10_sample0.005_vectorSize100"
+        },
+    ),
+    type=ihop.utils.parse_config_file,
+    help="JSON file used to override default logging and spark configurations",
+)
+parser.add_argument(
+    "-d",
+    "--debug",
+    action="store_true",
+    help="Use this flag to launch the application in 'hot-reload' mode",
+)
+
+args = parser.parse_args()
+spark_conf, logging_conf, conf = args.config
+print("Configuration:", args.config)
+ihop.utils.configure_logging(logging_conf)
+logger.info("Logging configured")
+
+# TODO Config and select from multiple models
+c2v = ihop.community2vec.GensimCommunity2Vec.load(conf["model_path"])
+tsne_df, _ = c2v.get_tsne_dataframe()
+subreddits = tsne_df["subreddit"].sort_values().unique()
+
+
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
+# APP DISPLAY CONSTANTS
 STARTING_NUM_CLUSTERS = 250
 STARTING_RANDOM_SEED = 100
 
 CLUSTER_ASSIGNMENT_DISPLAY_NAME = "Cluster Assignment"
 UNSELECTED_CLUSTER_KEY = "other"
 UNSELECTED_COLOR = "#D3D3D3"
-
-
-# TODO Config and select from multiple models
-c2v = ihop.community2vec.GensimCommunity2Vec.load(
-    "data/community2vec/RC_2021-05_5percentTopUsersExcluded_02142022/models/alpha0.05_negative10_sample0.005_vectorSize100"
-)
 
 MODEL_DESCRIPTION_MD = """This a [Community2Vec model](https://aclanthology.org/W17-2904/) trained on a month's worth of Reddit comments from the 10,000 most popular subreddits and tuned to perform well on a set of pre-defined analogy tasks, like matching up sports teams with the cities they play in, `r/Nationals - r/washingtondc + r/toronto = r/Torontobluejays`. The model positions subreddit communities in multidimensional space such that subreddits with similar user bases are close together.
 
@@ -58,10 +98,6 @@ These scores can help you compare different groupings of the data using the same
 TSNE_DESCRIPTION_MD = """T-distributed Stochastic Neighbor Embedding (t-SNE) is a way of visualizing high-dimensional data in 2D or 3D, so we can actually make sense of it. However, like map projections of the globe into 2D, this can cause distortions, as described in [How to Use t-SNE Effectively](https://distill.pub/2016/misread-tsne/). This visualization should be treated as a guide to help explore subreddit clusters interatively, not a definitive representation of how similar subreddits are to each other.
 
 Each point is a subreddit and the color marks the cluster it gets assigned to. """
-
-
-tsne_df, _ = c2v.get_tsne_dataframe()
-subreddits = tsne_df["subreddit"].sort_values().unique()
 
 KMEANS_PARAM_SECTION = [
     dash.html.Div(
@@ -424,30 +460,8 @@ def get_display_table(
     )
 
 
-parser = argparse.ArgumentParser(
-    description="Runs a Dash application for browsing subreddit clusters"
-)
-# TODO Add application confiugration as needed
-parser.add_argument(
-    "--config",
-    default=(None, ihop.utils.DEFAULT_LOGGING_CONFIG),
-    type=ihop.utils.parse_config_file,
-    help="JSON file used to override default logging and spark configurations",
-)
-parser.add_argument(
-    "-d",
-    "--debug",
-    action="store_true",
-    help="Use this flag to launch the application in 'hot-reload' mode",
-)
-
 if __name__ == "__main__":
-    args = parser.parse_args()
     print("Starting IHOP subreddit visualization application")
-    spark_conf, logging_conf = args.config
-    print("Configuration:", args.config)
-    ihop.utils.configure_logging(logging_conf)
-    logger.info("Logging configured")
     logger.info("Starting app")
     try:
         # TODO Plotly handles logging strangely, so use logger.info or workaround to not silence logging,

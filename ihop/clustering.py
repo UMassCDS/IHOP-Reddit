@@ -129,7 +129,7 @@ class ClusteringModelFactory:
         else:
             raise ValueError(f"Model type '{model_choice}' is not supported")
 
-        logger.debug("Finished instantiating model")
+        logger.info("Finished instantiating model")
         return ClusteringModel(vectors, model, model_id, index)
 
 

@@ -52,17 +52,17 @@ DEFAULT_SPARK_CONFIG = {
 
 def parse_config_file(config_file):
     """Reads a config file from JSON, optionally expecting 'spark' and 'logger' keys. If a key isn't present, None is returned for the key.
-    Returns (spark_config, logger_config)
+    Returns (spark_config, logger_config, full_config)
     """
     if not os.path.exists(config_file):
-        return None, None
+        return None, None, None
 
     with open(config_file, "r") as conf:
         conf_dict = json.load(conf)
         spark_conf = conf_dict.get("spark")
         logger_conf = conf_dict.get("logger")
 
-    return spark_conf, logger_conf
+    return spark_conf, logger_conf, conf_dict
 
 
 def configure_logging(log_dict=None):
