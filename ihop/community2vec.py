@@ -16,6 +16,7 @@ import json
 import logging
 import operator
 import os
+import pathlib
 
 import gensim
 import pandas as pd
@@ -612,8 +613,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument(
     "--config",
-    default=(ihop.utils.DEFAULT_SPARK_CONFIG, ihop.utils.DEFAULT_LOGGING_CONFIG),
-    type=ihop.utils.parse_config_file,
+    type=pathlib.Path,
     help="JSON file used to override default logging and spark configurations",
 )
 
@@ -668,7 +668,7 @@ parser.add_argument(
 if __name__ == "__main__":
     try:
         args = parser.parse_args()
-        config = args.config
+        config = ihop.utils.parse_config_file(args.config)
         ihop.utils.configure_logging(config[1])
         logger.debug("Script arguments: %s", args)
         spark = ihop.utils.get_spark_session("IHOP Community2Vec", config[0])

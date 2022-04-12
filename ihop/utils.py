@@ -54,8 +54,8 @@ def parse_config_file(config_file):
     """Reads a config file from JSON, optionally expecting 'spark' and 'logger' keys. If a key isn't present, None is returned for the key.
     Returns (spark_config, logger_config, full_config)
     """
-    if not os.path.exists(config_file):
-        return None, None, None
+    if config_file is None or not os.path.exists(config_file):
+        return DEFAULT_SPARK_CONFIG, DEFAULT_LOGGING_CONFIG, None
 
     with open(config_file, "r") as conf:
         conf_dict = json.load(conf)

@@ -1,0 +1,39 @@
+{
+    "logger": {
+        "version": 1,
+        "disable_existing_loggers": false,
+        "formatters": {
+            "default_formatter": {
+                "format": "%(name)s : %(asctime)s : %(levelname)s : %(message)s"
+            }
+        },
+        "handlers": {
+            "stream_handler": {
+                "class": "logging.StreamHandler",
+                "formatter": "default_formatter"
+            },
+            "file_handler": {
+                "class": "logging.FileHandler",
+                "filename": "ihop.log",
+                "formatter": "default_formatter"
+            }
+        },
+        "root": {
+            "handlers": [
+                "stream_handler",
+                "file_handler"
+            ],
+            "level": "DEBUG"
+        },
+        "loggers": {
+            "py4j": {
+                "handler": [
+                    "stream_handler",
+                    "file_handler"
+                ],
+                "level": "WARNING"
+            }
+        }
+    },
+    "model_path": "data/community2vec/RC_2021-05_5percentTopUsersExcluded_02142022/models/alpha0.05_negative10_sample0.005_vectorSize100"
+}

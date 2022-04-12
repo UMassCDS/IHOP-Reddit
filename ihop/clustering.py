@@ -10,6 +10,7 @@ import argparse
 import json
 import logging
 import os
+import pathlib
 import pickle
 
 import gensim.models as gm
@@ -860,8 +861,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--config",
-    default=(ihop.utils.DEFAULT_SPARK_CONFIG, ihop.utils.DEFAULT_LOGGING_CONFIG),
-    type=ihop.utils.parse_config_file,
+    type=pathlib.Path,
     help="JSON file used to override default logging and spark configurations",
 )
 
@@ -933,7 +933,7 @@ if __name__ == "__main__":
     try:
         # TODO Clean this up a bit
         args = parser.parse_args()
-        config = args.config
+        config = ihop.utils.parse_config_file(args.config)
         ihop.utils.configure_logging(config[1])
         logger.debug("Script arguments: %s", args)
         if (

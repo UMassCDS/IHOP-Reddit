@@ -3,8 +3,8 @@ Run using `python app.py` and visit http://127.0.0.1:8050
 
 The app can be configured to accept a different model path by feeding a JSON format config file structured as:
 {
-    'logger': {<log config>},
-    'model_path': '<path to output of ihop.community2vec.py model training>'
+    "logger": {<log config>},
+    "model_path": '<path to output of ihop.community2vec.py model training>'
 }
 
 
@@ -14,6 +14,7 @@ The app can be configured to accept a different model path by feeding a JSON for
 """
 import argparse
 import logging
+import pathlib
 
 import dash
 import dash_bootstrap_components as dbc
@@ -36,14 +37,8 @@ parser = argparse.ArgumentParser(
 # TODO Add application confiugration as needed
 parser.add_argument(
     "--config",
-    default=(
-        None,
-        ihop.utils.DEFAULT_LOGGING_CONFIG,
-        {
-            "model_path": "data/community2vec/RC_2021-05_5percentTopUsersExcluded_02142022/models/alpha0.05_negative10_sample0.005_vectorSize100"
-        },
-    ),
-    type=ihop.utils.parse_config_file,
+    default="config.json",
+    type=pathlib.Path,
     help="JSON file used to override default logging and spark configurations",
 )
 parser.add_argument(
@@ -54,7 +49,7 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-spark_conf, logging_conf, conf = args.config
+spark_conf, logging_conf, conf = ihop.utils.parse_config_file(args.config)
 print("Configuration:", args.config)
 ihop.utils.configure_logging(logging_conf)
 logger.info("Logging configured")
