@@ -55,7 +55,7 @@ Generating gold-standard labels for clusters isn't feasible, so instead we can r
 These scores can help you compare different groupings of the data using the same number of clusters. The scores for your current model are:
 """
 
-TSNE_DESCRIPTION_MD = """T-distributed Stochastic Neighbor Embedding (t-SNE) is a way of visualizing high-dimensional data in 2D or 3D, so we can actually make sense of it. However, like map projections of the globe into 2D, this can cause distortions, as described in [How to Use t-SNE Effectively](https://distill.pub/2016/misread-tsne/). This visualization should be treated as a guide to help explore subreddit clusters interatively, not a definitive measure of how similar subreddits are to each other.
+TSNE_DESCRIPTION_MD = """T-distributed Stochastic Neighbor Embedding (t-SNE) is a way of visualizing high-dimensional data in 2D or 3D, so we can actually make sense of it. However, like map projections of the globe into 2D, this can cause distortions, as described in [How to Use t-SNE Effectively](https://distill.pub/2016/misread-tsne/). This visualization should be treated as a guide to help explore subreddit clusters interatively, not a definitive representation of how similar subreddits are to each other.
 
 Each point is a subreddit and the color marks the cluster it gets assigned to. """
 
