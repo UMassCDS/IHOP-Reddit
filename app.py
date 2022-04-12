@@ -35,16 +35,16 @@ c2v = ihop.community2vec.GensimCommunity2Vec.load(
     "data/community2vec/RC_2021-05_5percentTopUsersExcluded_02142022/models/alpha0.05_negative10_sample0.005_vectorSize100"
 )
 
-MODEL_DESCRIPTION_MD = """This a [Community2Vec model](https://aclanthology.org/W17-2904/) trained on a month's worth of Reddit comments and tuned to perform well on a set of pre-defined analogy tasks, like matching up sports teams with the cities they play in, `r/Nationals - r/washingtondc + r/toronto = r/Torontobluejays`. The model positions subreddit communities in multidimensional space such that subreddits with similar user bases are close together.
+MODEL_DESCRIPTION_MD = """This a [Community2Vec model](https://aclanthology.org/W17-2904/) trained on a month's worth of Reddit comments from the 10,000 most popular subreddits and tuned to perform well on a set of pre-defined analogy tasks, like matching up sports teams with the cities they play in, `r/Nationals - r/washingtondc + r/toronto = r/Torontobluejays`. The model positions subreddit communities in multidimensional space such that subreddits with similar user bases are close together.
 
 This particular community2vec model was trained on May 2021 Reddit comments and achieved a 65% accuracy on the [predetermined analogy set](https://github.com/UMassCDS/IHOP/tree/main/ihop/resources/analogies).
 
-You can use clustering to create groupingss of subreddits based on overlapping users.  This strategy can be used to understand social dimensions in Reddit, such as political polarization, as shown by Waller and Anderson in [Quantifying social organization and political polarization in online platforms](https://www.nature.com/articles/s41586-021-04167-x).
+You can use clustering to create groupings of subreddits based on overlapping users.  This strategy can be used to understand social dimensions in Reddit, such as political polarization, as shown by Waller and Anderson in [Quantifying social organization and political polarization in online platforms](https://www.nature.com/articles/s41586-021-04167-x).
 """
 
-KMEANS_METRICS_MD = """The quality of topics produced by clustering the community embeddings can be subjective. However, a human should be able to intuit each cluster’s theme based on the dominant topic, such as ‘politics’, ‘music’, or ‘sports’. Changing the number of clusters should correspond to a change in granularity of the labels, e.g. ‘sports’ vs ‘basketball'.
+KMEANS_METRICS_MD = """The quality of topics produced by clustering the community embeddings can be subjective. However, a human should be able to intuit each cluster's theme based on the dominant topic, such as 'politics', 'music', or 'sports'. Changing the number of clusters should correspond to a change in granularity of the labels, e.g. 'sports' vs 'basketball'.
 
-Generating gold-standard labels for clusters isn’t feasible, so instead we can rely on metrics that measure the overlap and dispersion of clusters:
+Generating gold-standard labels for clusters isn't feasible, so instead we can rely on metrics that measure the overlap and dispersion of clusters:
 
 - **Silhouette Coefficient**: Ranges between -1 (clustering is totally incorrect) and 1 (clusters are dense and well separated), scores around 0 indicate overlapping clusters.
 
@@ -54,6 +54,10 @@ Generating gold-standard labels for clusters isn’t feasible, so instead we can
 
 These scores can help you compare different groupings of the data using the same number of clusters. The scores for your current model are:
 """
+
+TSNE_DESCRIPTION_MD = """T-distributed Stochastic Neighbor Embedding (t-SNE) is a way of visualizing high-dimensional data in 2D or 3D, so we can actually make sense of it. However, like map projections of the globe into 2D, this can cause distortions, as described in [How to Use t-SNE Effectively](https://distill.pub/2016/misread-tsne/). This visualization should be treated as a guide to help explore subreddit clusters interatively, not a definitive measure of how similar subreddits are to each other.
+
+Each point is a subreddit and the color marks the cluster it gets assigned to. """
 
 
 tsne_df, _ = c2v.get_tsne_dataframe()
@@ -102,6 +106,7 @@ KMEANS_PARAM_SECTION = [
         children=[
             dash.html.H2("K-means clustering metrics"),
             dash.dcc.Markdown(KMEANS_METRICS_MD),
+            dash.html.Br(),
             dash.dcc.Loading(
                 id="loading-metrics",
                 type="default",
@@ -181,6 +186,7 @@ INTRODUCTION_SECTION = dash.html.Div(
 MODEL_PLOT_SECTION = dbc.Col(
     dash.html.Div(
         children=[
+            dash.dcc.Markdown(TSNE_DESCRIPTION_MD),
             dash.dcc.Loading(
                 dash.dcc.Graph(id="cluster-visualization"),
                 id="loading-plot",
@@ -196,11 +202,15 @@ BODY = dash.html.Div(
         INTRODUCTION_SECTION,
         dbc.Accordion(
             start_collapsed=False,
+            always_open=True,
+            active_item=["item-0", "item-1"],
             children=[
                 dbc.AccordionItem(
                     KMEANS_PARAM_SECTION, title="K-means Cluster Parameters",
                 ),
-                dbc.AccordionItem(MODEL_PLOT_SECTION, title="TSNE visualization"),
+                dbc.AccordionItem(
+                    MODEL_PLOT_SECTION, title="t-SNE Visualization of Clusters"
+                ),
             ],
         ),
         dash.html.Br(),
@@ -288,21 +298,21 @@ def get_cluster_visualization(
         logger.info("Highlight selected clusters is selected")
         logger.info("Subreddit list given: %s", subreddit_selection)
         logger.info("Cluster list given: %s", cluster_selection)
-        cluster_list = list()
+        cluster_set = set()
         if subreddit_selection is not None:
             subreddit_clusters = cluster_df[
                 cluster_df["subreddit"].isin(subreddit_selection)
             ][CLUSTER_ASSIGNMENT_DISPLAY_NAME].unique()
-            cluster_list.extend(subreddit_clusters)
-            logger.info("Clusters used by subreddits: %s", cluster_list)
+            cluster_set.update(subreddit_clusters)
+            logger.info("Clusters used by subreddits: %s", cluster_set)
         if cluster_selection is not None:
-            cluster_list.extend(cluster_selection)
+            cluster_set.update(cluster_selection)
 
         # Set unselected clusters to 'other'
-        if len(cluster_list) > 0:
-            logger.info("Highlighted clusters will be: %s", cluster_list)
+        if len(cluster_set) > 0:
+            logger.info("Highlighted clusters will be: %s", cluster_set)
             cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME].cat.set_categories(
-                cluster_list + [UNSELECTED_CLUSTER_KEY], rename=True, inplace=True
+                list(cluster_set) + [UNSELECTED_CLUSTER_KEY], rename=True, inplace=True
             )
             cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME].fillna(
                 UNSELECTED_CLUSTER_KEY, inplace=True
@@ -312,9 +322,14 @@ def get_cluster_visualization(
         cluster_df,
         x="tsne_1",
         y="tsne_2",
+        text="subreddit",
         color=CLUSTER_ASSIGNMENT_DISPLAY_NAME,
         hover_data=["subreddit", model_name],
     )
+
+    # Hide text annotation initially
+    for d in figpx.data:
+        d.mode = "markers"
 
     if is_only_highlight_selection:
         logger.info("Updating color for unselected clusters")
@@ -334,15 +349,15 @@ def get_cluster_visualization(
                         method="restyle",
                         label="Toggle subreddit labels",
                         visible=True,
-                        args=["text", {"visible": False}],
-                        args2=[{"text": [d.customdata[:, 0] for d in figpx.data],}],
+                        args=[{"mode": "markers"}],
+                        args2=[{"mode": "markers+text"}],
                     )
                 ],
             )
         ],
         showlegend=True,
         legend_title_text=CLUSTER_ASSIGNMENT_DISPLAY_NAME,
-        title=f"TSNE Projection of Community2Vec Subreddit Clusterings\nwith {model_name}",
+        title=f"t-SNE Projection of Community2Vec Subreddit Clusterings<br>with {model_name}",
     )
 
     fig = go.Figure(data=figpx.data, layout=layout)
