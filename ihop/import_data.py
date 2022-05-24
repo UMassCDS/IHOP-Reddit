@@ -4,6 +4,7 @@ sklearn, and gensim formats.
 """
 import argparse
 import logging
+import pathlib
 
 import pyspark.sql.functions as fn
 from pyspark.sql.window import Window
@@ -524,8 +525,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--config",
-    default=(ihop.utils.DEFAULT_SPARK_CONFIG, ihop.utils.DEFAULT_LOGGING_CONFIG),
-    type=ihop.utils.parse_config_file,
+    type=pathlib.Path,
     help="JSON file used to override default logging and spark configurations",
 )
 
@@ -623,7 +623,7 @@ topic_modeling_parser.add_argument(
 if __name__ == "__main__":
     try:
         args = parser.parse_args()
-        config = args.config
+        config = ihop.utils.parse_config_file(args.config)
         ihop.utils.configure_logging(config[1])
         spark = ihop.utils.get_spark_session("IHOP import data", config[0])
         logger.debug("Script arguments: %s", args)

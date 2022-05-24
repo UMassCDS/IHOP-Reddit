@@ -1,16 +1,25 @@
 name: ihop
 channels:
-  - defaults
   - plotly
+  - defaults
 dependencies:
-  - gensim=4.1.2
-  - jupyter=1.0.0
-  - numpy=1.21.2
-  - pandas=1.3.4
-  - pip=21.2.4
+  - gensim=4.1.2=py38h295c915_0
+  - joblib=1.1.0=pyhd3eb1b0_0
+  - jupyter=1.0.0=py38_7
+  - numpy=1.21.2=py38h20f2e39_0
+  - numpy-base=1.21.2=py38h79a1101_0
+  - pip=21.2.4=py38h06a4308_0
+  - python=3.8.13=h12debd9_0
+  - pytimeparse=1.1.8=py38h06a4308_0
+  - scikit-learn=1.0.1=py38h51133e4_0
+  - seaborn=0.11.2=pyhd3eb1b0_0
   - pip:
+    - dash==2.3.1
+    - dash-bootstrap-components==1.1.0
+    - dash-core-components==2.0.0
+    - dash-daq==0.5.0
+    - dash-html-components==2.0.0
+    - dash-renderer==1.9.0
+    - dash-table==5.0.0
+    - py4j==0.10.9.2
     - pyspark==3.2.0
-  - plotly==5.5.0
-  - pytimeparse==1.1.8
-  - scikit-learn==1.0.1
-  - seaborn=0.11.2

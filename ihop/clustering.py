@@ -10,6 +10,7 @@ import argparse
 import json
 import logging
 import os
+import pathlib
 import pickle
 
 import gensim.models as gm
@@ -129,7 +130,7 @@ class ClusteringModelFactory:
         else:
             raise ValueError(f"Model type '{model_choice}' is not supported")
 
-        logger.debug("Finished instantiating model")
+        logger.info("Finished instantiating model")
         return ClusteringModel(vectors, model, model_id, index)
 
 
@@ -161,7 +162,6 @@ class ClusteringModel:
         logger.info("Fitting ClusteringModel")
         self.clusters = self.clustering_model.fit_predict(self.data)
         logger.info("Finished fitting ClusteringModel")
-        return self.clusters
 
     def predict(self, new_data):
         """Returns cluster assignments for the given data as
@@ -183,6 +183,10 @@ class ClusteringModel:
         )
         cluster_df[self.model_name] = cluster_df[self.model_name].astype("category")
         if join_df is not None:
+            logger.debug(
+                "Joining cluster results with input dataframe on '%s'",
+                datapoint_col_name,
+            )
             cluster_df = pd.merge(
                 cluster_df, join_df, how="inner", on=datapoint_col_name, sort=False
             )
@@ -857,8 +861,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--config",
-    default=(ihop.utils.DEFAULT_SPARK_CONFIG, ihop.utils.DEFAULT_LOGGING_CONFIG),
-    type=ihop.utils.parse_config_file,
+    type=pathlib.Path,
     help="JSON file used to override default logging and spark configurations",
 )
 
@@ -930,7 +933,7 @@ if __name__ == "__main__":
     try:
         # TODO Clean this up a bit
         args = parser.parse_args()
-        config = args.config
+        config = ihop.utils.parse_config_file(args.config)
         ihop.utils.configure_logging(config[1])
         logger.debug("Script arguments: %s", args)
         if (

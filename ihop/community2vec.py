@@ -16,6 +16,7 @@ import json
 import logging
 import operator
 import os
+import pathlib
 
 import gensim
 import pandas as pd
@@ -45,58 +46,6 @@ def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1
             vocab[row[token_index]] = int(row[count_index])
 
     return vocab
-
-
-def generate_analogies(seed_terms):
-    """Generates 4-tuples of analogies that can be fed to Gensim KeyedVector
-    for solving.
-    Input `[('a','b'),('c','d')]` returns `[('a','b','c','d')]` for
-    'a is to b as c is to d`
-
-    :param seed_terms: list of 2-tuples, each tuple is a symmetric side of an analogy
-    """
-    results = list()
-    for i in range(len(seed_terms)):
-        a, b = seed_terms[i]
-        for j in range(i + 1, len(seed_terms)):
-            c, d = seed_terms[j]
-            results.append((a, b, c, d))
-    return results
-
-
-def get_analogies(csv_path_list=None):
-    """Returns analogies from CSV or the default subreddit algebra analogies
-     as list of 4-tuples for benchmarking community to vec.
-     CSV files should be formated as follows generate sum(range(n)) analogies
-     like "a is to b as c is to d" when there are n rows:
-     a,b
-     c,d
-
-    :param csv_path_list: list of str/Path, optional paths to headerless csv files
-    """
-    analogies = list()
-    if csv_path_list is None:
-        analogy_contents = [
-            x
-            for x in importlib.resources.contents("ihop.resources.analogies")
-            if x.endswith(".csv")
-        ]
-        for analogy_file in analogy_contents:
-            analogy_reader = csv.reader(
-                importlib.resources.open_text("ihop.resources.analogies", analogy_file)
-            )
-            current_file_analogies = generate_analogies([row for row in analogy_reader])
-            analogies.extend(current_file_analogies)
-    else:
-        for analogy_file in csv_path_list:
-            with open(analogy_file) as analogies_f:
-                analogy_reader = csv.reader(analogies_f)
-                current_file_analogies = generate_analogies(
-                    [row for row in analogy_reader]
-                )
-                analogies.extend(current_file_analogies)
-
-    return analogies
 
 
 def get_w2v_params_from_spark_df(spark, contexts_path):
@@ -133,23 +82,6 @@ def analogy_sections_to_str(detailed_accs):
         )
 
     return ",".join(section_strings)
-
-
-def generate_analogies(seed_terms):
-    """Generates 4-tuples of analogies that can be fed to Gensim KeyedVector
-    for solving.
-    Input `[('a','b'),('c','d')]` returns `[('a','b','c','d')]` for
-    'a is to b as c is to d`
-
-    :param seed_terms: list of 2-tuples, each tuple is a symmetric side of an analogy
-    """
-    results = list()
-    for i in range(len(seed_terms)):
-        a, b = seed_terms[i]
-        for j in range(i + 1, len(seed_terms)):
-            c, d = seed_terms[j]
-            results.append((a, b, c, d))
-    return results
 
 
 class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
@@ -346,28 +278,45 @@ class GensimCommunity2Vec:
         """
         return self.w2v_model.wv.get_normed_vectors()
 
-    def get_tsne_dataframe(self, key_col="subreddit", **kwargs):
+    def get_tsne_dataframe(self, key_col="subreddit", n_components=2, **kwargs):
         """Fits a TSNE representation of the dataframe.
         Returns the results as both a pandas dataframe and the resulting TSNE projection as a numpy array
 
+        :param key_col: str, column name for indexed values
+        :param n_components: int, usually 2 or 3, since the purpose of this is for creating visualizations
         :param kwargs: dict params passed to sklearn's TNSE model
         """
-        tsne_fitter = TSNE(**kwargs, init="pca", metric="cosine", learning_rate="auto")
+        tsne_fitter = TSNE(
+            **kwargs,
+            n_components=n_components,
+            init="pca",
+            metric="cosine",
+            learning_rate="auto",
+            square_distances=True,
+        )
         tsne_projection = tsne_fitter.fit_transform(self.get_normed_vectors())
         dataframe_elements = list()
         for i, vocab_elem in enumerate(self.w2v_model.wv.index_to_key):
             elem_proj = tsne_projection[i]
-            dataframe_elements.append((vocab_elem, elem_proj[0], elem_proj[1]))
+            dataframe_elements.append((vocab_elem, *elem_proj))
 
-        dataframe = pd.DataFrame.from_records(
-            dataframe_elements, columns=[key_col, "tsne_x", "tsne_y"]
-        )
+        # Generate columns for dataframe
+        cols = [key_col]
+        for i in range(1, n_components + 1):
+            cols.append(f"tsne_{i}")
+
+        dataframe = pd.DataFrame.from_records(dataframe_elements, columns=cols)
         return dataframe, tsne_projection
 
     def get_index_to_key(self):
         """Returns the vocab of the Word2Vec embeddings as an indexed list of strings.
         """
         return self.w2v_model.wv.index_to_key
+
+    def get_index_as_dict(self):
+        """Returns the index of the Word2Vec embeddings as a dictionary mapping int -> string
+        """
+        return dict(enumerate(self.w2v_model.wv.index_to_key))
 
     def score_analogies(self, analogies_path=None, case_insensitive=False):
         """"Returns the trained embedding's accuracy for solving subreddit algebra analogies and detailed section results. If not file path is specified, return results on the default sports and university-city analogies from ihop.resources.analogies.
@@ -664,8 +613,7 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument(
     "--config",
-    default=(ihop.utils.DEFAULT_SPARK_CONFIG, ihop.utils.DEFAULT_LOGGING_CONFIG),
-    type=ihop.utils.parse_config_file,
+    type=pathlib.Path,
     help="JSON file used to override default logging and spark configurations",
 )
 
@@ -720,7 +668,7 @@ parser.add_argument(
 if __name__ == "__main__":
     try:
         args = parser.parse_args()
-        config = args.config
+        config = ihop.utils.parse_config_file(args.config)
         ihop.utils.configure_logging(config[1])
         logger.debug("Script arguments: %s", args)
         spark = ihop.utils.get_spark_session("IHOP Community2Vec", config[0])

@@ -5,6 +5,7 @@
 import argparse
 import json
 import logging
+import pathlib
 import os
 
 import pyspark.sql.functions as fn
@@ -575,7 +576,7 @@ parser.add_argument(
 if __name__ == "__main__":
     try:
         args = parser.parse_args()
-        config = args.config
+        config = ihop.utils.parse_config_file(args.config)
         ihop.utils.configure_logging(config[1])
         logger.debug("Script arguments: %s", args)
         spark = ihop.utils.get_spark_session("IHOP Text Processing", config[0])

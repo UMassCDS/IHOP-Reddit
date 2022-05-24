@@ -8,6 +8,16 @@ The `ihop` directory is a python module with submodules that can also be run as 
 - `ihop.resources`: Data resources
 	- `ihop.resources.analogies`: Subreddit algebra analogies for tuning community2vec, taken from [social-dimensions](https://github.com/CSSLab/social-dimensions) with minor updates
 
+The `app.py` program is a [Dash](https://plotly.com/dash/) app that allows for filtering and visualizing subreddit clusters using the community2vec embeddings.
+It expects a JSON configuration file with a path to a community2vec model:
+```
+{
+    'logger': {<log config, refer to ihop.utils.py for examples>},
+    'model_path': '<path to single model output of ihop.community2vec.py model training>'
+}
+```
+Run `app.py --config config.json` to start the application on port 8050, you will be able to navigate to http://localhost:8050/ to see the app running. You can also run using the `--debug` flag to have the application dynamically relaunch on code changes.
+
 
 # External Dependencies
 - Python >= 3.7
@@ -15,7 +25,7 @@ The `ihop` directory is a python module with submodules that can also be run as 
 - (Optional to support faster compression & customize Hadoop config for Spark) [Hadoop](https://hadoop.apache.org) at least version 3.3 is needed for Pyspark to properly decompress the Reddit zst files (see [this issue](https://stackoverflow.com/questions/64607248/configure-spark-on-yarn-to-use-hadoop-native-libraries) or [this one](https://stackoverflow.com/questions/67099204/reading-a-zst-archive-in-scala-spark-native-zstandard-library-not-available)). Install Hadoop and configure the environment variables using [these instructions](https://phoenixnap.com/kb/install-hadoop-ubuntu).
 
 # Setup and Installation
-Note that [Pyspark](https://spark.apache.org/docs/latest/api/python/getting_started/install.html#dependencies) is used for training embeddings, so you must have Java installed (at least version 8) and `JAVA_HOME` set appropriately.
+Note that [Pyspark](https://spark.apache.org/docs/latest/api/python/getting_started/install.html#dependencies) is used for training embeddings and LDA models, so you must have Java installed (at least version 8) and `JAVA_HOME` set appropriately.
 
 Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create the `ihop` environment by running `conda env create -f environment.yml` or install the dependencies using `pip install -r requirements.txt`. These environments include dependencies for running jupyter notebooks.
 
