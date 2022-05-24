@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="ihop",
-    version="0.3.0",
+    version="1.0.0",
     packages=find_packages(include=["ihop", "ihop.*"]),
     install_requires=[
         "dash==2.3.1",
