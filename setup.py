@@ -1,5 +1,10 @@
 from setuptools import setup, find_packages
 
+test_deps = ['pytest']
+dev_deps = ['black']
+
+extras = {'test': test_deps, 'dev':dev_deps}
+
 setup(
     name="ihop",
     version="1.0.0",
@@ -15,6 +20,6 @@ setup(
         "pytimeparse==1.1.8",
         "scikit-learn==1.0.1",
     ],
-    setup_requires=["pytest-runner"],
-    tests_require=["pytest"],
+    tests_require = test_deps,
+    extras_require = extras
 )
