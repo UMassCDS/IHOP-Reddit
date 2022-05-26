@@ -27,7 +27,7 @@ Run `app.py --config config.json` to start the application on port 8050, you wil
 # Setup and Installation
 Note that [Pyspark](https://spark.apache.org/docs/latest/api/python/getting_started/install.html#dependencies) is used for training embeddings and LDA models, so you must have Java installed (at least version 8) and `JAVA_HOME` set appropriately.
 
-Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create the `ihop` environment by running `conda env create -f environment.yml` or install the dependencies using `pip install -r requirements.txt`. These environments include dependencies for running jupyter notebooks.
+Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create the `ihop` environment by running `conda env create -f environment.yml` or install the dependencies using `pip install -r requirements.txt`. These environments include dependencies for running jupyter notebooks and the Dash application.
 
 To install the `ihop` package as importable for testing and development, run `pip install -e .`. See [this article](https://godatadriven.com/blog/a-practical-guide-to-using-setup-py/) for more details on using `setup.py`.
 
@@ -38,6 +38,7 @@ module load miniconda/4.8.3
 
 conda create --yes --name ihop python=3.8
 conda activate ihop
+pip install -r requirements.txt
 pip install .
 ```
 
@@ -58,4 +59,7 @@ Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x
 - Sports analogies in `ihop/resources/analogies` only contains sports leagues & teams from North America
 - `uni_to_city.csv` only contains universities in English-speaking countries and French Canada
 - If you see an error about missing linear algebra acceleration from Spark (`Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS`) when running locally, check this [Spark Doc page](https://spark.apache.org/docs/latest/ml-linalg-guide.html) or the [netlib-java Github page](https://github.com/fommil/netlib-java/) for library installation instructions. You can also safely ignore this warning, it just makes Spark a bit slower.
+
+# TODOs
+
 

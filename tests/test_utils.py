@@ -13,7 +13,7 @@ def config_json(fixture_dir):
 
 
 def test_parse_config(config_json):
-    spark_conf, logger_conf, _ = ihop.utils.parse_config_file(config_json)
+    spark_conf, logger_conf = ihop.utils.parse_config_file(config_json)
     assert set(spark_conf.items()) == set(
         [("spark.app.name", "utils test"), ("spark.driver.memory", "1G")]
     )
