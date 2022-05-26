@@ -1,0 +1,5 @@
+# This file only needs exactly the following AT MINIMUM.
+# You can include other sections, but since pyproject.toml is still experimental, you may want to use setup.cfg instead.
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

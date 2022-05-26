@@ -38,7 +38,6 @@ module load miniconda/4.8.3
 
 conda create --yes --name ihop python=3.8
 conda activate ihop
-pip install -r requirements.txt
 pip install .
 ```
 
@@ -59,7 +58,4 @@ Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x
 - Sports analogies in `ihop/resources/analogies` only contains sports leagues & teams from North America
 - `uni_to_city.csv` only contains universities in English-speaking countries and French Canada
 - If you see an error about missing linear algebra acceleration from Spark (`Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS`) when running locally, check this [Spark Doc page](https://spark.apache.org/docs/latest/ml-linalg-guide.html) or the [netlib-java Github page](https://github.com/fommil/netlib-java/) for library installation instructions. You can also safely ignore this warning, it just makes Spark a bit slower.
-
-# TODOs
-
 
