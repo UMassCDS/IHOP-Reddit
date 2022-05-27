@@ -22,4 +22,5 @@ setup(
     ],
     tests_require=test_deps,
     extras_require=extras,
+    include_package_data=True,
 )
