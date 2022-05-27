@@ -5,9 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Separate Dash app requirements in requirements.txt from ihop package requirments in setup.py
+
 ### Added
 - Github workflow for running tests on pull requests to the main branch
 - MANIFEST.in to include analogy and subreddit collection resource files in package
+
 
 ## [1.0.0] - 2022-05-24
 ### Changed
