@@ -5,7 +5,6 @@
 import argparse
 import json
 import logging
-import pathlib
 import os
 
 import pyspark.sql.functions as fn

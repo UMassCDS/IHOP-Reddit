@@ -3,7 +3,6 @@
 import collections
 
 import gensim.models as gm
-import gensim.corpora as gc
 import numpy as np
 from sklearn.cluster import KMeans, AgglomerativeClustering
 import pytest
