@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Github workflow for running tests on pull requests to the main branch
+- MANIFEST.in to include analogy and subreddit collection resource files in package
 
 ## [1.0.0] - 2022-05-24
 ### Changed
