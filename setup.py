@@ -1,13 +1,15 @@
 from setuptools import setup, find_packages
 
+test_deps = ["pytest"]
+dev_deps = ["black"]
+
+extras = {"test": test_deps, "dev": dev_deps}
+
 setup(
     name="ihop",
     version="1.0.0",
     packages=find_packages(include=["ihop", "ihop.*"]),
     install_requires=[
-        "dash==2.3.1",
-        "dash-bootstrap-components==1.1.0",
-        "dash-daq==0.5.0",
         "gensim==4.1.2",
         "joblib==1.1.0",
         "numpy==1.21.2",
@@ -18,6 +20,7 @@ setup(
         "pytimeparse==1.1.8",
         "scikit-learn==1.0.1",
     ],
-    setup_requires=["pytest-runner"],
-    tests_require=["pytest"],
+    tests_require=test_deps,
+    extras_require=extras,
+    include_package_data=True,
 )

@@ -10,6 +10,7 @@ dependencies:
   - numpy-base=1.21.2=py38h79a1101_0
   - pip=21.2.4=py38h06a4308_0
   - python=3.8.13=h12debd9_0
+  - pytest=6.2.4
   - pytimeparse=1.1.8=py38h06a4308_0
   - scikit-learn=1.0.1=py38h51133e4_0
   - seaborn=0.11.2=pyhd3eb1b0_0

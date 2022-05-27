@@ -17,7 +17,7 @@ def test_default_analogies():
     assert ("philadelphia", "sixers", "tulsa", "Thunder") in analogies
     assert ("Buffalo", "buffalobills", "sanfrancisco", "49ers") in analogies
     assert ("montreal", "Habs", "phoenix", "Coyotes") in analogies
-    assert ("Drexel", "philadelphia", "umass", "amherst")
+    assert ("Drexel", "philadelphia", "umass", "amherst") in analogies
 
 
 def test_generate_analogies(analogies_csv):
