@@ -16,7 +16,7 @@ It expects a JSON configuration file with a path to a community2vec model:
     'model_path': '<path to single model output of ihop.community2vec.py model training>'
 }
 ```
-Run `app.py --config config.json` to start the application on port 8050, you will be able to navigate to http://localhost:8050/ to see the app running. You can also run using the `--debug` flag to have the application dynamically relaunch on code changes.
+Run `python app.py --config config.json` to start the application on port 8050, you will be able to navigate to http://localhost:8050/ to see the app running. You can also run using the `--debug` flag to have the application dynamically relaunch on code changes.
 
 
 # External Dependencies

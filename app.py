@@ -94,6 +94,7 @@ TSNE_DESCRIPTION_MD = """T-distributed Stochastic Neighbor Embedding (t-SNE) is 
 
 Each point is a subreddit and the color marks the cluster it gets assigned to. """
 
+# First section of page, define KMeans paramters, train model button and metrics values and explanation
 KMEANS_PARAM_SECTION = [
     dash.html.Div(
         children=[
@@ -148,6 +149,7 @@ KMEANS_PARAM_SECTION = [
     ),
 ]
 
+# Subreddit dropdown menu
 SUBREDDIT_DROPDOWN = [
     dash.html.Label("Select subreddits"),
     dash.dcc.Dropdown(
@@ -161,11 +163,15 @@ SUBREDDIT_DROPDOWN = [
     ),
 ]
 
+# Cluster number dropdown menu
 CLUSTER_DROPDOWN = [
     dash.html.Label("Select clusters"),
     dash.dcc.Dropdown(multi=True, id="cluster-dropdown"),
 ]
 
+# Final section on the page, allows user to filter subreddits they're interested in
+# by subreddit or cluster number, then display the clusters in the table.
+# Also includes buttons for highlighting selected clusters in graph viz
 SUBREDDIT_FILTERING_SECTION = dash.html.Div(
     children=[
         dash.html.H2("Filter by Subreddits and Clusters"),
@@ -174,6 +180,7 @@ SUBREDDIT_FILTERING_SECTION = dash.html.Div(
                 dbc.Col(children=SUBREDDIT_DROPDOWN, width=8,),
                 dbc.Col(
                     dash.html.Div(
+                        # Clicking this button will grey out all but the clusters from the drop down in the graph visualization.
                         dbc.Button(
                             "Highlight selected clusters in graph",
                             id="highlight-selected-clusters",
@@ -190,6 +197,8 @@ SUBREDDIT_FILTERING_SECTION = dash.html.Div(
                 dbc.Col(children=CLUSTER_DROPDOWN, width=8),
                 dbc.Col(
                     dash.html.Div(
+                        # This switch toggles including all the subreddits in the cluster
+                        # in the table results, even if the user hasn't included them in the subreddit filter.
                         dash_daq.BooleanSwitch(
                             id="show-in-cluster-neighbors",
                             label="Display entire cluster in table",
@@ -227,6 +236,7 @@ MODEL_PLOT_SECTION = dbc.Col(
     )
 )
 
+# Entire page body, all sections are contained within
 BODY = dash.html.Div(
     children=[
         dash.html.H1("Community2Vec Subreddit Clusters"),
@@ -319,35 +329,45 @@ def get_cluster_visualization(
     cluster_json, subreddit_selection, cluster_selection, is_only_highlight_selection
 ):
     """Build the plotly visualization for a model
+
+    :param cluster_json: The json bundled cluster-assignment data
     """
+    # The model_name column of the dataframe always contains the cluster ID
     model_name = cluster_json["name"]
     logger.info("Updating graph visualization, model: %s", model_name)
     cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
+    # Display name is typically a cluster id or 'other', it's just for the scatter plot display
     cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME] = cluster_df[model_name]
 
+    # Collect up all selected cluster data
     if is_only_highlight_selection:
         logger.info("Highlight selected clusters is selected")
         logger.info("Subreddit list given: %s", subreddit_selection)
         logger.info("Cluster list given: %s", cluster_selection)
         cluster_set = set()
+        # Clusters included because a subreddit is selected
         if subreddit_selection is not None:
-            subreddit_clusters = cluster_df[
+            selected_subreddits_df = cluster_df[
                 cluster_df["subreddit"].isin(subreddit_selection)
-            ][CLUSTER_ASSIGNMENT_DISPLAY_NAME].unique()
+            ]
+
+            subreddit_clusters = selected_subreddits_df[model_name].unique()
             cluster_set.update(subreddit_clusters)
             logger.info("Clusters used by subreddits: %s", cluster_set)
+
+        # Cluster id is explicitly selected
         if cluster_selection is not None:
             cluster_set.update(cluster_selection)
 
         # Set unselected clusters to 'other'
         if len(cluster_set) > 0:
             logger.info("Highlighted clusters will be: %s", cluster_set)
-            cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME].cat.set_categories(
-                list(cluster_set) + [UNSELECTED_CLUSTER_KEY], rename=True, inplace=True
+            cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME].cat.add_categories(
+                UNSELECTED_CLUSTER_KEY
             )
-            cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME].fillna(
-                UNSELECTED_CLUSTER_KEY, inplace=True
-            )
+            cluster_df.loc[
+                ~cluster_df[model_name].isin(cluster_set)
+            ] = UNSELECTED_CLUSTER_KEY
 
     figpx = px.scatter(
         cluster_df,
@@ -362,6 +382,7 @@ def get_cluster_visualization(
     for d in figpx.data:
         d.mode = "markers"
 
+    # Grey out unselected clusters
     if is_only_highlight_selection:
         logger.info("Updating color for unselected clusters")
         for d in figpx.data:
