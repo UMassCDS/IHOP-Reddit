@@ -1,7 +1,11 @@
 """Functionality related to manipulating visualizations of clusterings using the Dash app, pandas DataFrames and seaborn or plotly libraries.
 """
 import json
+import logging
+
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 def jsonify_stored_df(dataframe):
@@ -31,8 +35,7 @@ def unjsonify_stored_df(dataframe_as_json, categorical_columns=None):
 def assign_other_category_column(
     dataframe, input_col, output_col, keep_values, other_value
 ):
-    """Adds a new column output_col in place to dataframe with the same
-    values as in the input_col, but any values appear in the keep_values
+    """Returns a copy of the dataframe, but with an additional output_col storing the same values values as input_col, but any values appear in the keep_values
     are replaced with other_value. Useful for reducing the information
     present in visualizations.
 
@@ -42,5 +45,22 @@ def assign_other_category_column(
     :param keep_values: set or list of values from input_col that should also appear in output_col
     :param other_value: the value will appear in output_col instead of the original input_col value if the original value isn't in keep_values
     """
-    # TODO
-    pass
+    logger.debug("Cateogries to keep in new column: %s", keep_values)
+    logger.debug("Other categories will be replaced with '%s'", other_value)
+    new_dataframe = dataframe.copy()
+
+    if other_value in new_dataframe[input_col]:
+        raise ValueError(
+            f"Replacement value '{other_value}' is already a value in column {input_col}"
+        )
+
+    # Temporarily fill the output column
+    new_dataframe[output_col] = new_dataframe[input_col].astype("category")
+
+    if len(keep_values) > 0:
+        new_dataframe[output_col] = new_dataframe[output_col].cat.add_categories(
+            other_value
+        )
+        new_dataframe.loc[~new_dataframe[output_col].isin(keep_values)] = other_value
+
+    return new_dataframe

@@ -339,8 +339,8 @@ def get_cluster_visualization(
     # Display name is typically a cluster id or 'other', it's just for the scatter plot display
     cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME] = cluster_df[model_name]
 
-    # Collect up all selected cluster data
-    if is_only_highlight_selection:
+    # Collect up all selected cluster assignments
+    if is_only_highlight_selection > 0:
         logger.info("Highlight selected clusters is selected")
         logger.info("Subreddit list given: %s", subreddit_selection)
         logger.info("Cluster list given: %s", cluster_selection)
@@ -360,14 +360,14 @@ def get_cluster_visualization(
             cluster_set.update(cluster_selection)
 
         # Set unselected clusters to 'other'
-        if len(cluster_set) > 0:
-            logger.info("Highlighted clusters will be: %s", cluster_set)
-            cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME].cat.add_categories(
-                UNSELECTED_CLUSTER_KEY
-            )
-            cluster_df.loc[
-                ~cluster_df[model_name].isin(cluster_set)
-            ] = UNSELECTED_CLUSTER_KEY
+        logger.info("Highlighted clusters will be: %s", cluster_set)
+        cluster_df = iv.assign_other_category_column(
+            cluster_df,
+            model_name,
+            CLUSTER_ASSIGNMENT_DISPLAY_NAME,
+            cluster_set,
+            UNSELECTED_CLUSTER_KEY,
+        )
 
     figpx = px.scatter(
         cluster_df,
