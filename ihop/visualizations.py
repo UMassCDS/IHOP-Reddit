@@ -3,6 +3,7 @@
 import json
 import logging
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -37,11 +38,11 @@ def assign_other_category_column(
 ):
     """Returns a copy of the dataframe, but with an additional output_col storing the same values values as input_col, but any values appear in the keep_values
     are replaced with other_value. Useful for reducing the information
-    present in visualizations.
+    present in visualizations. When no keep values are specified, output_col is just a copy of input_col.
 
     :param dataframe: pandas DataFrame to add the column to
-    :param input_col: str, name of column where original values are coming from
-    :param output_col:
+    :param input_col: str, name of Categorical column where original values are coming from
+    :param output_col: str, name of desired new Categorical column
     :param keep_values: set or list of values from input_col that should also appear in output_col
     :param other_value: the value will appear in output_col instead of the original input_col value if the original value isn't in keep_values
     """
@@ -54,13 +55,15 @@ def assign_other_category_column(
             f"Replacement value '{other_value}' is already a value in column {input_col}"
         )
 
-    # Temporarily fill the output column
-    new_dataframe[output_col] = new_dataframe[input_col].astype("category")
-
-    if len(keep_values) > 0:
-        new_dataframe[output_col] = new_dataframe[output_col].cat.add_categories(
-            other_value
+    if len(keep_values) == 0:
+        new_dataframe[output_col] = new_dataframe[input_col].copy()
+    else:
+        # Fill the output column with keep values or other
+        new_dataframe[output_col] = np.where(
+            new_dataframe[input_col].isin(keep_values),
+            new_dataframe[input_col],
+            "other",
         )
-        new_dataframe.loc[~new_dataframe[output_col].isin(keep_values)] = other_value
 
+    new_dataframe[output_col] = pd.Categorical(new_dataframe[output_col])
     return new_dataframe

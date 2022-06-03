@@ -335,22 +335,22 @@ def get_cluster_visualization(
     # The model_name column of the dataframe always contains the cluster ID
     model_name = cluster_json["name"]
     logger.info("Updating graph visualization, model: %s", model_name)
+    # The model name column is intentionally not categorical, so we can grey out unselected values in the plot
     cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
-    # Display name is typically a cluster id or 'other', it's just for the scatter plot display
     cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME] = cluster_df[model_name]
+    cluster_set = set()
 
-    # Collect up all selected cluster assignments
-    if is_only_highlight_selection > 0:
-        logger.info("Highlight selected clusters is selected")
+    # Collect up all selected cluster assignments for highlighting
+    if is_only_highlight_selection is not None:
+        logger.info("Highlight selected clusters was clicked")
         logger.info("Subreddit list given: %s", subreddit_selection)
         logger.info("Cluster list given: %s", cluster_selection)
-        cluster_set = set()
+
         # Clusters included because a subreddit is selected
         if subreddit_selection is not None:
             selected_subreddits_df = cluster_df[
                 cluster_df["subreddit"].isin(subreddit_selection)
             ]
-
             subreddit_clusters = selected_subreddits_df[model_name].unique()
             cluster_set.update(subreddit_clusters)
             logger.info("Clusters used by subreddits: %s", cluster_set)
@@ -359,15 +359,17 @@ def get_cluster_visualization(
         if cluster_selection is not None:
             cluster_set.update(cluster_selection)
 
-        # Set unselected clusters to 'other'
-        logger.info("Highlighted clusters will be: %s", cluster_set)
-        cluster_df = iv.assign_other_category_column(
-            cluster_df,
-            model_name,
-            CLUSTER_ASSIGNMENT_DISPLAY_NAME,
-            cluster_set,
-            UNSELECTED_CLUSTER_KEY,
-        )
+    # Display name is a cluster id or 'other', it's just for the scatter plot display
+    # Set unselected clusters to 'other'
+    logger.info("Highlighted clusters will be: %s", cluster_set)
+
+    cluster_df = iv.assign_other_category_column(
+        cluster_df,
+        model_name,
+        CLUSTER_ASSIGNMENT_DISPLAY_NAME,
+        cluster_set,
+        UNSELECTED_CLUSTER_KEY,
+    )
 
     figpx = px.scatter(
         cluster_df,

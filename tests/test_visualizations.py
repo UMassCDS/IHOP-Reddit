@@ -32,16 +32,30 @@ def test_assign_other_category_column():
     df = pd.DataFrame(
         {
             "subreddit": ["democrats", "liberals", "conservatives"],
-            "cluster_assignment": [2, 2, 4],
+            "cluster_assignment": ["2", "2", "4"],
         }
     )
     new_df = iv.assign_other_category_column(
-        df, "cluster_assignment", "display_clusters", set([2]), "other"
+        df, "cluster_assignment", "display_clusters", set(["2"]), "other"
     )
     assert list(new_df.columns) == [
         "subreddit",
         "cluster_assignment",
         "display_clusters",
     ]
-    assert list(new_df["cluster_assignment"]) == [2, 2, "other"]
+    assert list(new_df["display_clusters"]) == ["2", "2", "other"]
+    assert list(new_df["cluster_assignment"]) == ["2", "2", "4"]
+
+
+def test_assign_other_category_column_no_selection():
+    df = pd.DataFrame(
+        {
+            "subreddit": ["democrats", "liberals", "conservatives"],
+            "cluster_assignment": ["2", "2", "4"],
+        }
+    )
+    new_df = iv.assign_other_category_column(
+        df, "cluster_assignment", "display_clusters", set([]), "other"
+    )
+    assert list(new_df["display_clusters"]) == ["2", "2", "4"]
 
