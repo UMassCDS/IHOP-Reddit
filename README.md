@@ -25,6 +25,8 @@ Run `python app.py --config config.json` to start the application on port 8050, 
 - (Optional to support faster compression & customize Hadoop config for Spark) [Hadoop](https://hadoop.apache.org) at least version 3.3 is needed for Pyspark to properly decompress the Reddit zst files (see [this issue](https://stackoverflow.com/questions/64607248/configure-spark-on-yarn-to-use-hadoop-native-libraries) or [this one](https://stackoverflow.com/questions/67099204/reading-a-zst-archive-in-scala-spark-native-zstandard-library-not-available)). Install Hadoop and configure the environment variables using [these instructions](https://phoenixnap.com/kb/install-hadoop-ubuntu).
 - [unzstd](http://manpages.ubuntu.com/manpages/bionic/man1/unzstd.1.html) and [bzip2](https://www.sourceware.org/bzip2/) are used for recompressing the monthly Reddit dumps to bzip2 format, which Spark is more readily able to handle than the zst files.
 
+
+
 # Setup and Installation
 Note that [Pyspark](https://spark.apache.org/docs/latest/api/python/getting_started/install.html#dependencies) is used for training embeddings and LDA models, so you must have Java installed (at least version 8) and `JAVA_HOME` set appropriately.
 
@@ -59,4 +61,5 @@ Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x
 - Sports analogies in `ihop/resources/analogies` only contains sports leagues & teams from North America
 - `uni_to_city.csv` only contains universities in English-speaking countries and French Canada
 - If you see an error about missing linear algebra acceleration from Spark (`Failed to load implementation from: com.github.fommil.netlib.NativeSystemBLAS`) when running locally, check this [Spark Doc page](https://spark.apache.org/docs/latest/ml-linalg-guide.html) or the [netlib-java Github page](https://github.com/fommil/netlib-java/) for library installation instructions. You can also safely ignore this warning, it just makes Spark a bit slower.
+- It would be ideal to keep data in the remote (S3 bucket) and read directly from remote storage using Spark, to avoid keeping the huge Reddit files locally. However, it's difficult to resolve the correct Hadoop dependencies for accessing AWS S3 buckets directly, so I'm punting on this.
 
