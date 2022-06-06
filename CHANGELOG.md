@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - Separate Dash app requirements in requirements.txt from ihop package requirments in setup.py
+- Fixed bug in app where wrong clusters are highlighted after changing selected subreddits and using the "Highlight selected clusters" button
 
 ### Added
 - Github workflow for running tests on pull requests to the main branch
