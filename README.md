@@ -23,13 +23,14 @@ Run `python app.py --config config.json` to start the application on port 8050, 
 - Python >= 3.7
 - [Java](https://docs.oracle.com/en/java/javase/17/install/overview-jdk-installation.html) or [OpenJDK](https://openjdk.java.net/install/) (at least version 8). Make sure you have `JAVA_HOME` set appropriately
 - (Optional to support faster compression & customize Hadoop config for Spark) [Hadoop](https://hadoop.apache.org) at least version 3.3 is needed for Pyspark to properly decompress the Reddit zst files (see [this issue](https://stackoverflow.com/questions/64607248/configure-spark-on-yarn-to-use-hadoop-native-libraries) or [this one](https://stackoverflow.com/questions/67099204/reading-a-zst-archive-in-scala-spark-native-zstandard-library-not-available)). Install Hadoop and configure the environment variables using [these instructions](https://phoenixnap.com/kb/install-hadoop-ubuntu).
+- [unzstd](http://manpages.ubuntu.com/manpages/bionic/man1/unzstd.1.html) and [bzip2](https://www.sourceware.org/bzip2/) are used for recompressing the monthly Reddit dumps to bzip2 format, which Spark is more readily able to handle than the zst files.
 
 # Setup and Installation
 Note that [Pyspark](https://spark.apache.org/docs/latest/api/python/getting_started/install.html#dependencies) is used for training embeddings and LDA models, so you must have Java installed (at least version 8) and `JAVA_HOME` set appropriately.
 
-Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create the `ihop` environment by running `conda env create -f environment.yml` or install the dependencies using `pip install -r requirements.txt`. These include dependencies for running jupyter notebooks and the Dash application.
+Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create the `ihop` environment by running `conda env create -n ihop python=3.9`, install the package and its dependencies using `pip install .`. This installs everything needed for just for preprocessing data and training models. If you're going to run the Dash app, install using `pip install .[app]`.
 
-Next, install the `ihop` package to be importable for testing, development and model training scripts, run `pip install -e .[test]`. See [this article](https://godatadriven.com/blog/a-practical-guide-to-using-setup-py/) for more details on using `setup.py`.
+For testing and development tools, install the `ihop` package to be importable for testing, install using `pip install -e .[test]`
 
 ## Unity
 To install the packages on [Unity](https://unity.rc.umass.edu/docs/#modules/using/), you will need to load the python and miniconda modules, then install the package as usual with conda:
@@ -38,7 +39,6 @@ module load miniconda/4.8.3
 
 conda create --yes --name ihop python=3.8
 conda activate ihop
-pip install -r requirements.txt
 pip install .
 ```
 
