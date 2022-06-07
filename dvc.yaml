@@ -1,17 +1,32 @@
 stages:
   # Download Reddit comments data
   download_comments:
-    foreach: ${reddit_comments}
+    foreach: ${months}
     do:
-      cmd: curl https://files.pushshift.io/reddit/comments/RC_${item}.zst | unzstd --long=31 | bzip2 > data/raw_data/comments/RC_${item}.bz2
+      desc: Download Reddit comments data for the month ${item}.
+      cmd: curl --compressed https://files.pushshift.io/reddit/comments/RC_${item}.zst | bzip2 > ${comments_dir}/RC_${item}.bz2
       outs:
-        - data/raw_data/comments/RC_${item}.bz2
+        - ${comments_dir}/RC_${item}.bz2
 
-
+  # Download Reddit submissions data
   download_submissions:
-    foreach: ${reddit_submissions}
+    foreach: ${months}
     do:
-      cmd: curl https://files.pushshift.io/reddit/submissions/RS_${item}.zst | unzstd --long=31 | bzip2 > data/raw_data/submissions/RS_${item}.bz2
+      desc: Download Reddit submissions (posts) data for the month ${item}.
+      cmd: curl https://files.pushshift.io/reddit/submissions/RS_${item}.zst | unzstd --long=31 | bzip2 > ${submissions_dir}/RS_${item}.bz2
       outs:
-        - data/raw_data/submissions/RS_${item}.bz2
+        - ${submissions_dir}/RS_${item}.bz2
+
+  prep_community2vec_data:
+    foreach: ${months}
+    do:
+      desc: Prepare data for training community2vec models over a single month's worth of data from ${item}.
+      cmd: python -m ihop.import_data c2v --top_n ${community2vec_data_prep.top_n} --exclude_top_user_perc ${community2vec_data_prep.exclude_top_users} ${community2vec_dir}/${item}/subreddit_counts.csv ${community2vec_dir}/${item}/user_contexts ${comments_dir}/RC_${item}.bz2
+      deps:
+        - ${comments_dir}/RC_${item}.bz2
+      outs:
+        - ${community2vec_dir}/${item}/subreddit_counts.csv
+        - ${community2vec_dir}/${item}/user_contexts
+
+
 

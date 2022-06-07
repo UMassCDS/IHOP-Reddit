@@ -1,9 +1,13 @@
-reddit_comments:
+months:
   - 2021-04
-  - 2021-05
-  - 2021-06
+# - 2021-05
+#  - 2021-06
 
-reddit_submissions:
-  - 2021-04
-  - 2021-05
-  - 2021-06
+community2vec_data_prep:
+  top_n: 10000
+  exclude_top_users: 0.05
+
+# Configure directories to store experiment results in
+comments_dir: data/raw_data/comments
+submissions_dir: data/raw_data/submissions
+community2vec_dir: data/community2vec
