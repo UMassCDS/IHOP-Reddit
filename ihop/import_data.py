@@ -551,7 +551,7 @@ c2v_parser.add_argument(
     "-t",
     "--type",
     choices=[COMMENTS, SUBMISSIONS],
-    help="Are these 'comments' or 'submissions' (posts)? Default is 'comments'.",
+    help=f"Are these '{COMMENTS}' or '{SUBMISSIONS}' (posts)? Default is '{COMMENTS}'.",
     default=COMMENTS,
 )
 c2v_parser.add_argument(
@@ -559,14 +559,14 @@ c2v_parser.add_argument(
     "--top_n",
     type=int,
     default=DEFAULT_TOP_N,
-    help="Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts.",
+    help=f"Use to filter to the top most active subreddits (by number of comments/submssions). Deleted authors/comments/submissions are considered when calculating counts. Defaults to {DEFAULT_TOP_N}",
 )
 c2v_parser.add_argument(
     "-p",
     "--exclude_top_user_perc",
     type=float,
     default=DEFAULT_USER_EXCLUDE,
-    help="The percentage of top most active users to exclude by number of comments over the time period",
+    help=f"The percentage of top most active users to exclude by number of comments over the time period. Defaults to {DEFAULT_USER_EXCLUDE}",
 )
 
 topic_modeling_parser = subparsers.add_parser(
