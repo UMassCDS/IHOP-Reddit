@@ -57,13 +57,32 @@ def test_init_gensim_community2vec(spark, vocab_csv, sample_sentences):
     assert c2v_model.w2v_model.batch_words == 100
     assert c2v_model.w2v_model.alpha == 0.04
     assert len(c2v_model.w2v_model.wv["AskReddit"]) == 25
+    expected_params = {
+        "num_users": 4,
+        "max_comments": 9,
+        "contexts_path": sample_sentences,
+        "epochs": 2,
+        "vector_size": 25,
+        "skip_gram": 1,
+        "hierarchical_softmax": 0,
+        "negative": 20,
+        "ns_exponent": 0.75,
+        "alpha": 0.04,
+        "min_alpha": 0.0001,
+        "seed": 1,
+        "batch_words": 100,
+        "sample": 0,
+    }
+    assert c2v_model.get_params_as_dict() == expected_params
 
 
 def test_gensim_community2vec_train_no_errors(vocab_csv, sample_sentences):
     c2v_model = c2v.GensimCommunity2Vec(
         c2v.get_vocabulary(vocab_csv), sample_sentences, 9, 4, vector_size=25, epochs=2
     )
+
     train_result = c2v_model.train()
+
     assert type(train_result) == tuple
 
 
@@ -185,12 +204,21 @@ def test_grid_search_train(tmp_path, vocab_csv, sample_sentences):
         9,
         model_dir,
         {"alpha": [0.02], "vector_size": [25], "negative": [20, 40]},
+        keep_all=True,
     )
     best_acc, best_model = grid_trainer.train(epochs=1)
 
     assert best_model is not None
     output_models = os.listdir(model_dir)
-    assert len(output_models) == 2
+    assert len(output_models) == 3
+
+    # Check best model folder has all necessary outputs
+    best_model_dir = tmp_path / "models" / "best_model"
+    assert best_model_dir.exists() and best_model_dir.is_dir()
+    assert (best_model_dir / "metrics.json").exists()
+    assert (best_model_dir / "keyedVectors").exists()
+    assert (best_model_dir / "word2vec.pickle").exists()
+    assert (best_model_dir / "parameters.json").exists()
 
     model_df = grid_trainer.model_analogy_results_as_dataframe()
-    assert model_df.shape == (2, 8)
+    assert model_df.shape == (2, 17)

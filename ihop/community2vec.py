@@ -17,11 +17,12 @@ import logging
 import operator
 import os
 import pathlib
+import shutil
 
 import gensim
 import pandas as pd
 import pyspark.sql.functions as fn
-from pyspark.sql.types import StructType, StructField, StringType
+from pyspark.sql.types import StringType, StructField, StructType
 from sklearn.manifold import TSNE
 
 import ihop.utils
@@ -30,6 +31,9 @@ logger = logging.getLogger(__name__)
 
 # NB documents don't really need to be Reddit users, could be other text
 INPUT_CSV_SCHEMA = StructType([StructField("subreddit_list", StringType(), False)])
+
+# The filename for gensim vectors stored for community2vec models
+VECTORS_FILE_NAME = "keyedVectors"
 
 
 def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1):
@@ -207,13 +211,23 @@ class GensimCommunity2Vec:
         self.w2v_model.build_vocab_from_freq(vocab_dict)
 
     def get_params_as_dict(self):
-        """Returns dictionary of parameters that aren't stored in gensim's Word2Vec save()
+        """Returns dictionary of parameters for tracking experiments.
         """
         return {
             "num_users": self.num_users,
             "max_comments": self.max_comments,
             "contexts_path": self.contexts_path,
             "epochs": self.epochs,
+            "vector_size": self.w2v_model.vector_size,
+            "skip_gram": self.w2v_model.sg,
+            "hierarchical_softmax": self.w2v_model.hs,
+            "negative": self.w2v_model.negative,
+            "ns_exponent": self.w2v_model.ns_exponent,
+            "alpha": self.w2v_model.alpha,
+            "min_alpha": self.w2v_model.min_alpha,
+            "seed": self.w2v_model.seed,
+            "batch_words": self.w2v_model.batch_words,
+            "sample": self.w2v_model.sample,
         }
 
     def train(
@@ -424,6 +438,8 @@ class GridSearchTrainer:
     }
 
     PERFORMANCE_CSV_NAME = "analogy_accuracy_results.csv"
+    BEST_MODEL_DIR_NAME = "best_model"
+    METRICS_JSON_NAME = "metrics.json"
 
     def __init__(
         self,
@@ -435,6 +451,7 @@ class GridSearchTrainer:
         param_grid=None,
         analogies_path=None,
         case_insensitive=False,
+        keep_all=False,
     ):
         """
         :param vocab_csv: Path to csv storing vocab with counts in the corpus
@@ -445,6 +462,7 @@ class GridSearchTrainer:
         :param param_grid: dict, keys match paramters to GensimCommunity2Vec models, values are lists over which to iterate for grid search
         :param analogies_path: str, optional. Define to use a particular analogies file where lines are whitespace separated 4-tuples and split into sections by ': SECTION NAME' lines
         :param case_insensitive: boolean, set to True to deal with case mismatch in analogy pairs. For Reddit c2v, this should typically be False.
+        :param keep_all: boolean, set to True to write every trained model to disk, rather than keeping the best model. If this flag is true, then a directory will be created in model_output_dir for each model in the grid search, rather than just the best one
         """
         self.vocab_csv = vocab_csv
         self.vocab_dict = get_vocabulary(vocab_csv)
@@ -452,9 +470,14 @@ class GridSearchTrainer:
         self.num_contexts = num_contexts
         self.max_context_window = max_context_window
         self.model_output_dir = model_output_dir
+        self.keep_all = keep_all
 
         self.best_acc = 0.0
-        self.best_model_path = None
+        self.best_model_id = None
+        self.best_model_path = os.path.join(
+            self.model_output_dir, self.BEST_MODEL_DIR_NAME
+        )
+        self.best_vectors_path = os.path.join(self.best_model_path, VECTORS_FILE_NAME)
 
         if param_grid is None or len(param_grid) == 0:
             self.param_grid = GridSearchTrainer.DEFAULT_PARAM_GRID
@@ -488,10 +511,12 @@ class GridSearchTrainer:
 
         for i, param_dict in enumerate(self.expand_param_grid_to_list()):
             model_id = self.get_model_id(param_dict)
-            curr_model_path = os.path.join(self.model_output_dir, model_id)
-            os.makedirs(curr_model_path, exist_ok=True)
-            logger.info("Training model %s of %s: %s", i, self.num_models, model_id)
-            save_vectors_prefix = os.path.join(curr_model_path, "keyedVectors")
+            save_vectors_prefix = None
+            if self.keep_all:
+                curr_model_path, save_vectors_prefix = self.prep_model_output_dir(
+                    model_id
+                )
+                logger.info("Training model %s of %s: %s", i, self.num_models, model_id)
 
             c2v_model = GensimCommunity2Vec(
                 self.vocab_dict,
@@ -508,28 +533,40 @@ class GridSearchTrainer:
                 save_vectors_prefix=save_vectors_prefix,
                 **kwargs,
             )
-            c2v_model.save(curr_model_path)
-            c2v_model.save_vectors(save_vectors_prefix)
+
+            if self.keep_all:
+                logger.debug("Saving trained model to: %s", curr_model_path)
+                c2v_model.save(curr_model_path)
+                c2v_model.save_vectors(save_vectors_prefix)
 
             acc, detailed_accs = c2v_model.score_analogies(self.analogies_path,)
-
-            results_dict = {
-                "model_id": model_id,
-                "model_path": curr_model_path,
-                "contexts_path": self.contexts_path,
-                "analogy_accuracy": acc,
-                "detailed_analogy_results": analogy_sections_to_str(detailed_accs),
-            }
-            results_dict.update(param_dict)
-
+            logger.info(
+                "Model id %s achieved %s accuracy on analogy task", model_id, acc
+            )
+            results_dict = self.get_single_model_full_results(
+                model_id, c2v_model, acc, detailed_accs
+            )
             self.analogy_results.append(results_dict)
+
+            if self.keep_all:
+                self.write_single_model_metrics_json(curr_model_path, results_dict)
 
             if acc >= self.best_acc:
                 logger.info("New best model %s with analogy accuracy %s", model_id, acc)
+                if os.path.exists(self.best_model_path):
+                    logger.debug(
+                        "Removing old best model path: %s", self.best_model_path
+                    )
+                    shutil.rmtree(self.best_model_path)
                 self.best_acc = acc
-                self.best_model_path = curr_model_path
+                self.best_model_id = model_id
+                logger.info("Saving new best model to %s", self.best_model_path)
+                os.mkdir(self.best_model_path)
+                c2v_model.save(self.best_model_path)
+                c2v_model.save_vectors(self.best_vectors_path)
+                self.write_single_model_metrics_json(self.best_model_path, results_dict)
 
-        return self.best_acc, self.best_model_path
+        return self.best_acc, self.best_model_id
 
     def get_model_id(self, grid_param_dict):
         """Returns a string that uniquely names the model within this
@@ -559,11 +596,56 @@ class GridSearchTrainer:
         return pd.DataFrame.from_records(self.analogy_results)
 
     def write_performance_results(self):
-        """Writes analogy accuracy results to a csv file in the model_otuput_directory
+        """Writes analogy accuracy results for all models to a csv file in the model_otuput_directory
         """
         self.model_analogy_results_as_dataframe().to_csv(
             os.path.join(self.model_output_dir, self.PERFORMANCE_CSV_NAME), index=False
         )
+
+    def get_single_model_full_results(self, model_id, c2v_model, acc, detailed_accs):
+        """Returns all the paramenters and metrics for experimental results tracking for a single model in a dictionary. If model details are being saved
+
+        :param model_id: _description_
+        :type model_id: _type_
+        :param c2v_model: _description_
+        :type c2v_model: _type_
+        :param acc: _description_
+        :type acc: _type_
+        :param detailed_accs: _description_
+        :type detailed_accs: _type_
+        :param save_dir_path: _description_
+        :type save_dir_path: _type_
+        """
+        results_dict = {
+            "model_id": model_id,
+            "contexts_path": self.contexts_path,
+            "analogy_accuracy": acc,
+            "detailed_analogy_results": analogy_sections_to_str(detailed_accs),
+        }
+        results_dict.update(c2v_model.get_params_as_dict())
+        return results_dict
+
+    def write_single_model_metrics_json(self, dir_path, metrics_dict):
+        """Writes the given dictionary of metrics to a json file in the specified path
+
+        :param dir_path: str, path to folder where json file will be saved
+        :param metrics_dict: dict, contents to store in json
+        """
+        metrics_json_path = os.path.join(dir_path, self.METRICS_JSON_NAME)
+        logger.debug("Writing model metrics and params to %s", metrics_json_path)
+        with open(metrics_json_path, "w") as metrics_json:
+            json.dump(metrics_dict, metrics_json)
+
+    def prep_model_output_dir(self, model_name):
+        """Returns the full absolute path to folder where model artifacts will be stored and path for saving vectors given a model name. Ensures the model path folder exists
+
+        :param model_name: str, the folder name where all model artifacts will be stored
+        """
+        model_path = os.path.join(self.model_output_dir, model_name)
+        os.makedirs(model_path, exist_ok=True)
+        vectors_path = os.path.join(model_path, VECTORS_FILE_NAME)
+
+        return model_path, vectors_path
 
 
 def train_with_hyperparam_tuning(
@@ -577,6 +659,7 @@ def train_with_hyperparam_tuning(
     epochs,
     analogies,
     case_insensitive=False,
+    keep_all=False,
     **kwargs,
 ):
     """
@@ -590,6 +673,7 @@ def train_with_hyperparam_tuning(
     :param param_grid: dict, keys match paramters to GensimCommunity2Vec models, values are lists over which to iterate for grid search
     :param analogies: str, optional. Define to use a particular analogies file where lines are whitespace separated 4-tuples and split into sections by ': SECTION NAME' lines
     :param case_insensitive: boolean, whether analogies should be done case insensitive or not, for Reddit typically False.
+    :param keep_all: boolean, set to True to write every trained model to disk, rather than keeping the best model. If this flag is true, then a directory will be created in model_output_dir for each model in the grid search, rather than just the best one
     :param kwargs: Passed to the Gensim Model at training time
     """
     logger.info("Param grid: %s", param_grid)
@@ -602,6 +686,7 @@ def train_with_hyperparam_tuning(
         param_grid,
         analogies_path=analogies,
         case_insensitive=case_insensitive,
+        keep_all=keep_all,
     )
     grid_trainer.train(epochs, workers, **kwargs)
     grid_trainer.write_performance_results()
@@ -663,6 +748,11 @@ parser.add_argument(
     nargs="?",
     help="Path to an anlogies file for evaluating performance. Optional, if unspecified a default consisting of sports and university towns will be used.",
 )
+parser.add_argument(
+    "--keep-all",
+    action="store_true",
+    help="Use this flag to keep all models trained during hyperparameter tuning with the vectors after each epoch. Otherwise only the best model will be kept. Note that using this will create LOTS of model folders and vector files.",
+)
 
 
 if __name__ == "__main__":
@@ -685,6 +775,7 @@ if __name__ == "__main__":
             args.workers,
             args.epochs,
             args.analogies,
+            args.keep_all,
         )
     except Exception:
         logger.error("Fatal error while training community2vec", exc_info=True)
