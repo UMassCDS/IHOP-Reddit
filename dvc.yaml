@@ -22,12 +22,31 @@ stages:
     foreach: ${months}
     do:
       desc: Prepare data for training community2vec models over a single month's worth of data from ${item} and write it to the specified output directory.
-      cmd: mkdir -p ${community2vec_dir}/${item} && python -m ihop.import_data c2v --top_n ${community2vec_data_prep.top_n} --exclude_top_user_perc ${community2vec_data_prep.exclude_top_users} ${community2vec_dir}/${item}/subreddit_counts.csv ${community2vec_dir}/${item}/user_contexts ${comments_dir}/RC_${item}.bz2
+      cmd: mkdir -p ${community2vec_dir}/${item} && python -m ihop.import_data c2v --top_n ${community2vec_data_prep.top_n} --exclude_top_user_perc ${community2vec_data_prep.exclude_top_users} ${community2vec_dir}/RC_${item}/subreddit_counts.csv ${community2vec_dir}/RC_${item}/user_contexts ${comments_dir}/RC_${item}.bz2
       deps:
         - ${comments_dir}/RC_${item}.bz2
       outs:
-        - ${community2vec_dir}/${item}/subreddit_counts.csv
-        - ${community2vec_dir}/${item}/user_contexts
+        - ${community2vec_dir}/RC_${item}/subreddit_counts.csv
+        - ${community2vec_dir}/RC_${item}/user_contexts
+
+  # Use grid search to train community2vec models on a month's worth of Reddit data
+  community2vec_models:
+    foreach: ${months}
+    do:
+      desc: Train community2vec models on ${item} month of Reddit data, keeping the model that achieves the highest accuracy on the default analogy set. Grid search is done within the python script.
+      cmd: python -m ihop.community2vec --contexts $RC_{item}/user_contexts --vocab_csv $RC_{item}/subreddit_counts.csv --param_grid ${community2vec_params.param_grid} --epochs ${community2vec_params.epochs} --output_dir ${community2vec_dir}/RC_${item}
+      deps:
+        - ${community2vec_dir}/RC_${item}/subreddit_counts.csv
+        - ${community2vec_dir}/RC_${item}/user_contexts
+      outs:
+        - ${community2vec_dir}/RC_${item}/best_model/parameters.json
+        - ${community2vec_dir}/RC_${item}/best_model/word2vec.pickle
+        - ${community2vec_dir}/RC_${item}/best_model/keyedVectors
+        - ${community2vec_dir}/RC_${item}/best_model/analogy_accuracy_results.csv # Stores results for all trained models
+      metrics:
+        - ${community2vec_dir}/RC_${item}/best_model/metrics.json
+
+
 
 
 
