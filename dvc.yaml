@@ -22,7 +22,7 @@ stages:
     foreach: ${months}
     do:
       desc: Prepare data for training community2vec models over a single month's worth of data from ${item} and write it to the specified output directory.
-      cmd: mkdir -p ${community2vec_dir}/${item} && python -m ihop.import_data c2v --top_n ${community2vec_data_prep.top_n} --exclude_top_user_perc ${community2vec_data_prep.exclude_top_users} ${community2vec_dir}/RC_${item}/subreddit_counts.csv ${community2vec_dir}/RC_${item}/user_contexts ${comments_dir}/RC_${item}.bz2
+      cmd: mkdir -p ${community2vec_dir}/RC_${item} && python -m ihop.import_data c2v --top_n ${community2vec_data_prep.top_n} --exclude_top_user_perc ${community2vec_data_prep.exclude_top_users} ${community2vec_dir}/RC_${item}/subreddit_counts.csv ${community2vec_dir}/RC_${item}/user_contexts ${comments_dir}/RC_${item}.bz2
       deps:
         - ${comments_dir}/RC_${item}.bz2
       outs:
