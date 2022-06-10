@@ -34,7 +34,7 @@ stages:
     foreach: ${months}
     do:
       desc: Train community2vec models on ${item} month of Reddit data, keeping the model that achieves the highest accuracy on the default analogy set. Grid search is done within the python script.
-      cmd: python -m ihop.community2vec --contexts $RC_{item}/user_contexts --vocab_csv $RC_{item}/subreddit_counts.csv --param_grid ${community2vec_params.param_grid} --epochs ${community2vec_params.epochs} --output_dir ${community2vec_dir}/RC_${item}
+      cmd: python -m ihop.community2vec --contexts ${community2vec_dir}/RC_${item}/user_contexts --vocab_csv ${community2vec_dir}/RC_${item}/subreddit_counts.csv --param_grid ${community2vec_params.param_grid} --epochs ${community2vec_params.epochs} --output_dir ${community2vec_dir}/RC_${item}
       deps:
         - ${community2vec_dir}/RC_${item}/subreddit_counts.csv
         - ${community2vec_dir}/RC_${item}/user_contexts
