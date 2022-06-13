@@ -21,8 +21,8 @@ stages:
   prep_community2vec_data:
     foreach: ${months}
     do:
-      desc: Prepare data for training community2vec models over a single month's worth of data from ${item} and write it to the specified output directory.
-      cmd: mkdir -p ${community2vec_dir}/RC_${item} && python -m ihop.import_data c2v --top_n ${community2vec_data_prep.top_n} --exclude_top_user_perc ${community2vec_data_prep.exclude_top_users} ${community2vec_dir}/RC_${item}/subreddit_counts.csv ${community2vec_dir}/RC_${item}/user_contexts ${comments_dir}/RC_${item}.bz2
+      desc: Prepare data for training community2vec models over a single month's worth of data from ${item} and write it to the specified output directory. Cleans up Spark checkpoint files.
+      cmd: mkdir -p ${community2vec_dir}/RC_${item} && python -m ihop.import_data c2v --top_n ${community2vec_data_prep.top_n} --exclude_top_user_perc ${community2vec_data_prep.exclude_top_users} ${community2vec_dir}/RC_${item}/subreddit_counts.csv ${community2vec_dir}/RC_${item}/user_contexts ${comments_dir}/RC_${item}.bz2 && rm ${community2vec_dir}/RC_${item}/user_contexts/.*.crc
       deps:
         - ${comments_dir}/RC_${item}.bz2
       outs:
@@ -34,7 +34,7 @@ stages:
     foreach: ${months}
     do:
       desc: Train community2vec models on ${item} month of Reddit data, keeping the model that achieves the highest accuracy on the default analogy set. Grid search is done within the python script.
-      cmd: python -m ihop.community2vec --contexts ${community2vec_dir}/RC_${item}/user_contexts --vocab_csv ${community2vec_dir}/RC_${item}/subreddit_counts.csv --param_grid ${community2vec_params.param_grid} --epochs ${community2vec_params.epochs} --output_dir ${community2vec_dir}/RC_${item}
+      cmd: python -m ihop.community2vec --contexts ${community2vec_dir}/RC_${item}/user_contexts --vocab_csv ${community2vec_dir}/RC_${item}/subreddit_counts.csv --param_grid ${community2vec_params.param_grid} --epochs ${community2vec_params.epochs} --output_dir ${community2vec_dir}/RC_${item} --workers ${community2vec_params.workers}
       deps:
         - ${community2vec_dir}/RC_${item}/subreddit_counts.csv
         - ${community2vec_dir}/RC_${item}/user_contexts

@@ -35,6 +35,7 @@ SCHEMAS = {
     SUBMISSIONS: "author STRING, created_utc STRING, id STRING, score INTEGER, selftext STRING, title STRING, url STRING, subreddit STRING",
 }
 
+# What is the free text field used for this type of data?
 MAIN_TEXT_FIELD = {COMMENTS: "body", SUBMISSIONS: "selftext"}
 
 # The Reddit API prefixes IDs to distinguish links to different kinds of objects
@@ -50,7 +51,7 @@ def get_top_n_counts(dataframe, col="subreddit", n=DEFAULT_TOP_N):
     :param col: str, the column to groupBy for counts
     :param n: int, limit results to the top n most frequent values
     """
-    logger.debug("Gathering top %s values in column %s with counts", n, col)
+    logger.debug("Gathering top %s values in column '%s' with counts", n, col)
     return (
         dataframe.groupBy(col)
         .count()
@@ -231,7 +232,7 @@ def aggregate_for_vectorization(
     :param word_col: str, column to concatenate together
     :param word_out_col: str, name of the output column where words for each context are concatenated
     :param context_len_col: str, name of column that stores the number of words concatenated for each context
-    :param min_sentence_length: int, the minimum number of comments allowed for a user to be included in the dataset
+    :param min_sentence_length: int, the minimum number (inclusive) of comments allowed for a user to be included in the dataset
     :param exclude_top_perc: float, the percentage of top commenting users to exclude
     """
     logger.debug(
