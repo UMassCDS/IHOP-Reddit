@@ -1,7 +1,7 @@
 months:
   - 2021-04
-# - 2021-05
-#  - 2021-06
+  - 2021-05
+  - 2021-06
 
 # Parameters to the ihop.import_data c2v script
 community2vec_data_prep:
@@ -11,7 +11,7 @@ community2vec_data_prep:
 # Parameters to the ihop.community2vec script
 community2vec_params:
   # Hyperparameters to tune against for getting the best analogy accuracy
-  param_grid: "'{\"alpha\": [0.05, 0.01], \"vector_size\":[100, 150, 300], \"sample\":[0.005, 0.05], \"negative\":[20,40]}'"
+  param_grid: "'{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005], \"negative\":[10,20]}'"
   # How many epochs to train each model for?
   epochs: 5
   # How many workers to use for training the model?
