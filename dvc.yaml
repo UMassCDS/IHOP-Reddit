@@ -1,5 +1,5 @@
 stages:
-  # Download Reddit comments data
+  # Download Reddit comments data. Note that curl sometimes hangs up early, so you should double check all data gets pulled.
   download_comments:
     foreach: ${months}
     do:

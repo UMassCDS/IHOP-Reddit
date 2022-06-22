@@ -1,0 +1,185 @@
+schema: '2.0'
+stages:
+  download_comments@2021-04:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-04.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2021-04.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2021-04.bz2
+      md5: cb556dd19a80d28312b30e112098148b
+      size: 29620494972
+  prep_community2vec_data@2021-04:
+    cmd: mkdir -p data/community2vec/RC_2021-04 && python -m ihop.import_data c2v
+      --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2021-04/subreddit_counts.csv
+      data/community2vec/RC_2021-04/user_contexts data/raw_data/comments/RC_2021-04.bz2
+      && rm data/community2vec/RC_2021-04/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2021-04.bz2
+      md5: 51e1121ed02242d53af763116f00124f
+      size: 13166140874
+    outs:
+    - path: data/community2vec/RC_2021-04/subreddit_counts.csv
+      md5: e3f6f0ab0b7074fc9f93fafeba135fc6
+      size: 168529
+    - path: data/community2vec/RC_2021-04/user_contexts
+      md5: 7876cb546544a7b8b548cb6cadc4bd5f.dir
+      size: 62028966
+      nfiles: 2
+  download_comments@2021-05:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-05.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2021-05.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2021-05.bz2
+      md5: 97c8b1bd3e13b747ef8d97bcbb934957
+      size: 30956683935
+  prep_community2vec_data@2021-05:
+    cmd: mkdir -p data/community2vec/RC_2021-05 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2021-05/subreddit_counts.csv
+      data/community2vec/RC_2021-05/user_contexts data/raw_data/comments/RC_2021-05.bz2
+      && rm data/community2vec/RC_2021-05/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2021-05.bz2
+      md5: 856de22d9bb22bf800d04a9559d0dd66
+      size: 19114607429
+    outs:
+    - path: data/community2vec/RC_2021-05/subreddit_counts.csv
+      md5: c6648bdd62792854d32284527098524a
+      size: 170396
+    - path: data/community2vec/RC_2021-05/user_contexts
+      md5: ac80f8dd767e56e19207ec81b4980bf9.dir
+      size: 84096260
+      nfiles: 2
+  download_comments@2021-06:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-06.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2021-06.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2021-06.bz2
+      md5: d71768aef221928ab802c290cf010cc6
+      size: 29759838678
+  download_submissions@2021-06:
+    cmd: curl https://files.pushshift.io/reddit/submissions/RS_2021-06.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/submissions/RS_2021-06.bz2
+    outs:
+    - path: data/raw_data/submissions/RS_2021-06.bz2
+      md5: 182ac21bc9dd472f9b6675c2e7737e4b
+      size: 6129995031
+  community2vec_models@2021-04:
+    cmd: "python -m ihop.community2vec --contexts data/community2vec/RC_2021-04/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2021-04/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100, 150, 300], \"sample\":[0.005,\
+      \ 0.05], \"negative\":[10,20,40]}' --epochs 5 --output_dir data/community2vec/RC_2021-04\
+      \ --workers 3"
+    deps:
+    - path: data/community2vec/RC_2021-04/subreddit_counts.csv
+      md5: e3f6f0ab0b7074fc9f93fafeba135fc6
+      size: 168529
+    - path: data/community2vec/RC_2021-04/user_contexts
+      md5: 7876cb546544a7b8b548cb6cadc4bd5f.dir
+      size: 62028966
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2021-04/analogy_accuracy_results.csv
+      md5: 0e0debe8b56bb7d1016addcc2d20cd8d
+      size: 13013
+    - path: data/community2vec/RC_2021-04/best_model/keyedVectors
+      md5: ef2decd9f2b107dac897b059507a4a24
+      size: 4378246
+    - path: data/community2vec/RC_2021-04/best_model/metrics.json
+      md5: ccf8bacbe15a78013b9690704096bed8
+      size: 626
+    - path: data/community2vec/RC_2021-04/best_model/parameters.json
+      md5: 5252f2583debcdaa05c7f1b5dcea8aa4
+      size: 304
+    - path: data/community2vec/RC_2021-04/best_model/word2vec.pickle
+      md5: c636b17305025100244a86f7a96ada55
+      size: 8382970
+  community2vec_models@2021-05:
+    cmd: "python -m ihop.community2vec --contexts data/community2vec/RC_2021-05/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2021-05/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100, 150, 300], \"sample\":[0.005,\
+      \ 0.05], \"negative\":[10,20,40]}' --epochs 5 --output_dir data/community2vec/RC_2021-05\
+      \ --workers 3"
+    deps:
+    - path: data/community2vec/RC_2021-05/subreddit_counts.csv
+      md5: c6648bdd62792854d32284527098524a
+      size: 170396
+    - path: data/community2vec/RC_2021-05/user_contexts
+      md5: c54383f2774d9dcdf8b738c2b9430197.dir
+      size: 84083753
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2021-05/analogy_accuracy_results.csv
+      md5: b58d388acfc034539b9387c391e9cd3f
+      size: 13020
+    - path: data/community2vec/RC_2021-05/best_model/keyedVectors
+      md5: 8de3d59486468bebeda9facb89b74392
+      size: 4378305
+    - path: data/community2vec/RC_2021-05/best_model/metrics.json
+      md5: 3d55c44cfb7521fcaee2209a3d8dc543
+      size: 626
+    - path: data/community2vec/RC_2021-05/best_model/parameters.json
+      md5: cb67bf1b547276a0ef445545d27cdd94
+      size: 304
+    - path: data/community2vec/RC_2021-05/best_model/word2vec.pickle
+      md5: f61cebc451c520bfc2990079d6e805b3
+      size: 8383033
+  prep_community2vec_data@2021-06:
+    cmd: mkdir -p data/community2vec/RC_2021-06 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2021-06/subreddit_counts.csv
+      data/community2vec/RC_2021-06/user_contexts data/raw_data/comments/RC_2021-06.bz2
+      && rm data/community2vec/RC_2021-06/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2021-06.bz2
+      md5: d71768aef221928ab802c290cf010cc6
+      size: 29759838678
+    outs:
+    - path: data/community2vec/RC_2021-06/subreddit_counts.csv
+      md5: 76ba452be953f30d1f4352f27fae631a
+      size: 172266
+    - path: data/community2vec/RC_2021-06/user_contexts
+      md5: 96ae5d5f2048c17e10123fa11165693d.dir
+      size: 121054533
+      nfiles: 2
+  community2vec_models@2021-06:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2021-06/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2021-06/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100, 150, 300], \"sample\":[0.005,\
+      \ 0.05], \"negative\":[10,20,40]}' --epochs 5 --output_dir data/community2vec/RC_2021-06\
+      \ --workers 3"
+    deps:
+    - path: data/community2vec/RC_2021-06/subreddit_counts.csv
+      md5: 76ba452be953f30d1f4352f27fae631a
+      size: 172266
+    - path: data/community2vec/RC_2021-06/user_contexts
+      md5: 96ae5d5f2048c17e10123fa11165693d.dir
+      size: 121054533
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2021-06/analogy_accuracy_results.csv
+      md5: b24781e3ceee22d13fee96bb19c2662a
+      size: 12965
+    - path: data/community2vec/RC_2021-06/best_model/keyedVectors
+      md5: be0091701099c93df69485f7483cc033
+      size: 4379056
+    - path: data/community2vec/RC_2021-06/best_model/metrics.json
+      md5: febfa99f43c32dca0cb2678de52b02ef
+      size: 627
+    - path: data/community2vec/RC_2021-06/best_model/parameters.json
+      md5: cf7bdd5ab48946b7072f7530753278f2
+      size: 305
+    - path: data/community2vec/RC_2021-06/best_model/word2vec.pickle
+      md5: 7879baead848ed03c51de7e3b914983b
+      size: 8383793
+  download_submissions@2021-04:
+    cmd: curl https://files.pushshift.io/reddit/submissions/RS_2021-04.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/submissions/RS_2021-04.bz2
+    outs:
+    - path: data/raw_data/submissions/RS_2021-04.bz2
+      md5: c1cca0b80dfff3bbe466bba082a77670
+      size: 7495667061
+  download_submissions@2021-05:
+    cmd: curl https://files.pushshift.io/reddit/submissions/RS_2021-05.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/submissions/RS_2021-05.bz2
+    outs:
+    - path: data/raw_data/submissions/RS_2021-05.bz2
+      md5: 6c751e1488a16f7f0003b0fa342ad0eb
+      size: 4677172479
