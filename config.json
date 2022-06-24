@@ -32,6 +32,13 @@
                     "file_handler"
                 ],
                 "level": "WARNING"
+            },
+            "gensim": {
+                "handler": [
+                    "stream_handler",
+                    "file_handler"
+                ],
+                "level": "INFO"
             }
         }
     },

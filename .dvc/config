@@ -1,0 +1,4 @@
+[core]
+    remote = s3bucket
+['remote "s3bucket"']
+    url = s3://ihopmeag/redditdvccache
