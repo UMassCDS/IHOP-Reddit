@@ -6,12 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- Package installation switched to use setup.cfg and pyproject.toml rather than setup.py
+- Slurm python version changed from 3.8 to 3.9
 - Separate Dash app requirements in requirements.txt from ihop package requirments in setup.py
+
+### Fixed
 - Fixed bug in app where wrong clusters are highlighted after changing selected subreddits and using the "Highlight selected clusters" button
 
 ### Added
+- Added pyproject.toml in switch to setup.cfg
+- Bash script for running community2vec experiments using DVC
+- DVC stages for downloading data and training community2vec models
+- Output analogy accuracy metrics and community2vec model parameters for tracking experiments with DVC
 - Github workflow for running tests on pull requests to the main branch
 - MANIFEST.in to include analogy and subreddit collection resource files in package
+
+### Removed
+- community2vec hyperparameter tuning bash script
+- Removed requirements.txt, environment.yml in switch to setup.cfg
 
 
 ## [1.0.0] - 2022-05-24
