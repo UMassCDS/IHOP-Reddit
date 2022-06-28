@@ -55,9 +55,10 @@ ihop.utils.configure_logging(logging_conf)
 logger.info("Logging configured")
 
 # TODO Config and select from multiple models
-c2v = ihop.community2vec.GensimCommunity2Vec.load(conf["model_path"])
-tsne_df, _ = c2v.get_tsne_dataframe()
-subreddits = tsne_df["subreddit"].sort_values().unique()
+model_dirs = conf["model_paths"]
+# c2v = ihop.community2vec.GensimCommunity2Vec.load(conf["model_path"])
+# tsne_df, _ = c2v.get_tsne_dataframe()
+# subreddits = tsne_df["subreddit"].sort_values().unique()
 
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -70,11 +71,14 @@ CLUSTER_ASSIGNMENT_DISPLAY_NAME = "Cluster Assignment"
 UNSELECTED_CLUSTER_KEY = "other"
 UNSELECTED_COLOR = "#D3D3D3"
 
-MODEL_DESCRIPTION_MD = """This a [Community2Vec model](https://aclanthology.org/W17-2904/) trained on a month's worth of Reddit comments from the 10,000 most popular subreddits and tuned to perform well on a set of pre-defined analogy tasks, like matching up sports teams with the cities they play in, `r/Nationals - r/washingtondc + r/toronto = r/Torontobluejays`. The model positions subreddit communities in multidimensional space such that subreddits with similar user bases are close together.
+MODEL_DESCRIPTION_MD = """[Community2Vec models](https://aclanthology.org/W17-2904/) position subreddit communities in multidimensional space such that subreddits with similar user bases are close together. They can be trained on Reddit comments over any time period and tuned to perform well on a set of pre-defined analogy tasks , like matching up sports teams with the cities they play in, `r/Nationals - r/washingtondc + r/toronto = r/Torontobluejays`.
 
-This particular community2vec model was trained on May 2021 Reddit comments and achieved a 65% accuracy on the [predetermined analogy set](https://github.com/UMassCDS/IHOP/tree/main/ihop/resources/analogies).
+You can use clusterings of the learned community vectors to create groupings of subreddits based on overlapping users. This strategy can be used to understand social dimensions in Reddit, such as political polarization, as shown by Waller and Anderson in [Quantifying social organization and political polarization in online platforms](https://www.nature.com/articles/s41586-021-04167-x).
+"""
 
-You can use clustering to create groupings of subreddits based on overlapping users.  This strategy can be used to understand social dimensions in Reddit, such as political polarization, as shown by Waller and Anderson in [Quantifying social organization and political polarization in online platforms](https://www.nature.com/articles/s41586-021-04167-x).
+MONTH_SELECTION_MD = """Here we present models trained on the comments from a single month. Each month of data undergoes the same preprocessing where we select the top 10,000 most popular subreddits by number of comments and remove deleted users and comments. We also remove the top 5% of most freqently commenting users in each month, which is heuristic for removing bots and was seen to improve performance on the subreddit analogy task compared to removing 10%, 2% or no users.
+
+Select which month's data and tuned community2vec model to see its metrics and parameters. The model you select for each month's data achieved the highest accuracy on a [predetermined analogy set](https://github.com/UMassCDS/IHOP/tree/main/ihop/resources/analogies) across many experiments.
 """
 
 KMEANS_METRICS_MD = """The quality of topics produced by clustering the community embeddings can be subjective. However, a human should be able to intuit each cluster's theme based on the dominant topic, such as 'politics', 'music', or 'sports'. Changing the number of clusters should correspond to a change in granularity of the labels, e.g. 'sports' vs 'basketball'.
@@ -93,6 +97,21 @@ These scores can help you compare different groupings of the data using the same
 TSNE_DESCRIPTION_MD = """T-distributed Stochastic Neighbor Embedding (t-SNE) is a way of visualizing high-dimensional data in 2D or 3D, so we can actually make sense of it. However, like map projections of the globe into 2D, this can cause distortions, as described in [How to Use t-SNE Effectively](https://distill.pub/2016/misread-tsne/). This visualization should be treated as a guide to help explore subreddit clusters interatively, not a definitive representation of how similar subreddits are to each other.
 
 Each point is a subreddit and the color marks the cluster it gets assigned to. """
+
+MONTH_SELECTION_SECTION = [
+    dash.html.Div(
+        children=[
+            dash.html.H2("Select the time period"),
+            dash.dcc.Markdown(MONTH_SELECTION_MD),
+            dash.dcc.Dropdown(
+                model_dirs.keys(), id="month-dropdown", value="April 2021"
+            ),
+            dbc.Button("Load model", id="load-model-button"),
+        ]
+    ),
+    dash.html.Br(),
+    dash.html.Div(),
+]
 
 # First section of page, define KMeans paramters, train model button and metrics values and explanation
 KMEANS_PARAM_SECTION = [
@@ -177,7 +196,10 @@ SUBREDDIT_FILTERING_SECTION = dash.html.Div(
         dash.html.H2("Filter by Subreddits and Clusters"),
         dbc.Row(
             children=[
-                dbc.Col(children=SUBREDDIT_DROPDOWN, width=8,),
+                dbc.Col(
+                    children=SUBREDDIT_DROPDOWN,
+                    width=8,
+                ),
                 dbc.Col(
                     dash.html.Div(
                         # Clicking this button will grey out all but the clusters from the drop down in the graph visualization.
@@ -247,7 +269,8 @@ BODY = dash.html.Div(
             active_item=["item-0", "item-1"],
             children=[
                 dbc.AccordionItem(
-                    KMEANS_PARAM_SECTION, title="K-means Cluster Parameters",
+                    KMEANS_PARAM_SECTION,
+                    title="K-means Cluster Parameters",
                 ),
                 dbc.AccordionItem(
                     MODEL_PLOT_SECTION, title="t-SNE Visualization of Clusters"
@@ -274,6 +297,17 @@ def get_metrics_display(metrics_dict):
     for metric_name, metric_value in metrics_dict.items():
         display_output.extend([dash.html.H4(metric_name), dash.html.P(metric_value)])
     return display_output
+
+
+@app.callback(
+    dash.Input("load-model-button", "n_clicks"), dash.State("month-dropdown", "value")
+)
+def load_vector_model(n_clicks, selected_month):
+    """
+    :param n_clicks: _description_
+    :param selected_month: _description_
+    """
+    pass
 
 
 @app.callback(
@@ -423,8 +457,7 @@ def get_cluster_visualization(
     dash.Output("cluster-dropdown", "options"), dash.Input("n-clusters", "value")
 )
 def set_cluster_dropdown(n_clusters):
-    """Give the cluster selection options the cluster index numbers to choose from
-    """
+    """Give the cluster selection options the cluster index numbers to choose from"""
     return [i for i in range(int(n_clusters))]
 
 
@@ -438,8 +471,7 @@ def set_cluster_dropdown(n_clusters):
 def get_display_table(
     cluster_json, selected_subreddits, selected_clusters, is_show_cluster_neighbors
 ):
-    """Builds the DataTable showing all selected subreddits and clusters
-    """
+    """Builds the DataTable showing all selected subreddits and clusters"""
     logger.info("Generating display table")
     logger.info("Selected subreddits: %s", selected_subreddits)
     logger.info("Show cluster neighbors option: %s", is_show_cluster_neighbors)
@@ -487,4 +519,3 @@ if __name__ == "__main__":
         app.run_server(debug=args.debug)
     except Exception as e:
         logger.error(e)
-
