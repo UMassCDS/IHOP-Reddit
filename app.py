@@ -99,27 +99,27 @@ TSNE_DESCRIPTION_MD = """T-distributed Stochastic Neighbor Embedding (t-SNE) is 
 
 Each point is a subreddit and the color marks the cluster it gets assigned to. """
 
-MONTH_SELECTION_SECTION = [
-    dash.html.Div(
-        children=[
-            dash.html.H2("Select the time period"),
-            dash.dcc.Markdown(MONTH_SELECTION_MD),
-            dash.dcc.Dropdown(
-                MODEL_DIRS.keys(), id="month-dropdown", value="April 2021"
+MONTH_SELECTION_SECTION = dash.html.Div(
+    children=[
+        dash.html.H2("Select the time period"),
+        dash.dcc.Markdown(MONTH_SELECTION_MD),
+        dash.dcc.Dropdown(
+            list(MODEL_DIRS.keys()), id="month-dropdown", value="April 2021"
+        ),
+        dash.html.Br(),
+        dash.html.H2("Model Details"),
+        dash.dcc.Loading(
+            dash.html.Div(
+                children=[
+                    dash.html.Div(id="analogy-results-section"),
+                    dash.html.Div(id="community2vec-params-section"),
+                ]
             ),
-            dash.html.Br(),
-            dash.html.H2("Model Details"),
-            dash.dcc.Loading(
-                dash.html.Div(
-                    children=[
-                        dash.html.Div(id="analogy-results-section"),
-                        dash.html.Div(id="community2vec-params-section"),
-                    ]
-                ),
-            ),
-        ]
-    ),
-]
+        ),
+        dash.html.Br(),
+    ]
+)
+
 
 # First section of page, define KMeans paramters, train model button and metrics values and explanation
 KMEANS_PARAM_SECTION = [
@@ -269,11 +269,15 @@ BODY = dash.html.Div(
     children=[
         dash.html.H1("Community2Vec Subreddit Clusters"),
         INTRODUCTION_SECTION,
+        dash.html.Br(),
         dbc.Accordion(
             start_collapsed=False,
             always_open=True,
-            active_item=["item-0", "item-1"],
+            active_item=["item-0", "item-1", "item-2"],
             children=[
+                dbc.AccordionItem(
+                    MONTH_SELECTION_SECTION, title="Load Community2Vec Model"
+                ),
                 dbc.AccordionItem(
                     KMEANS_PARAM_SECTION,
                     title="K-means Cluster Parameters",
@@ -330,18 +334,15 @@ def get_model_param_details(metrics_dict):
         if k not in skip_keys:
             remaining_params.append(f"* {k}: {v}")
     params_list = "\n".join(remaining_params)
-    return dash.html.Div(
-        children=[
-            dash.html.H3("Community2Vec Model Parameters"),
-            dash.dcc.Markdown(
-                f"""A total of {num_users} different users were used to train this model, with a maximum of {max_comments} from a single user.
-
-        The community2vec model parameters used are as follows, please refer to the [Gensim Word2Vec documentation](https://radimrehurek.com/gensim/models/word2vec.html) for more detailed descriptions:
-        {params_list}
-        """
-            ),
-        ]
-    )
+    return [
+        dash.html.H3("Community2Vec Model Parameters"),
+        dash.dcc.Markdown(
+            f"""A total of {num_users} different users were used to train this model, with a maximum of {max_comments} from a single user.
+             The community2vec model parameters used are as follows, please refer to the [Gensim Word2Vec documentation](https://radimrehurek.com/gensim/models/word2vec.html) for more detailed descriptions:
+            {params_list}
+             """
+        ),
+    ]
 
 
 def get_model_accuracy_display(month_str, analogy_accuracy, detailed_analogy_str):
@@ -354,22 +355,20 @@ def get_model_accuracy_display(month_str, analogy_accuracy, detailed_analogy_str
     detailed_acc_items = detailed_analogy_str.split(",")
     total_acc = detailed_acc_items.pop()
     markdown_acc_list = "\n".join([f"* {item}" for item in detailed_acc_items])
-    return dash.html.Div(
-        children=[
-            dash.html.H3("Subreddit Analogy Performance"),
-            dash.dcc.Markdown(
-                f"""This {month_str} model achieved an accuracy of {analogy_accuracy:.2f} on the subreddit analogy task or {total_acc} analogies solved correctly, broken down as:
-    {markdown_acc_list}"""
-            ),
-        ]
-    )
+    return [
+        dash.html.H3("Subreddit Analogy Performance"),
+        dash.dcc.Markdown(
+            f"""This {month_str} model achieved an accuracy of {analogy_accuracy:.2f} on the subreddit analogy task or {total_acc} analogies solved correctly, broken down as:
+             {markdown_acc_list}"""
+        ),
+    ]
 
 
 @app.callback(
     dash.Output("tsne-df", "data"),
     dash.Output("subreddit-dropdown", "options"),
-    dash.Output("analogy-results-section", "value"),
-    dash.Output("community2vec-params-section", "value"),
+    dash.Output("analogy-results-section", "children"),
+    dash.Output("community2vec-params-section", "children"),
     dash.Input("month-dropdown", "value"),
 )
 def load_vector_model(selected_month):
@@ -377,14 +376,19 @@ def load_vector_model(selected_month):
     :param n_clicks: _description_
     :param selected_month: _description_
     """
+    logger.info("Selected month: %s", selected_month)
     current_model_path = MODEL_DIRS[selected_month]
     c2v_model = ic2v.GensimCommunity2Vec.load(current_model_path)
+    logger.info("Community2Vec model loaded from %s", current_model_path)
 
     sorted_subreddits = sorted(c2v_model.get_index_to_key())
 
+    logger.info("Starting to get tsne values for %s", current_model_path)
     tsne_df = c2v_model.get_tsne_dataframe()
     tsne_json = iv.jsonify_stored_df(tsne_df)
+    logger.info("Tsne coordinates stored for %s", current_model_path)
 
+    logger.info("Loading metrics for %s", current_model_path)
     with pathlib.Path.open(current_model_path / "metrics.json") as metrics_file:
         metrics_dict = json.load(metrics_file)
     model_params = get_model_param_details(metrics_dict)
@@ -401,8 +405,8 @@ def load_vector_model(selected_month):
     dash.Input("month-dropdown", "value"),
     dash.State("n-clusters", "value"),
     dash.State("random-seed", "value"),
-    dash.State("month-dropdown", "value"),
-    dash.State("tsne-df", "data"),
+    dash.Input("month-dropdown", "value"),
+    dash.Input("tsne-df", "data"),
 )
 def train_clusters(
     n_clicks, n_clusters, month_selected, random_seed, c2v_identifier, tsne_json_data
@@ -413,14 +417,16 @@ def train_clusters(
     :param n_clusters: int, number of clusters to create
     :param random_seed: int, random seed for reproducibility
     :param c2v_identifier: str, name of community2vec model currently loaded, usually named with a time frame
-    :param tsne_json_data:
+    :param tsne_json_data: tsne coordinates serialized as json
 
     :return: Return cluster assignments with a model name as a json {'name': 'model name', 'clusters': json_serialized_pandas_dataframe}
     """
     tsne_df = iv.unjsonify_stored_df(tsne_json_data)
-    # TODO: eventually we may want to support different types of models. The ClusteringModelFactory should allow that fairly easily
+
     c2v_model = ic2v.GensimCommunity2Vec.load(MODEL_DIRS[month_selected])
     model_name = f"{c2v_identifier} Kmeans Cluster Assignment {n_clusters} clusters and random state {random_seed}"
+
+    # TODO: eventually we may want to support different types of models. The ClusteringModelFactory should allow that fairly easily
     cluster_model = ihop.clustering.ClusteringModelFactory.init_clustering_model(
         ihop.clustering.ClusteringModelFactory.KMEANS,
         c2v_model.get_normed_vectors(),
@@ -468,8 +474,6 @@ def get_cluster_visualization(
     :param community2vec_identifier: str, name of community2vec model currently loaded, usually named with a time frame
 
     """
-    # TODO
-    tsne_df = iv.unjsonify_stored_df()
     # The model_name column of the dataframe always contains the cluster ID
     model_name = cluster_json["name"]
     logger.info("Updating graph visualization, model: %s", model_name)
