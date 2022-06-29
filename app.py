@@ -328,6 +328,7 @@ def train_clusters(n_clicks, n_clusters, random_seed):
     :return: Return cluster assignments with a model name as a json {'name': 'model name', 'clusters': json_serialized_pandas_dataframe}
     """
     # TODO: eventually we may want to support different types of models. The ClusteringModelFactory should allow that fairly easily
+    c2v_model = ihop.community2vec.GensimCommunity2Vec.load()
     model_name = f"Kmeans Cluster Assignment {n_clusters} clusters and random state {random_seed}"
     cluster_model = ihop.clustering.ClusteringModelFactory.init_clustering_model(
         ihop.clustering.ClusteringModelFactory.KMEANS,
