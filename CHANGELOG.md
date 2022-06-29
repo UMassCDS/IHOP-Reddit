@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed bug in app where wrong clusters are highlighted after changing selected subreddits and using the "Highlight selected clusters" button
 
 ### Added
+- Added notebook demonstrating automatic subreddit or cluster labeling using differential text analysis
+- Added vocabSize option to Spark pipeline in text_preprocessing.py
 - Added pyproject.toml in switch to setup.cfg
 - Bash script for running community2vec experiments using DVC
 - DVC stages for downloading data and training community2vec models

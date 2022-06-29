@@ -65,6 +65,7 @@ def prep_spark_corpus(
     max_time_delta=60 * 60 * 72,
     min_doc_frequency=0.05,
     max_doc_frequency=0.95,
+    vocab_size=262144,
     output_dir=None,
     corpus_output_name=VECTORIZED_CORPUS_FILENAME,
 ):
@@ -75,6 +76,7 @@ def prep_spark_corpus(
     :param max_time_delta: int, Exclude comments that occur later than this number of seconds after the submission
     :param min_doc_frequency: int or float, minimum number or percentage of documents a term appear to be included in the vocab
     :param max_doc_frequency: int or float, maximum number or percentage of documents a term appear to be included in the vocab
+    :param vocab_size: int, maximum vocab size,
     :param output_dir: None or str, directory to optionally save the corpus and pipeline. If this is None, they won't be saved
     :param corpus_output_name: str, filename of corpus used when output_dir is not None
     """
@@ -83,7 +85,7 @@ def prep_spark_corpus(
         input_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta
     )
     preprocessing_pipeline = SparkTextPreprocessingPipeline(
-        minDF=min_doc_frequency, maxDF=max_doc_frequency
+        minDF=min_doc_frequency, maxDF=max_doc_frequency, vocabSize=vocab_size
     )
     vectorized_corpus = SparkCorpus(
         preprocessing_pipeline.fit_transform(time_filtered_corpus.document_dataframe)
@@ -318,6 +320,7 @@ class SparkTextPreprocessingPipeline:
         maxDF=0.95,
         minDF=0.05,
         minTF=0.0,
+        vocabSize=262144,
         binary=False,
         useIDF=False,
     ):
@@ -335,6 +338,7 @@ class SparkTextPreprocessingPipeline:
         :param maxDF: int or float, maximum document frequency expressed as a float percentage of documents in the corpus or a integer number of documents. Throw away terms that occur in more than that number of documents.
         :param minDF: int or float, minimum number of documents a term must be in as a percentage of documents in the corpus or an integer number of documents. Throw away terms that occur in fewer than that number of docs.
         :param minTF: int or float, ignore terms with frequency (float, fraction of document's token count) or count less than the given value for each document (affects transform only, not fitting)
+        :param vocabSize: int, max size of the vocabulary, passed to CountVectorizer
         :param binary: boolean, Set to True for binary term document flags, rather than term frequency counts
         :param useIDF: boolean, set to True to use inverse document frequency smoothing of counts.
         """
@@ -380,6 +384,7 @@ class SparkTextPreprocessingPipeline:
             maxDF=maxDF,
             minDF=minDF,
             minTF=minTF,
+            vocabSize=vocabSize,
             binary=binary,
         )
 
@@ -487,6 +492,7 @@ def main(
     max_time_delta=60 * 60 * 72,
     min_doc_frequency=0.05,
     max_doc_frequency=0.95,
+    vocab_size=262144,
     corpus_output_name=VECTORIZED_CORPUS_FILENAME,
     quiet=False,
 ):
@@ -498,6 +504,7 @@ def main(
     :param max_time_delta: int, Exclude comments that occur later than this number of seconds after the submission
     :param min_doc_frequency: int or float, minimum number or percentage of documents a term appear to be included in the vocab
     :param max_doc_frequency: int or float, maximum number or percentage of documents a term appear to be included in the vocab
+    :param vocab_size: int, max vocabulary size
     :param corpus_output_name: str, filename to save the transformed parquet corpus
     """
     logger.info("Fitting spark pipeline to input corpus")
@@ -507,6 +514,7 @@ def main(
         max_time_delta,
         min_doc_frequency,
         max_doc_frequency,
+        vocab_size,
         output_dir,
         corpus_output_name,
     )
@@ -570,6 +578,13 @@ parser.add_argument(
     help="Optionally specify a minimum allowed time between the creation time of a submission creation and when a comment is added. Can be formatted like '1d2h30m2s' or '26:30:02'. Defaults to 3s.",
     default="3s",
 )
+parser.add_argument(
+    "--vocab_size",
+    "-v",
+    type=int,
+    help="The maximum vocabulary size used by the CountVectorizer.",
+    default=262144,
+)
 
 
 if __name__ == "__main__":
@@ -587,6 +602,7 @@ if __name__ == "__main__":
             max_time_delta=args.max_time_delta,
             min_doc_frequency=args.min_doc_freq,
             max_doc_frequency=args.max_doc_freq,
+            vocab_size=args.vocab_size,
             quiet=args.quiet,
         )
     except Exception as e:
