@@ -57,10 +57,6 @@ logger.info("Logging configured")
 
 # TODO Config and select from multiple models
 MODEL_DIRS = conf["model_paths"]
-# c2v = ihop.community2vec.GensimCommunity2Vec.load(conf["model_path"])
-# tsne_df, _ = c2v.get_tsne_dataframe()
-# subreddits = tsne_df["subreddit"].sort_values().unique()
-
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -77,7 +73,7 @@ MODEL_DESCRIPTION_MD = """[Community2Vec models](https://aclanthology.org/W17-29
 You can use clusterings of the learned community vectors to create groupings of subreddits based on overlapping users. This strategy can be used to understand social dimensions in Reddit, such as political polarization, as shown by Waller and Anderson in [Quantifying social organization and political polarization in online platforms](https://www.nature.com/articles/s41586-021-04167-x).
 """
 
-MONTH_SELECTION_MD = """Here we present models trained on the comments from a single month. Each month of data undergoes the same preprocessing where we select the top 10,000 most popular subreddits by number of comments and remove deleted users and comments. We also remove the top 5% of most freqently commenting users in each month, which is heuristic for removing bots and was seen to improve performance on the subreddit analogy task compared to removing 10%, 2% or no users.
+MONTH_SELECTION_MD = """Here we present models trained on the comments from a single month. Each month of data undergoes the same preprocessing where we select the top 10,000 most popular subreddits by number of comments and remove deleted users and comments. We also remove the top 5% of most freqently commenting users in each month, which is heuristic for removing bots and was seen to improve performance on the subreddit analogy task compared to removing 10%, 2% or none of the most frequently commenting users.
 
 Select which month's data and tuned community2vec model to see its metrics and parameters. The model you select for each month's data achieved the highest accuracy on a [predetermined analogy set](https://github.com/UMassCDS/IHOP/tree/main/ihop/resources/analogies) across many experiments.
 """
@@ -290,9 +286,12 @@ BODY = dash.html.Div(
         dash.html.Br(),
         SUBREDDIT_FILTERING_SECTION,
         dash.html.Br(),
+        # Stores the dataframe with cluster assingments and the name of the cluster model (for exporting labels)
         dash.dcc.Store(id="cluster-assignment"),
+        # Stores the list of subbreddits available in the c2v model, for user to select in drop down
         dash.dcc.Store(id="subreddits"),
-        dash.dcc.Store(id="selected-c2v-model"),
+        # Store tsne coordinates for the loaded c2v model, so you only
+        # have to compute them once
         dash.dcc.Store(id="tsne-df"),
     ]
 )
@@ -337,29 +336,29 @@ def get_model_param_details(metrics_dict):
     return [
         dash.html.H3("Community2Vec Model Parameters"),
         dash.dcc.Markdown(
-            f"""A total of {num_users} different users were used to train this model, with a maximum of {max_comments} from a single user.
-             The community2vec model parameters used are as follows, please refer to the [Gensim Word2Vec documentation](https://radimrehurek.com/gensim/models/word2vec.html) for more detailed descriptions:
-            {params_list}
+            f"""A total of {num_users:,} different users were used to train this model, with a maximum of {max_comments} from a single user.
+             The community2vec model parameters used are as follows, please refer to the [Gensim Word2Vec documentation](https://radimrehurek.com/gensim/models/word2vec.html) for more detailed descriptions:\n{params_list}
              """
         ),
     ]
 
 
-def get_model_accuracy_display(month_str, analogy_accuracy, detailed_analogy_str):
+def get_model_accuracy_display(month_str, metrics_dict):
     """Returns the Dash component display section for model accuracy
 
     :param month_str: str, identifier for the model
     :param analogy_accuracy: float
     :param detailed_analogy_str: str, comma separated string returned by Gensim's analogy solver tool
     """
+    detailed_analogy_str = metrics_dict[ic2v.DETAILED_ANALOGY_KEY]
+    analogy_accuracy = metrics_dict[ic2v.ANALOGY_ACC_KEY]
     detailed_acc_items = detailed_analogy_str.split(",")
     total_acc = detailed_acc_items.pop()
     markdown_acc_list = "\n".join([f"* {item}" for item in detailed_acc_items])
     return [
         dash.html.H3("Subreddit Analogy Performance"),
         dash.dcc.Markdown(
-            f"""This {month_str} model achieved an accuracy of {analogy_accuracy:.2f} on the subreddit analogy task or {total_acc} analogies solved correctly, broken down as:
-             {markdown_acc_list}"""
+            f"""This {month_str} model achieved an accuracy of {analogy_accuracy*100:.2f}% on the subreddit analogy task or {total_acc} analogies solved correctly, broken down as:\n{markdown_acc_list}"""
         ),
     ]
 
@@ -392,7 +391,7 @@ def load_vector_model(selected_month):
     with (current_model_path / "metrics.json").open() as metrics_file:
         metrics_dict = json.load(metrics_file)
     model_params = get_model_param_details(metrics_dict)
-    accuracy_results = get_model_accuracy_display(metrics_dict)
+    accuracy_results = get_model_accuracy_display(selected_month, metrics_dict)
 
     return tsne_json, sorted_subreddits, accuracy_results, model_params
 
@@ -402,15 +401,12 @@ def load_vector_model(selected_month):
     dash.Output("model-name", "children"),
     dash.Output("cluster-metrics", "children"),
     dash.Input("clustering_button", "n_clicks"),
-    dash.Input("month-dropdown", "value"),
     dash.State("n-clusters", "value"),
     dash.State("random-seed", "value"),
     dash.Input("month-dropdown", "value"),
     dash.Input("tsne-df", "data"),
 )
-def train_clusters(
-    n_clicks, n_clusters, month_selected, random_seed, c2v_identifier, tsne_json_data
-):
+def train_clusters(n_clicks, n_clusters, random_seed, c2v_identifier, tsne_json_data):
     """Trains kmeans cluster with given number of clusters and random seed.
 
     :param n_clicks: int, button click indicator which triggers training the model (value unused)
@@ -423,7 +419,7 @@ def train_clusters(
     """
     tsne_df = iv.unjsonify_stored_df(tsne_json_data)
 
-    c2v_model = ic2v.GensimCommunity2Vec.load(MODEL_DIRS[month_selected])
+    c2v_model = ic2v.GensimCommunity2Vec.load(MODEL_DIRS[c2v_identifier])
     model_name = f"{c2v_identifier} Kmeans Cluster Assignment {n_clusters} clusters and random state {random_seed}"
 
     # TODO: eventually we may want to support different types of models. The ClusteringModelFactory should allow that fairly easily
@@ -457,7 +453,6 @@ def train_clusters(
     dash.State("cluster-dropdown", "value"),
     dash.Input("highlight-selected-clusters", "n_clicks"),
     dash.State("month-dropdown", "value"),
-    dash.Input("clustering_button", "n_clicks"),
 )
 def get_cluster_visualization(
     cluster_json,
@@ -465,7 +460,6 @@ def get_cluster_visualization(
     cluster_selection,
     is_only_highlight_selection,
     community2vec_identifier,
-    train_cluster_clicks,
 ):
     """Build the plotly visualization for a model
 
@@ -477,7 +471,7 @@ def get_cluster_visualization(
     :param train_cluster_clicks: int, number of clicks on train cluster model, triggers plot creation
     """
     # The user hasn't create cluster labelings yet, the graph will be empty
-    if train_cluster_clicks is None or train_cluster_clicks < 1:
+    if cluster_json is None:
         return {}
 
     # The model_name column of the dataframe always contains the cluster ID
@@ -581,14 +575,12 @@ def set_cluster_dropdown(n_clusters):
     dash.Input("subreddit-dropdown", "value"),
     dash.Input("cluster-dropdown", "value"),
     dash.Input("show-in-cluster-neighbors", "on"),
-    dash.Input("clustering_button", "n_clicks"),
 )
 def get_display_table(
     cluster_json,
     selected_subreddits,
     selected_clusters,
     is_show_cluster_neighbors,
-    train_cluster_clicks,
 ):
     """Builds the DataTable showing all selected subreddits and clusters
 
@@ -598,7 +590,7 @@ def get_display_table(
     :param is_show_cluster_neighbors:
     :parma train_cluster_clicks: int, whether the user has clicked the cluster train button. If they haven't, the table will be empty
     """
-    if train_cluster_clicks is None or train_cluster_clicks < 1:
+    if cluster_json is None:
         return dash.dash_table.DataTable(
             [],
             [
