@@ -377,19 +377,19 @@ def load_vector_model(selected_month):
     :param selected_month: _description_
     """
     logger.info("Selected month: %s", selected_month)
-    current_model_path = MODEL_DIRS[selected_month]
+    current_model_path = pathlib.Path(MODEL_DIRS[selected_month])
     c2v_model = ic2v.GensimCommunity2Vec.load(current_model_path)
     logger.info("Community2Vec model loaded from %s", current_model_path)
 
     sorted_subreddits = sorted(c2v_model.get_index_to_key())
 
     logger.info("Starting to get tsne values for %s", current_model_path)
-    tsne_df = c2v_model.get_tsne_dataframe()
+    tsne_df, _ = c2v_model.get_tsne_dataframe()
     tsne_json = iv.jsonify_stored_df(tsne_df)
     logger.info("Tsne coordinates stored for %s", current_model_path)
 
     logger.info("Loading metrics for %s", current_model_path)
-    with pathlib.Path.open(current_model_path / "metrics.json") as metrics_file:
+    with (current_model_path / "metrics.json").open() as metrics_file:
         metrics_dict = json.load(metrics_file)
     model_params = get_model_param_details(metrics_dict)
     accuracy_results = get_model_accuracy_display(metrics_dict)
@@ -457,6 +457,7 @@ def train_clusters(
     dash.State("cluster-dropdown", "value"),
     dash.Input("highlight-selected-clusters", "n_clicks"),
     dash.State("month-dropdown", "value"),
+    dash.Input("clustering_button", "n_clicks"),
 )
 def get_cluster_visualization(
     cluster_json,
@@ -464,6 +465,7 @@ def get_cluster_visualization(
     cluster_selection,
     is_only_highlight_selection,
     community2vec_identifier,
+    train_cluster_clicks,
 ):
     """Build the plotly visualization for a model
 
@@ -472,8 +474,12 @@ def get_cluster_visualization(
     :param cluster_dropdown: list of user selected cluster values
     :param is_only_highlight_selection: int, number of times the user has clicked on the hightlight subreddit button, used as a boolean value (0 or > 0)
     :param community2vec_identifier: str, name of community2vec model currently loaded, usually named with a time frame
-
+    :param train_cluster_clicks: int, number of clicks on train cluster model, triggers plot creation
     """
+    # The user hasn't create cluster labelings yet, the graph will be empty
+    if train_cluster_clicks is None or train_cluster_clicks < 1:
+        return {}
+
     # The model_name column of the dataframe always contains the cluster ID
     model_name = cluster_json["name"]
     logger.info("Updating graph visualization, model: %s", model_name)
@@ -575,11 +581,32 @@ def set_cluster_dropdown(n_clusters):
     dash.Input("subreddit-dropdown", "value"),
     dash.Input("cluster-dropdown", "value"),
     dash.Input("show-in-cluster-neighbors", "on"),
+    dash.Input("clustering_button", "n_clicks"),
 )
 def get_display_table(
-    cluster_json, selected_subreddits, selected_clusters, is_show_cluster_neighbors
+    cluster_json,
+    selected_subreddits,
+    selected_clusters,
+    is_show_cluster_neighbors,
+    train_cluster_clicks,
 ):
-    """Builds the DataTable showing all selected subreddits and clusters"""
+    """Builds the DataTable showing all selected subreddits and clusters
+
+    :param cluster_json: The json bundled cluster-assignment data
+    :param subreddit_selection: list of user selected subreddit values
+    :param selected_clsuters: list of user selected subreddit values
+    :param is_show_cluster_neighbors:
+    :parma train_cluster_clicks: int, whether the user has clicked the cluster train button. If they haven't, the table will be empty
+    """
+    if train_cluster_clicks is None or train_cluster_clicks < 1:
+        return dash.dash_table.DataTable(
+            [],
+            [
+                {"name": "subreddit", "id": "subreddit"},
+                {"name": "cluster assignment", "id": "cluster assignment"},
+            ],
+        )
+
     logger.info("Generating display table")
     logger.info("Selected subreddits: %s", selected_subreddits)
     logger.info("Show cluster neighbors option: %s", is_show_cluster_neighbors)
