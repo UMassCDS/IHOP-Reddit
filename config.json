@@ -45,6 +45,9 @@
     "model_paths": {
         "April 2021": "data/community2vec/RC_2021-04/best_model",
         "May 2021": "data/community2vec/RC_2021-05/best_model",
-        "June 2021": "data/community2vec/RC_2021-06/best_model"
+        "June 2021": "data/community2vec/RC_2021-06/best_model",
+        "October 2021": "data/community2vec/RC_2021-10/best_model",
+        "November 2021": "data/community2vec/RC_2021-11/best_model",
+        "December 2021": "data/community2vec/RC_2021-12/best_model"
     }
 }
