@@ -604,6 +604,9 @@ def get_display_table(
     model_name = cluster_json["name"]
     cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
 
+    if selected_subreddits is None:
+        selected_subreddits = []
+
     selected_subreddits_df = cluster_df[
         cluster_df["subreddit"].isin(selected_subreddits)
     ].copy()
