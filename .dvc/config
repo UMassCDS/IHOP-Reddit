@@ -1,6 +1,4 @@
 [core]
     remote = s3bucket
-[cache]
-    type = "hardlink,symlink"
 ['remote "s3bucket"']
     url = s3://ihopmeag/redditdvccache
