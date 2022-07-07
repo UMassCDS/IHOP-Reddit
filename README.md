@@ -30,7 +30,7 @@ Run `python app.py --config config.json` to start the application on port 8050, 
 # Setup and Installation
 Note that [Pyspark](https://spark.apache.org/docs/latest/api/python/getting_started/install.html#dependencies) is used for training embeddings and LDA models, so you must have Java installed (at least version 8) and `JAVA_HOME` set appropriately.
 
-Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create the `ihop` environment by running `conda env create -n ihop python=3.9`, install the package and its dependencies using `pip install .`. This installs everything needed for just for preprocessing data and training models. If you're going to run the Dash app, install using `pip install .[app]`.
+Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create the `ihop` environment by running `conda create -n ihop python=3.9`, install the package and its dependencies using `pip install .`. This installs everything needed for just for preprocessing data and training models. If you're going to run the Dash app, install using `pip install .[app]`.
 
 For testing and development tools, install the `ihop` package to be importable for testing, install using `pip install -e .[test]`
 
