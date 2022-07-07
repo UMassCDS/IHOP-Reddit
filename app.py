@@ -7,8 +7,6 @@ The app can be configured to accept a different model path by feeding a JSON for
     "model_path": '<path to output of ihop.community2vec.py model training>'
 }
 
-
-
 # TODO vector models should be configurable (one model for each available time range? )
 # TODO list of subreddits can be chosen from a collection with descriptions
 """
@@ -28,7 +26,6 @@ import ihop.visualizations as iv
 import ihop.utils
 import ihop.community2vec as ic2v
 import ihop.clustering
-import ihop.resources.collections
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +70,7 @@ MODEL_DESCRIPTION_MD = """[Community2Vec models](https://aclanthology.org/W17-29
 You can use clusterings of the learned community vectors to create groupings of subreddits based on overlapping users. This strategy can be used to understand social dimensions in Reddit, such as political polarization, as shown by Waller and Anderson in [Quantifying social organization and political polarization in online platforms](https://www.nature.com/articles/s41586-021-04167-x).
 """
 
-MONTH_SELECTION_MD = """Here we present models trained on the comments from a single month. Each month of data undergoes the same preprocessing where we select the top 10,000 most popular subreddits by number of comments and remove deleted users and comments. We also remove the top 5% of most freqently commenting users in each month, which is heuristic for removing bots and was seen to improve performance on the subreddit analogy task compared to removing 10%, 2% or none of the most frequently commenting users.
+MONTH_SELECTION_MD = """Here we present models trained on the comments from a single month. Each month of data undergoes the same preprocessing where we select the top 10,000 most popular subreddits by number of comments and remove deleted users and comments. We also remove the top 5% of most freqently commenting users in each month, which is heuristic for removing bots. In experiments, 5% was seen to improve performance on the subreddit analogy task compared to removing 10%, 2% or none of the most frequently commenting users.
 
 Select which month's data and tuned community2vec model to see its metrics and parameters. The model you select for each month's data achieved the highest accuracy on a [predetermined analogy set](https://github.com/UMassCDS/IHOP/tree/main/ihop/resources/analogies) across many experiments.
 """
@@ -175,10 +172,6 @@ KMEANS_PARAM_SECTION = [
 SUBREDDIT_DROPDOWN = [
     dash.html.Label("Select subreddits"),
     dash.dcc.Dropdown(
-        # TODO Could allow user to select form list of possible collections
-        ihop.resources.collections.get_collection_members(
-            "Denigrating toward immigrants"
-        ),
         multi=True,
         id="subreddit-dropdown",
     ),
@@ -352,13 +345,18 @@ def get_model_accuracy_display(month_str, metrics_dict):
     """
     detailed_analogy_str = metrics_dict[ic2v.DETAILED_ANALOGY_KEY]
     analogy_accuracy = metrics_dict[ic2v.ANALOGY_ACC_KEY]
-    detailed_acc_items = detailed_analogy_str.split(",")
+    detailed_acc_items = [
+        acc_item.split(":") for acc_item in detailed_analogy_str.split(",")
+    ]
+    # The last acc in the list is always the total accuracy
     total_acc = detailed_acc_items.pop()
-    markdown_acc_list = "\n".join([f"* {item}" for item in detailed_acc_items])
+    markdown_acc_list = "\n".join(
+        [f"* {item[0]}: {item[1]}" for item in detailed_acc_items]
+    )
     return [
         dash.html.H3("Subreddit Analogy Performance"),
         dash.dcc.Markdown(
-            f"""This {month_str} model achieved an accuracy of {analogy_accuracy*100:.2f}% on the subreddit analogy task or {total_acc} analogies solved correctly, broken down as:\n{markdown_acc_list}"""
+            f"""This {month_str} model achieved an accuracy of {analogy_accuracy*100:.2f}% on the subreddit analogy task or {total_acc[1]} analogies solved correctly, broken down as:\n{markdown_acc_list}"""
         ),
     ]
 
@@ -605,6 +603,9 @@ def get_display_table(
     logger.info("Selected clusters: %s", selected_subreddits)
     model_name = cluster_json["name"]
     cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
+
+    if selected_subreddits is None:
+        selected_subreddits = []
 
     selected_subreddits_df = cluster_df[
         cluster_df["subreddit"].isin(selected_subreddits)
