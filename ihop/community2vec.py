@@ -312,9 +312,9 @@ class GensimCommunity2Vec:
             metric="cosine",
             learning_rate="auto",
             square_distances=True,
-            # random_state=1,
         )
         tsne_projection = tsne_fitter.fit_transform(self.get_normed_vectors())
+        logger.info("TSNE ran for %s iterations", tsne_fitter.n_iter_)
         dataframe_elements = list()
         for i, vocab_elem in enumerate(self.w2v_model.wv.index_to_key):
             elem_proj = tsne_projection[i]
