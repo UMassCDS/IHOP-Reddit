@@ -242,8 +242,8 @@ stages:
       --long=31 | bzip2 > data/raw_data/comments/RC_2021-10.bz2
     outs:
     - path: data/raw_data/comments/RC_2021-10.bz2
-      md5: 2611f531cc2176d72d202141af859936
-      size: 31769082194
+      md5: 63e4594147bbd8530f451138f51501f4
+      size: 32870949756
   prep_community2vec_data@2021-10:
     cmd: mkdir -p data/community2vec/RC_2021-10 && python -m ihop.import_data --config
       config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2021-10/subreddit_counts.csv
@@ -296,8 +296,8 @@ stages:
       --long=31 | bzip2 > data/raw_data/comments/RC_2021-07.bz2
     outs:
     - path: data/raw_data/comments/RC_2021-07.bz2
-      md5: 5e2d0cc4af5aba146b38443bb8d791a7
-      size: 11196452701
+      md5: 47cbcb5b1d435db3d166382b0eca09b7
+      size: 30911364258
   prep_community2vec_data@2021-07:
     cmd: mkdir -p data/community2vec/RC_2021-07 && python -m ihop.import_data --config
       config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2021-07/subreddit_counts.csv
@@ -369,3 +369,38 @@ stages:
     - path: data/community2vec/RC_2021-11/best_model/word2vec.pickle
       md5: c997ae3fadf89ed069c79082f27c26b2
       size: 8383380
+  download_comments@2021-09:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-09.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2021-09.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2021-09.bz2
+      md5: 9b3665fc25907ecbdc7808ae4043b6bd
+      size: 31996196383
+  download_comments@2022-01:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2022-01.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2022-01.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2022-01.bz2
+      md5: fd25ba68de752140547aa2a0c2080320
+      size: 37953945294
+  download_comments@2022-03:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2022-03.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2022-03.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2022-03.bz2
+      md5: 4daa2988038a4168cc70e21b7cea96ea
+      size: 35139378132
+  download_comments@2021-08:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-08.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2021-08.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2021-08.bz2
+      md5: 2495184724809cbf0838592eac5c1459
+      size: 33087814591
+  download_comments@2022-02:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2022-02.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2022-02.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2022-02.bz2
+      md5: 693b93d28cfeaa2fd54986c785072a0d
+      size: 32237946461
