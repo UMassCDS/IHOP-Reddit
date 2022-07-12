@@ -52,8 +52,10 @@ print("Configuration:", args.config)
 ihop.utils.configure_logging(logging_conf)
 logger.info("Logging configured")
 
-# TODO Config and select from multiple models
+# Config stores a dictionary mapping month -> path to best c2v model
 MODEL_DIRS = conf["model_paths"]
+# Assume the tsne visualization for a month is stored in the model directory and named tsne.csv per the DVC tsne_visualization stage
+TSNE_CSV_NAME = "tsne.csv"
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -381,7 +383,7 @@ def load_vector_model(selected_month):
     sorted_subreddits = sorted(c2v_model.get_index_to_key())
 
     logger.info("Starting to get tsne values for %s", current_model_path)
-    tsne_df = iv.load_tsne_dataframe(current_model_path / "tsne.csv")
+    tsne_df = iv.load_tsne_dataframe(current_model_path / TSNE_CSV_NAME)
     tsne_json = iv.jsonify_stored_df(tsne_df)
     logger.info("Tsne coordinates stored for %s", current_model_path)
 
