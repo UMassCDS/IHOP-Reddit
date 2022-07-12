@@ -381,7 +381,7 @@ def load_vector_model(selected_month):
     sorted_subreddits = sorted(c2v_model.get_index_to_key())
 
     logger.info("Starting to get tsne values for %s", current_model_path)
-    tsne_df, _ = c2v_model.get_tsne_dataframe()
+    tsne_df = iv.load_tsne_dataframe(current_model_path / "tsne.csv")
     tsne_json = iv.jsonify_stored_df(tsne_df)
     logger.info("Tsne coordinates stored for %s", current_model_path)
 

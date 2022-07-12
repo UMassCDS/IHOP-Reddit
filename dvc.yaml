@@ -46,6 +46,20 @@ stages:
       metrics:
         - ${community2vec_dir}/RC_${item}/best_model/metrics.json
 
+  # Generate the TSNE visualizations that will be used in the Dash application
+  tsne_visualizations:
+    foreach: ${months}
+    do:
+        desc: Produce the 2 dimensional t-sne visualization for the community2vec model for ${item} Reddit data to be used in the Dash app.
+        cmd: python -m ihop.community2vec --config config.json ${community2vec_dir}/RC_${item}/best_model ${community2vec_dir}/RC_${item}/best_model/tsne.csv
+        deps:
+          - ${community2vec_dir}/RC_${item}/best_model/parameters.json
+          - ${community2vec_dir}/RC_${item}/best_model/word2vec.pickle
+          - ${community2vec_dir}/RC_${item}/best_model/keyedVectors
+        outs:
+          - ${community2vec_dir}/RC_${item}/best_model/tsne.csv
+
+
 
 
 

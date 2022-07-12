@@ -29,7 +29,7 @@ import ihop.utils
 
 logger = logging.getLogger(__name__)
 
-# NB documents don't really need to be Reddit users, could be other text
+# Documents don't really need to be Reddit users, could be other text
 INPUT_CSV_SCHEMA = StructType([StructField("subreddit_list", StringType(), False)])
 
 # The filename for gensim vectors stored for community2vec models
@@ -296,37 +296,6 @@ class GensimCommunity2Vec:
     def get_normed_vectors(self):
         """Returns the normed embedding weights for the Gensim Keyed Vectors"""
         return self.w2v_model.wv.get_normed_vectors()
-
-    def get_tsne_dataframe(self, key_col="subreddit", n_components=2, **kwargs):
-        """Fits a TSNE representation of the dataframe.
-        Returns the results as both a pandas dataframe and the resulting TSNE projection as a numpy array
-
-        :param key_col: str, column name for indexed values
-        :param n_components: int, usually 2 or 3, since the purpose of this is for creating visualizations
-        :param kwargs: dict params passed to sklearn's TNSE model
-        """
-        tsne_fitter = TSNE(
-            **kwargs,
-            n_components=n_components,
-            init="pca",
-            metric="cosine",
-            learning_rate="auto",
-            square_distances=True,
-        )
-        tsne_projection = tsne_fitter.fit_transform(self.get_normed_vectors())
-        logger.info("TSNE ran for %s iterations", tsne_fitter.n_iter_)
-        dataframe_elements = list()
-        for i, vocab_elem in enumerate(self.w2v_model.wv.index_to_key):
-            elem_proj = tsne_projection[i]
-            dataframe_elements.append((vocab_elem, *elem_proj))
-
-        # Generate columns for dataframe
-        cols = [key_col]
-        for i in range(1, n_components + 1):
-            cols.append(f"tsne_{i}")
-
-        dataframe = pd.DataFrame.from_records(dataframe_elements, columns=cols)
-        return dataframe, tsne_projection
 
     def get_index_to_key(self):
         """Returns the vocab of the Word2Vec embeddings as an indexed list of strings."""
