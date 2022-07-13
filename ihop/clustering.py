@@ -1,5 +1,6 @@
 """Train clusters on community2vec embeddings and other embedding data.
 
+A list of ideas for clustering based on text (not users):
 .. TODO: Support clustering of documents based on TF-IDF, not just c2v embeddings
 .. TODO: Implement training of topic models on text: tf-idf-> KMeans, Hierarchical Dirichlet Processes
 .. TODO: Gensim Coherence model supported with Spark LDA implementation
@@ -37,8 +38,7 @@ SPARK_VEC = "SparkVectorized"
 
 
 class ClusteringModelFactory:
-    """Return appropriate class given input params
-    """
+    """Return appropriate class given input params"""
 
     AFFINITY_PROP = "affinity"
     AGGLOMERATIVE = "agglomerative"
@@ -135,8 +135,7 @@ class ClusteringModelFactory:
 
 
 class ClusteringModel:
-    """Wrapper around sklearn clustering models. Clusters arbitrary data points
-    """
+    """Wrapper around sklearn clustering models. Clusters arbitrary data points"""
 
     MODEL_NAME_KEY = "model_name"
     PARAMETERS_JSON = "parameters.json"
@@ -210,8 +209,7 @@ class ClusteringModel:
             return {}
 
     def get_parameters(self):
-        """Returns the model name and salient parameters as a dictionary
-        """
+        """Returns the model name and salient parameters as a dictionary"""
         param_dict = {}
         param_dict.update(self.clustering_model.get_params())
         param_dict[self.MODEL_NAME_KEY] = self.model_name
@@ -266,14 +264,12 @@ class ClusteringModel:
 
     @classmethod
     def get_model_path(cls, directory):
-        """Returns the full path for a model file in the given directory
-        """
+        """Returns the full path for a model file in the given directory"""
         return os.path.join(directory, cls.MODEL_FILE)
 
     @classmethod
     def get_param_json_path(cls, directory):
-        """Returns the full path for parameters json file in the given directory
-        """
+        """Returns the full path for parameters json file in the given directory"""
         return os.path.join(directory, cls.PARAMETERS_JSON)
 
     @classmethod
@@ -481,8 +477,7 @@ class GensimLDAModel(DocumentClusteringModel):
             return []
 
     def get_parameters(self):
-        """Returns the model's paramters as a dictionary
-        """
+        """Returns the model's paramters as a dictionary"""
         params = {}
         params[self.MODEL_NAME_KEY] = self.model_name
         params["num_topics"] = self.clustering_model.num_topics
@@ -683,8 +678,7 @@ class SparkLDAModel(DocumentClusteringModel):
         pass
 
     def get_parameters(self):
-        """Returns the model name and salient parameters as a dictionary
-        """
+        """Returns the model name and salient parameters as a dictionary"""
         param_dict = {}
         param_dict[self.MODEL_NAME_KEY] = self.model_name
         param_dict["num_topics"] = self.num_topics
@@ -788,8 +782,7 @@ class SparkLDAModel(DocumentClusteringModel):
 
     @classmethod
     def get_transformer_path(cls, directory):
-        """Returns the filename for a transformer file in the given directory
-        """
+        """Returns the filename for a transformer file in the given directory"""
         return os.path.join(directory, cls.TRANSFORMER_FILE)
 
 
@@ -880,14 +873,14 @@ parser.add_argument(
 parser.add_argument(
     "--data_type",
     "-d",
-    help="Specify the format of the input data fed to the clustering model: Gensim KeyedVectors, SparkDocuments for raw Reddit submission and comment text documents in a parquet or SparkVectorized for a folder containing vectorized documents in parquet with a serialized Spark pipeline for the vocab index",
+    help=f"Specify the format of the input data fed to the clustering model: Gensim KeyedVectors, SparkDocuments for raw Reddit submission and comment text documents in a parquet or SparkVectorized for a folder containing vectorized documents in parquet with a serialized Spark pipeline for the vocab index. Defaults to '{KEYED_VECTORS}'",
     choices=[KEYED_VECTORS, SPARK_DOCS, SPARK_VEC],
-    default="keyedvectors",
+    default=KEYED_VECTORS,
 )
 parser.add_argument(
     "--cluster_type",
     "-c",
-    help="The type of clustering model to train.",
+    help=f"The type of clustering model to train. Defaults to '{ClusteringModelFactory.KMEANS}'",
     choices=ClusteringModelFactory.DEFAULT_MODEL_PARAMS.keys(),
     default=ClusteringModelFactory.KMEANS,
 )
@@ -928,6 +921,12 @@ parser.add_argument(
     default="3s",
 )
 
+parser.add_argument(
+    "--model-name",
+    type=str,
+    help="Override the default model name used for the clustering model.",
+)
+
 
 if __name__ == "__main__":
     try:
@@ -941,13 +940,6 @@ if __name__ == "__main__":
             and args.cluster_type == ClusteringModelFactory.GENSIM_LDA
         ):
             raise ValueError("LDA models do not support KeyedVectors data type")
-        if (
-            args.data_type == KEYED_VECTORS
-            and args.cluster_type != ClusteringModelFactory.GENSIM_LDA
-        ):
-            raise ValueError(
-                "Document clustering with sklearn models not implemented yet"
-            )
 
         if args.data_type == KEYED_VECTORS:
             logger.debug("Loading KeyedVectors")
@@ -997,7 +989,7 @@ if __name__ == "__main__":
             args.output_dir,
             args.cluster_params,
             is_quiet=args.quiet,
+            model_name=args.model_name,
         )
     except Exception:
         logger.error("Fatal error during cluster training", exc_info=True)
-

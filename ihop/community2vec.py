@@ -106,8 +106,7 @@ class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
 
 
 class SaveVectorsCallback(gensim.models.callbacks.CallbackAny2Vec):
-    """Callback to save embeddings for a model after each epoch
-    """
+    """Callback to save embeddings for a model after each epoch"""
 
     def __init__(self, save_vector_prefix):
         """
@@ -124,8 +123,7 @@ class SaveVectorsCallback(gensim.models.callbacks.CallbackAny2Vec):
 
 
 class AnalogyAccuracyCallback(gensim.models.callbacks.CallbackAny2Vec):
-    """Callback for reporting analogy accuracy after each epoch
-    """
+    """Callback for reporting analogy accuracy after each epoch"""
 
     def __init__(self, analogies_path, case_insensitive=False):
         """
@@ -211,8 +209,7 @@ class GensimCommunity2Vec:
         self.w2v_model.build_vocab_from_freq(vocab_dict)
 
     def get_params_as_dict(self):
-        """Returns dictionary of parameters for tracking experiments.
-        """
+        """Returns dictionary of parameters for tracking experiments."""
         return {
             "num_users": self.num_users,
             "max_comments": self.max_comments,
@@ -283,13 +280,11 @@ class GensimCommunity2Vec:
             json.dump(self.get_params_as_dict(), f)
 
     def save_vectors(self, save_path):
-        """Save only the embeddings from this model as gensim KeyedVectors. These can't be used for further training of the Community2Vec model, but have smaller RAM footprint and are more efficient
-        """
+        """Save only the embeddings from this model as gensim KeyedVectors. These can't be used for further training of the Community2Vec model, but have smaller RAM footprint and are more efficient"""
         self.w2v_model.wv.save(save_path)
 
     def get_normed_vectors(self):
-        """Returns the normed embedding weights for the Gensim Keyed Vectors
-        """
+        """Returns the normed embedding weights for the Gensim Keyed Vectors"""
         return self.w2v_model.wv.get_normed_vectors()
 
     def get_tsne_dataframe(self, key_col="subreddit", n_components=2, **kwargs):
@@ -323,17 +318,15 @@ class GensimCommunity2Vec:
         return dataframe, tsne_projection
 
     def get_index_to_key(self):
-        """Returns the vocab of the Word2Vec embeddings as an indexed list of strings.
-        """
+        """Returns the vocab of the Word2Vec embeddings as an indexed list of strings."""
         return self.w2v_model.wv.index_to_key
 
     def get_index_as_dict(self):
-        """Returns the index of the Word2Vec embeddings as a dictionary mapping int -> string
-        """
+        """Returns the index of the Word2Vec embeddings as a dictionary mapping int -> string"""
         return dict(enumerate(self.w2v_model.wv.index_to_key))
 
     def score_analogies(self, analogies_path=None, case_insensitive=False):
-        """"Returns the trained embedding's accuracy for solving subreddit algebra analogies and detailed section results. If not file path is specified, return results on the default sports and university-city analogies from ihop.resources.analogies.
+        """ "Returns the trained embedding's accuracy for solving subreddit algebra analogies and detailed section results. If not file path is specified, return results on the default sports and university-city analogies from ihop.resources.analogies.
 
         :param analogies_path: str, optional. Define to use a particular analogies file where lines are whitespace separated 4-tuples and split into sections by ': SECTION NAME' lines
         :param case_insensitive: boolean, set to True to deal with case mismatch in analogy pairs. For Reddit, this should typically be False.
@@ -539,7 +532,9 @@ class GridSearchTrainer:
                 c2v_model.save(curr_model_path)
                 c2v_model.save_vectors(save_vectors_prefix)
 
-            acc, detailed_accs = c2v_model.score_analogies(self.analogies_path,)
+            acc, detailed_accs = c2v_model.score_analogies(
+                self.analogies_path,
+            )
             logger.info(
                 "Model id %s achieved %s accuracy on analogy task", model_id, acc
             )
@@ -582,8 +577,7 @@ class GridSearchTrainer:
         return "_".join(model_id_elems)
 
     def expand_param_grid_to_list(self):
-        """Returns the parameter grid to a list of dicts to iterate over when training.
-        """
+        """Returns the parameter grid to a list of dicts to iterate over when training."""
         result = list()
         for v in itertools.product(*self.param_grid.values()):
             result.append(dict(zip(self.param_grid.keys(), v)))
@@ -596,25 +590,18 @@ class GridSearchTrainer:
         return pd.DataFrame.from_records(self.analogy_results)
 
     def write_performance_results(self):
-        """Writes analogy accuracy results for all models to a csv file in the model_otuput_directory
-        """
+        """Writes analogy accuracy results for all models to a csv file in the model_otuput_directory"""
         self.model_analogy_results_as_dataframe().to_csv(
             os.path.join(self.model_output_dir, self.PERFORMANCE_CSV_NAME), index=False
         )
 
     def get_single_model_full_results(self, model_id, c2v_model, acc, detailed_accs):
-        """Returns all the paramenters and metrics for experimental results tracking for a single model in a dictionary. If model details are being saved
+        """Returns all the paramenters and metrics for experimental results tracking for a single model in a dictionary.
 
-        :param model_id: _description_
-        :type model_id: _type_
-        :param c2v_model: _description_
-        :type c2v_model: _type_
-        :param acc: _description_
-        :type acc: _type_
-        :param detailed_accs: _description_
-        :type detailed_accs: _type_
-        :param save_dir_path: _description_
-        :type save_dir_path: _type_
+        :param model_id: str, unique identifier for this model
+        :param c2v_model: GensimCommunity2Vec object
+        :param acc: float, accuracy on the analogy task
+        :param detailed_accs: str, the detailed accuracy results broken down by category as returned by Gensim
         """
         results_dict = {
             "model_id": model_id,
