@@ -21,8 +21,8 @@ stages:
       md5: 0c13f117e42a443a97833fe56d3e9a86
       size: 171504
     - path: data/community2vec/RC_2021-04/user_contexts
-      md5: 590033b119acef942f88485e706d47d6.dir
-      size: 119852349
+      md5: 7b6e35c5adf3c0c46ee411a2ad1c6cd9.dir
+      size: 119842949
       nfiles: 2
   download_comments@2021-05:
     cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-05.zst | unzstd
@@ -45,8 +45,8 @@ stages:
       md5: 06b106f2d767e123e4258c4068c848c2
       size: 171912
     - path: data/community2vec/RC_2021-05/user_contexts
-      md5: c64755fb6e13fa5f3d4090aed37073f7.dir
-      size: 123824517
+      md5: 03c924b2023a1d6116b105818fa25416.dir
+      size: 123821099
       nfiles: 2
   download_comments@2021-06:
     cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-06.zst | unzstd
@@ -67,61 +67,61 @@ stages:
       \ --vocab_csv data/community2vec/RC_2021-04/subreddit_counts.csv --param_grid\
       \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
       \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2021-04\
-      \ --workers 3"
+      \ --workers 12"
     deps:
     - path: data/community2vec/RC_2021-04/subreddit_counts.csv
       md5: 0c13f117e42a443a97833fe56d3e9a86
       size: 171504
     - path: data/community2vec/RC_2021-04/user_contexts
-      md5: 590033b119acef942f88485e706d47d6.dir
-      size: 119852349
+      md5: 7b6e35c5adf3c0c46ee411a2ad1c6cd9.dir
+      size: 119842949
       nfiles: 2
     outs:
     - path: data/community2vec/RC_2021-04/analogy_accuracy_results.csv
-      md5: 2f0f155b78e2b3afeca2f390ef552fc2
-      size: 4458
+      md5: 3fbebf6531cee5f387bac38b53c620d6
+      size: 4456
     - path: data/community2vec/RC_2021-04/best_model/keyedVectors
-      md5: 409a58af961d8407ac03827c5e48e20d
+      md5: 57542bfdb1b96c23d3acd29fef7f7d3a
       size: 4378233
     - path: data/community2vec/RC_2021-04/best_model/metrics.json
-      md5: 77daa2f81f32c80ae6213a0de565e3dd
-      size: 620
+      md5: e9c7a9d5684ba3858f0349ff83378975
+      size: 627
     - path: data/community2vec/RC_2021-04/best_model/parameters.json
-      md5: 25c4765f14c1ee17909a22bb0c02eed1
-      size: 301
+      md5: 66efcadacf0f20e40868c09952e7088d
+      size: 305
     - path: data/community2vec/RC_2021-04/best_model/word2vec.pickle
-      md5: a05a7f29c099048775bc074285670705
-      size: 8382952
+      md5: ea6dc614928043986c1ed42ca481e942
+      size: 8382971
   community2vec_models@2021-05:
     cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2021-05/user_contexts\
       \ --vocab_csv data/community2vec/RC_2021-05/subreddit_counts.csv --param_grid\
       \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
       \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2021-05\
-      \ --workers 3"
+      \ --workers 12"
     deps:
     - path: data/community2vec/RC_2021-05/subreddit_counts.csv
       md5: 06b106f2d767e123e4258c4068c848c2
       size: 171912
     - path: data/community2vec/RC_2021-05/user_contexts
-      md5: c64755fb6e13fa5f3d4090aed37073f7.dir
-      size: 123824517
+      md5: 03c924b2023a1d6116b105818fa25416.dir
+      size: 123821099
       nfiles: 2
     outs:
     - path: data/community2vec/RC_2021-05/analogy_accuracy_results.csv
-      md5: c516c9047fee1bc02dceba99020659b2
-      size: 4458
+      md5: 17ba10b36b97ae4a9d82b4970ae9ac0b
+      size: 4456
     - path: data/community2vec/RC_2021-05/best_model/keyedVectors
-      md5: 3820bcdf0b990cf8cc62af510639e366
+      md5: 416d0dcccbc7b5cc284a9011fd16fbd8
       size: 4378552
     - path: data/community2vec/RC_2021-05/best_model/metrics.json
-      md5: b3d345bd20acaeb2f780c39325551c52
-      size: 620
+      md5: 831a75d2f4a53975b01efb497d33740d
+      size: 628
     - path: data/community2vec/RC_2021-05/best_model/parameters.json
-      md5: 10809c364437b24249b2401643c448c2
-      size: 301
+      md5: 586e744b2d6aa1286af20e1ec59b8b15
+      size: 305
     - path: data/community2vec/RC_2021-05/best_model/word2vec.pickle
-      md5: c5db00abe7c42cb9f2aaba8276cb1211
-      size: 8383271
+      md5: 56be5e9178d2198f7dee4a088f50d300
+      size: 8383290
   prep_community2vec_data@2021-06:
     cmd: mkdir -p data/community2vec/RC_2021-06 && python -m ihop.import_data --config
       config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2021-06/subreddit_counts.csv
@@ -136,39 +136,39 @@ stages:
       md5: 76ba452be953f30d1f4352f27fae631a
       size: 172266
     - path: data/community2vec/RC_2021-06/user_contexts
-      md5: 96ae5d5f2048c17e10123fa11165693d.dir
-      size: 121054533
+      md5: 62c1ce7d43f307cbf8077a70cecf4e3b.dir
+      size: 121055445
       nfiles: 2
   community2vec_models@2021-06:
     cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2021-06/user_contexts\
       \ --vocab_csv data/community2vec/RC_2021-06/subreddit_counts.csv --param_grid\
       \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
       \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2021-06\
-      \ --workers 3"
+      \ --workers 12"
     deps:
     - path: data/community2vec/RC_2021-06/subreddit_counts.csv
       md5: 76ba452be953f30d1f4352f27fae631a
       size: 172266
     - path: data/community2vec/RC_2021-06/user_contexts
-      md5: 96ae5d5f2048c17e10123fa11165693d.dir
-      size: 121054533
+      md5: 62c1ce7d43f307cbf8077a70cecf4e3b.dir
+      size: 121055445
       nfiles: 2
     outs:
     - path: data/community2vec/RC_2021-06/analogy_accuracy_results.csv
-      md5: 9b272a4ad02f7e5948e45b223ff2219c
+      md5: a8a369ca6891b6d09ee1be92b97959e1
       size: 4445
     - path: data/community2vec/RC_2021-06/best_model/keyedVectors
-      md5: 2df94373fbd7be5e84e9de8c598d48d0
+      md5: f0026bcc111274b36e0250d475db1f07
       size: 4379056
     - path: data/community2vec/RC_2021-06/best_model/metrics.json
-      md5: 436bf95bfba2868dcad7bf34cf73bcda
-      size: 627
+      md5: 779685ddf5a890eb9fdc30e67d267b67
+      size: 619
     - path: data/community2vec/RC_2021-06/best_model/parameters.json
-      md5: f90b5c62e994972f9c54e364f8fdbad7
-      size: 305
+      md5: 21ea85b12d15332991bed5e3029f1c85
+      size: 301
     - path: data/community2vec/RC_2021-06/best_model/word2vec.pickle
-      md5: bfad54ed3cffb04e1a7da7ac922ad86f
-      size: 8383792
+      md5: 8ac4d422b684d8b0e50bc7b289990ea4
+      size: 8383775
   download_submissions@2021-04:
     cmd: curl https://files.pushshift.io/reddit/submissions/RS_2021-04.zst | unzstd
       --long=31 | bzip2 > data/raw_data/submissions/RS_2021-04.bz2
@@ -204,39 +204,39 @@ stages:
       md5: 26d6b27f1ee7df5105fe90d9a8b92ac1
       size: 172380
     - path: data/community2vec/RC_2021-12/user_contexts
-      md5: 5668d09d29d78502b623057748eec150.dir
-      size: 140059495
+      md5: 3b76faea0f3d6217045f312a8db8ae3d.dir
+      size: 140055631
       nfiles: 2
   community2vec_models@2021-12:
     cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2021-12/user_contexts\
       \ --vocab_csv data/community2vec/RC_2021-12/subreddit_counts.csv --param_grid\
       \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
       \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2021-12\
-      \ --workers 3"
+      \ --workers 12"
     deps:
     - path: data/community2vec/RC_2021-12/subreddit_counts.csv
       md5: 26d6b27f1ee7df5105fe90d9a8b92ac1
       size: 172380
     - path: data/community2vec/RC_2021-12/user_contexts
-      md5: 5668d09d29d78502b623057748eec150.dir
-      size: 140059495
+      md5: 3b76faea0f3d6217045f312a8db8ae3d.dir
+      size: 140055631
       nfiles: 2
     outs:
     - path: data/community2vec/RC_2021-12/analogy_accuracy_results.csv
-      md5: e9378c4ce466d3759ec74d3683b99b57
+      md5: d07a96f18c44eb7e91385fc100eb8189
       size: 4447
     - path: data/community2vec/RC_2021-12/best_model/keyedVectors
-      md5: da0f59f2b41f47debfffa4db5ffca27a
+      md5: 565686468c57e9247629920ccdfd6534
       size: 4378681
     - path: data/community2vec/RC_2021-12/best_model/metrics.json
-      md5: 7a24f959734a1b1ff8abe518da58179f
+      md5: aef96db1ab56ae193023a4d3599d0eb5
       size: 619
     - path: data/community2vec/RC_2021-12/best_model/parameters.json
-      md5: c43bb0a17d74371df770459bc350b7a6
+      md5: b8892fb6b6228bd7de6170581f661916
       size: 301
     - path: data/community2vec/RC_2021-12/best_model/word2vec.pickle
-      md5: bbd2d599e51b55d4771efb0ccf23918f
-      size: 8383399
+      md5: 2625d50c81282e0a099989ae76b945bc
+      size: 8383400
   download_comments@2021-10:
     cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-10.zst | unzstd
       --long=31 | bzip2 > data/raw_data/comments/RC_2021-10.bz2
@@ -251,46 +251,46 @@ stages:
       && rm data/community2vec/RC_2021-10/user_contexts/.*.crc
     deps:
     - path: data/raw_data/comments/RC_2021-10.bz2
-      md5: 2611f531cc2176d72d202141af859936
-      size: 31769082194
+      md5: 63e4594147bbd8530f451138f51501f4
+      size: 32870949756
     outs:
     - path: data/community2vec/RC_2021-10/subreddit_counts.csv
-      md5: 56ea0bc8dd9ab40c33800a4da896dde4
-      size: 172106
+      md5: 66bc5d56acdc016789fe412400750e63
+      size: 172254
     - path: data/community2vec/RC_2021-10/user_contexts
-      md5: d4537a6b28ac0a797b6da866e877cd4b.dir
-      size: 129814371
+      md5: c4d5585169f73e5a59ddde1f7dab1fc7.dir
+      size: 134118019
       nfiles: 2
   community2vec_models@2021-10:
     cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2021-10/user_contexts\
       \ --vocab_csv data/community2vec/RC_2021-10/subreddit_counts.csv --param_grid\
       \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
       \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2021-10\
-      \ --workers 3"
+      \ --workers 12"
     deps:
     - path: data/community2vec/RC_2021-10/subreddit_counts.csv
-      md5: 56ea0bc8dd9ab40c33800a4da896dde4
-      size: 172106
+      md5: 66bc5d56acdc016789fe412400750e63
+      size: 172254
     - path: data/community2vec/RC_2021-10/user_contexts
-      md5: d4537a6b28ac0a797b6da866e877cd4b.dir
-      size: 129814371
+      md5: c4d5585169f73e5a59ddde1f7dab1fc7.dir
+      size: 134118019
       nfiles: 2
     outs:
     - path: data/community2vec/RC_2021-10/analogy_accuracy_results.csv
-      md5: 1f9d52bb1291996cc5efe0cf22222924
-      size: 4457
+      md5: ec820ca667e08abbe7da5ab77d65ee5c
+      size: 4458
     - path: data/community2vec/RC_2021-10/best_model/keyedVectors
-      md5: 3ac655c56c73b4a17a97d404de22d4a1
-      size: 4378646
+      md5: 80e963fe6049497933e123daee4344ac
+      size: 4378696
     - path: data/community2vec/RC_2021-10/best_model/metrics.json
-      md5: 9bf2d42a3f90d017824f1015328af907
-      size: 628
+      md5: c6a4375e575af0318b497ff779bcc0a6
+      size: 620
     - path: data/community2vec/RC_2021-10/best_model/parameters.json
-      md5: 09072507fc9e31925124e529daf30540
-      size: 305
+      md5: dfcdb3b30f27e581d2d077ce30a4d07d
+      size: 301
     - path: data/community2vec/RC_2021-10/best_model/word2vec.pickle
-      md5: 90fd078ccc180b20cdae3c22de16cffc
-      size: 8383384
+      md5: 7f7e23d8d1587b36b85accf8c9dc5eb1
+      size: 8383415
   download_comments@2021-07:
     cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-07.zst | unzstd
       --long=31 | bzip2 > data/raw_data/comments/RC_2021-07.bz2
@@ -305,15 +305,15 @@ stages:
       && rm data/community2vec/RC_2021-07/user_contexts/.*.crc
     deps:
     - path: data/raw_data/comments/RC_2021-07.bz2
-      md5: 5e2d0cc4af5aba146b38443bb8d791a7
-      size: 11196452701
+      md5: 47cbcb5b1d435db3d166382b0eca09b7
+      size: 30911364258
     outs:
     - path: data/community2vec/RC_2021-07/subreddit_counts.csv
-      md5: ce6f4dd875b31e54f491a090eaf35af6
-      size: 167081
+      md5: 05610293b60c1cb3a8c58138840d7ba1
+      size: 171716
     - path: data/community2vec/RC_2021-07/user_contexts
-      md5: 9d99ea72d6fd651dc8294b533afed55a.dir
-      size: 51664448
+      md5: 1627ff5fb82c145508cd920632a39202.dir
+      size: 120868467
       nfiles: 2
   download_comments@2021-11:
     cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-11.zst | unzstd
@@ -336,39 +336,39 @@ stages:
       md5: e5b88d2ff4ea0add16780d4221ca1e1e
       size: 172222
     - path: data/community2vec/RC_2021-11/user_contexts
-      md5: 2212108a62b9da07704b61526a15daa0.dir
-      size: 134896440
+      md5: dead46ddf928b2520b22dc20cb79c600.dir
+      size: 134899532
       nfiles: 2
   community2vec_models@2021-11:
     cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2021-11/user_contexts\
       \ --vocab_csv data/community2vec/RC_2021-11/subreddit_counts.csv --param_grid\
       \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
       \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2021-11\
-      \ --workers 3"
+      \ --workers 12"
     deps:
     - path: data/community2vec/RC_2021-11/subreddit_counts.csv
       md5: e5b88d2ff4ea0add16780d4221ca1e1e
       size: 172222
     - path: data/community2vec/RC_2021-11/user_contexts
-      md5: 2212108a62b9da07704b61526a15daa0.dir
-      size: 134896440
+      md5: dead46ddf928b2520b22dc20cb79c600.dir
+      size: 134899532
       nfiles: 2
     outs:
     - path: data/community2vec/RC_2021-11/analogy_accuracy_results.csv
-      md5: 76f77162f416905dcf4254ef04190700
-      size: 4458
+      md5: 207ee62c4667262790f55502f26b4316
+      size: 4457
     - path: data/community2vec/RC_2021-11/best_model/keyedVectors
-      md5: ed026167603afa56e596ea021b12d83f
+      md5: b0a20a6d5eed90d9877c7074f7f32b43
       size: 4378644
     - path: data/community2vec/RC_2021-11/best_model/metrics.json
-      md5: 6616715bad5da03cda788a11a98e2a15
+      md5: 4cdcef39ef036d607fc8b436e2833b17
       size: 628
     - path: data/community2vec/RC_2021-11/best_model/parameters.json
-      md5: 0726875803886c33aec689804d7c9a94
+      md5: 241bf9cb6713787d838fa55b347a05dc
       size: 305
     - path: data/community2vec/RC_2021-11/best_model/word2vec.pickle
-      md5: c997ae3fadf89ed069c79082f27c26b2
-      size: 8383380
+      md5: d8b1620998bad8aff79a3e0be71ae4a6
+      size: 8383382
   download_comments@2021-09:
     cmd: curl  https://files.pushshift.io/reddit/comments/RC_2021-09.zst | unzstd
       --long=31 | bzip2 > data/raw_data/comments/RC_2021-09.bz2
@@ -404,3 +404,472 @@ stages:
     - path: data/raw_data/comments/RC_2022-02.bz2
       md5: 693b93d28cfeaa2fd54986c785072a0d
       size: 32237946461
+  prep_community2vec_data@2022-02:
+    cmd: mkdir -p data/community2vec/RC_2022-02 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2022-02/subreddit_counts.csv
+      data/community2vec/RC_2022-02/user_contexts data/raw_data/comments/RC_2022-02.bz2
+      && rm data/community2vec/RC_2022-02/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2022-02.bz2
+      md5: 693b93d28cfeaa2fd54986c785072a0d
+      size: 32237946461
+    outs:
+    - path: data/community2vec/RC_2022-02/subreddit_counts.csv
+      md5: 8e8a359772c7bb62dc8eb611b4e8c70a
+      size: 172187
+    - path: data/community2vec/RC_2022-02/user_contexts
+      md5: de07a4a13d0b43dd8554aa5212d7ac81.dir
+      size: 129596918
+      nfiles: 2
+  community2vec_models@2022-02:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2022-02/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2022-02/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
+      \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2022-02\
+      \ --workers 12"
+    deps:
+    - path: data/community2vec/RC_2022-02/subreddit_counts.csv
+      md5: 8e8a359772c7bb62dc8eb611b4e8c70a
+      size: 172187
+    - path: data/community2vec/RC_2022-02/user_contexts
+      md5: de07a4a13d0b43dd8554aa5212d7ac81.dir
+      size: 129596918
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2022-02/analogy_accuracy_results.csv
+      md5: 5a16b9438847ab2d6e2ac3d38591ef12
+      size: 4434
+    - path: data/community2vec/RC_2022-02/best_model/keyedVectors
+      md5: 2b004396a0dcd4bc323dc863b8c4acd4
+      size: 4378683
+    - path: data/community2vec/RC_2022-02/best_model/metrics.json
+      md5: ab0106e4aa80da6989d90047a0c40f70
+      size: 626
+    - path: data/community2vec/RC_2022-02/best_model/parameters.json
+      md5: 0e59a8e8909da64536397105043c1d14
+      size: 305
+    - path: data/community2vec/RC_2022-02/best_model/word2vec.pickle
+      md5: fdaaa132637a619e4bc40651e68938d9
+      size: 8383419
+  tsne_visualizations@2022-02:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2022-02/best_model
+      data/community2vec/RC_2022-02/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2022-02/best_model/keyedVectors
+      md5: 2b004396a0dcd4bc323dc863b8c4acd4
+      size: 4378683
+    - path: data/community2vec/RC_2022-02/best_model/parameters.json
+      md5: 0e59a8e8909da64536397105043c1d14
+      size: 305
+    - path: data/community2vec/RC_2022-02/best_model/word2vec.pickle
+      md5: fdaaa132637a619e4bc40651e68938d9
+      size: 8383419
+    outs:
+    - path: data/community2vec/RC_2022-02/best_model/tsne.csv
+      md5: 504e13d0d1ea6cde0c0ebb48eba58f5f
+      size: 321023
+  tsne_visualizations@2021-10:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2021-10/best_model
+      data/community2vec/RC_2021-10/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2021-10/best_model/keyedVectors
+      md5: 80e963fe6049497933e123daee4344ac
+      size: 4378696
+    - path: data/community2vec/RC_2021-10/best_model/parameters.json
+      md5: dfcdb3b30f27e581d2d077ce30a4d07d
+      size: 301
+    - path: data/community2vec/RC_2021-10/best_model/word2vec.pickle
+      md5: 7f7e23d8d1587b36b85accf8c9dc5eb1
+      size: 8383415
+    outs:
+    - path: data/community2vec/RC_2021-10/best_model/tsne.csv
+      md5: 24ae4ba85a750bbee85f18573bf3f48b
+      size: 320625
+  tsne_visualizations@2021-06:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2021-06/best_model
+      data/community2vec/RC_2021-06/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2021-06/best_model/keyedVectors
+      md5: f0026bcc111274b36e0250d475db1f07
+      size: 4379056
+    - path: data/community2vec/RC_2021-06/best_model/parameters.json
+      md5: 21ea85b12d15332991bed5e3029f1c85
+      size: 301
+    - path: data/community2vec/RC_2021-06/best_model/word2vec.pickle
+      md5: 8ac4d422b684d8b0e50bc7b289990ea4
+      size: 8383775
+    outs:
+    - path: data/community2vec/RC_2021-06/best_model/tsne.csv
+      md5: b2fbf284c158acb6b951453e87393414
+      size: 321243
+  prep_community2vec_data@2021-09:
+    cmd: mkdir -p data/community2vec/RC_2021-09 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2021-09/subreddit_counts.csv
+      data/community2vec/RC_2021-09/user_contexts data/raw_data/comments/RC_2021-09.bz2
+      && rm data/community2vec/RC_2021-09/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2021-09.bz2
+      md5: 9b3665fc25907ecbdc7808ae4043b6bd
+      size: 31996196383
+    outs:
+    - path: data/community2vec/RC_2021-09/subreddit_counts.csv
+      md5: 408ab044cfe5fd2b06c15ac770f94e0e
+      size: 171625
+    - path: data/community2vec/RC_2021-09/user_contexts
+      md5: d18de42d00a6f98c4dc1706010a023bc.dir
+      size: 129400081
+      nfiles: 2
+  community2vec_models@2021-09:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2021-09/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2021-09/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
+      \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2021-09\
+      \ --workers 12"
+    deps:
+    - path: data/community2vec/RC_2021-09/subreddit_counts.csv
+      md5: 408ab044cfe5fd2b06c15ac770f94e0e
+      size: 171625
+    - path: data/community2vec/RC_2021-09/user_contexts
+      md5: d18de42d00a6f98c4dc1706010a023bc.dir
+      size: 129400081
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2021-09/analogy_accuracy_results.csv
+      md5: eeba81941912bf73508303c49e739bd6
+      size: 4459
+    - path: data/community2vec/RC_2021-09/best_model/keyedVectors
+      md5: 27e3d4a635d49f76b07c39ab8681d654
+      size: 4378163
+    - path: data/community2vec/RC_2021-09/best_model/metrics.json
+      md5: 877a9c66e49431ac711aa30e7c5f858c
+      size: 628
+    - path: data/community2vec/RC_2021-09/best_model/parameters.json
+      md5: 861bf5d00af3884606bb7a2da96ac41b
+      size: 305
+    - path: data/community2vec/RC_2021-09/best_model/word2vec.pickle
+      md5: 0e463a34d3ea9f97bc6c847bc87461a6
+      size: 8382899
+  tsne_visualizations@2021-09:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2021-09/best_model
+      data/community2vec/RC_2021-09/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2021-09/best_model/keyedVectors
+      md5: 27e3d4a635d49f76b07c39ab8681d654
+      size: 4378163
+    - path: data/community2vec/RC_2021-09/best_model/parameters.json
+      md5: 861bf5d00af3884606bb7a2da96ac41b
+      size: 305
+    - path: data/community2vec/RC_2021-09/best_model/word2vec.pickle
+      md5: 0e463a34d3ea9f97bc6c847bc87461a6
+      size: 8382899
+    outs:
+    - path: data/community2vec/RC_2021-09/best_model/tsne.csv
+      md5: 4118e0655043d7e3085c5406e9089255
+      size: 320409
+  prep_community2vec_data@2022-03:
+    cmd: mkdir -p data/community2vec/RC_2022-03 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2022-03/subreddit_counts.csv
+      data/community2vec/RC_2022-03/user_contexts data/raw_data/comments/RC_2022-03.bz2
+      && rm data/community2vec/RC_2022-03/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2022-03.bz2
+      md5: 4daa2988038a4168cc70e21b7cea96ea
+      size: 35139378132
+    outs:
+    - path: data/community2vec/RC_2022-03/subreddit_counts.csv
+      md5: c665d6ea66d4315b43263afde0f99097
+      size: 172352
+    - path: data/community2vec/RC_2022-03/user_contexts
+      md5: bde182a5ee3125af0a395f0a3fda0988.dir
+      size: 139939654
+      nfiles: 2
+  community2vec_models@2022-03:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2022-03/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2022-03/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
+      \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2022-03\
+      \ --workers 12"
+    deps:
+    - path: data/community2vec/RC_2022-03/subreddit_counts.csv
+      md5: c665d6ea66d4315b43263afde0f99097
+      size: 172352
+    - path: data/community2vec/RC_2022-03/user_contexts
+      md5: bde182a5ee3125af0a395f0a3fda0988.dir
+      size: 139939654
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2022-03/analogy_accuracy_results.csv
+      md5: 280c21f504928a1fa02aa997991aeff2
+      size: 4458
+    - path: data/community2vec/RC_2022-03/best_model/keyedVectors
+      md5: 86527f5ec9ee632deebb9259da86aea9
+      size: 4378620
+    - path: data/community2vec/RC_2022-03/best_model/metrics.json
+      md5: 3318fecaf9fa12d9ac3360120003e1af
+      size: 620
+    - path: data/community2vec/RC_2022-03/best_model/parameters.json
+      md5: 5a788775f462af364c3845240fd74d52
+      size: 301
+    - path: data/community2vec/RC_2022-03/best_model/word2vec.pickle
+      md5: d114cf04e2c4af3df6d98a6b72208289
+      size: 8383340
+  tsne_visualizations@2022-03:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2022-03/best_model
+      data/community2vec/RC_2022-03/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2022-03/best_model/keyedVectors
+      md5: 86527f5ec9ee632deebb9259da86aea9
+      size: 4378620
+    - path: data/community2vec/RC_2022-03/best_model/parameters.json
+      md5: 5a788775f462af364c3845240fd74d52
+      size: 301
+    - path: data/community2vec/RC_2022-03/best_model/word2vec.pickle
+      md5: d114cf04e2c4af3df6d98a6b72208289
+      size: 8383340
+    outs:
+    - path: data/community2vec/RC_2022-03/best_model/tsne.csv
+      md5: 3ac880fbf00cd6c94d808d8ee2e26c16
+      size: 321190
+  tsne_visualizations@2021-05:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2021-05/best_model
+      data/community2vec/RC_2021-05/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2021-05/best_model/keyedVectors
+      md5: 416d0dcccbc7b5cc284a9011fd16fbd8
+      size: 4378552
+    - path: data/community2vec/RC_2021-05/best_model/parameters.json
+      md5: 586e744b2d6aa1286af20e1ec59b8b15
+      size: 305
+    - path: data/community2vec/RC_2021-05/best_model/word2vec.pickle
+      md5: 56be5e9178d2198f7dee4a088f50d300
+      size: 8383290
+    outs:
+    - path: data/community2vec/RC_2021-05/best_model/tsne.csv
+      md5: 8a105d36b0dba6ac1025b5304ec26685
+      size: 320770
+  tsne_visualizations@2021-04:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2021-04/best_model
+      data/community2vec/RC_2021-04/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2021-04/best_model/keyedVectors
+      md5: 57542bfdb1b96c23d3acd29fef7f7d3a
+      size: 4378233
+    - path: data/community2vec/RC_2021-04/best_model/parameters.json
+      md5: 66efcadacf0f20e40868c09952e7088d
+      size: 305
+    - path: data/community2vec/RC_2021-04/best_model/word2vec.pickle
+      md5: ea6dc614928043986c1ed42ca481e942
+      size: 8382971
+    outs:
+    - path: data/community2vec/RC_2021-04/best_model/tsne.csv
+      md5: fbf7210db6f6663e823d2ebd82ccaca8
+      size: 320707
+  community2vec_models@2021-07:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2021-07/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2021-07/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
+      \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2021-07\
+      \ --workers 12"
+    deps:
+    - path: data/community2vec/RC_2021-07/subreddit_counts.csv
+      md5: 05610293b60c1cb3a8c58138840d7ba1
+      size: 171716
+    - path: data/community2vec/RC_2021-07/user_contexts
+      md5: 1627ff5fb82c145508cd920632a39202.dir
+      size: 120868467
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2021-07/analogy_accuracy_results.csv
+      md5: d507238022ffc7733c24066665d8e453
+      size: 4457
+    - path: data/community2vec/RC_2021-07/best_model/keyedVectors
+      md5: 02441b961e12f9ce825fcc043e8a75a2
+      size: 4378376
+    - path: data/community2vec/RC_2021-07/best_model/metrics.json
+      md5: f94e4841b4d312c0fa29b35540882bfc
+      size: 628
+    - path: data/community2vec/RC_2021-07/best_model/parameters.json
+      md5: bbf752e6bc7c7d402df5a850abd91e82
+      size: 305
+    - path: data/community2vec/RC_2021-07/best_model/word2vec.pickle
+      md5: b07a1b7ed92770b861fa31de093547d7
+      size: 8383114
+  tsne_visualizations@2021-07:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2021-07/best_model
+      data/community2vec/RC_2021-07/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2021-07/best_model/keyedVectors
+      md5: 02441b961e12f9ce825fcc043e8a75a2
+      size: 4378376
+    - path: data/community2vec/RC_2021-07/best_model/parameters.json
+      md5: bbf752e6bc7c7d402df5a850abd91e82
+      size: 305
+    - path: data/community2vec/RC_2021-07/best_model/word2vec.pickle
+      md5: b07a1b7ed92770b861fa31de093547d7
+      size: 8383114
+    outs:
+    - path: data/community2vec/RC_2021-07/best_model/tsne.csv
+      md5: ba79fb0785110cb47376578b41b1ba9a
+      size: 320627
+  tsne_visualizations@2021-12:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2021-12/best_model
+      data/community2vec/RC_2021-12/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2021-12/best_model/keyedVectors
+      md5: 565686468c57e9247629920ccdfd6534
+      size: 4378681
+    - path: data/community2vec/RC_2021-12/best_model/parameters.json
+      md5: b8892fb6b6228bd7de6170581f661916
+      size: 301
+    - path: data/community2vec/RC_2021-12/best_model/word2vec.pickle
+      md5: 2625d50c81282e0a099989ae76b945bc
+      size: 8383400
+    outs:
+    - path: data/community2vec/RC_2021-12/best_model/tsne.csv
+      md5: 44eb5d8cbc051b4704b35cde793f6250
+      size: 320610
+  prep_community2vec_data@2022-01:
+    cmd: mkdir -p data/community2vec/RC_2022-01 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2022-01/subreddit_counts.csv
+      data/community2vec/RC_2022-01/user_contexts data/raw_data/comments/RC_2022-01.bz2
+      && rm data/community2vec/RC_2022-01/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2022-01.bz2
+      md5: fd25ba68de752140547aa2a0c2080320
+      size: 37953945294
+    outs:
+    - path: data/community2vec/RC_2022-01/subreddit_counts.csv
+      md5: d8dc8ffce84d41ff7fa090ded9a8b647
+      size: 172683
+    - path: data/community2vec/RC_2022-01/user_contexts
+      md5: 52771ad11a4da8502df205f83e82f167.dir
+      size: 152997573
+      nfiles: 2
+  community2vec_models@2022-01:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2022-01/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2022-01/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
+      \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2022-01\
+      \ --workers 12"
+    deps:
+    - path: data/community2vec/RC_2022-01/subreddit_counts.csv
+      md5: d8dc8ffce84d41ff7fa090ded9a8b647
+      size: 172683
+    - path: data/community2vec/RC_2022-01/user_contexts
+      md5: 52771ad11a4da8502df205f83e82f167.dir
+      size: 152997573
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2022-01/analogy_accuracy_results.csv
+      md5: 5aebac4d3e539f37ef5d8838d69f6b32
+      size: 4434
+    - path: data/community2vec/RC_2022-01/best_model/keyedVectors
+      md5: 7a2c85ec334c8e240c51cc49e3d67d50
+      size: 4378668
+    - path: data/community2vec/RC_2022-01/best_model/metrics.json
+      md5: 25ec6ccc4bb4b93cac712937bfc58e89
+      size: 626
+    - path: data/community2vec/RC_2022-01/best_model/parameters.json
+      md5: 3afa6a245020de28ba020ec56c6d996f
+      size: 305
+    - path: data/community2vec/RC_2022-01/best_model/word2vec.pickle
+      md5: bd1a1236943d8533657583c4686afd1b
+      size: 8383406
+  tsne_visualizations@2022-01:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2022-01/best_model
+      data/community2vec/RC_2022-01/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2022-01/best_model/keyedVectors
+      md5: 7a2c85ec334c8e240c51cc49e3d67d50
+      size: 4378668
+    - path: data/community2vec/RC_2022-01/best_model/parameters.json
+      md5: 3afa6a245020de28ba020ec56c6d996f
+      size: 305
+    - path: data/community2vec/RC_2022-01/best_model/word2vec.pickle
+      md5: bd1a1236943d8533657583c4686afd1b
+      size: 8383406
+    outs:
+    - path: data/community2vec/RC_2022-01/best_model/tsne.csv
+      md5: c157af41ddd6d7e2f3fb2f63971ea468
+      size: 320991
+  prep_community2vec_data@2021-08:
+    cmd: mkdir -p data/community2vec/RC_2021-08 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2021-08/subreddit_counts.csv
+      data/community2vec/RC_2021-08/user_contexts data/raw_data/comments/RC_2021-08.bz2
+      && rm data/community2vec/RC_2021-08/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2021-08.bz2
+      md5: 2495184724809cbf0838592eac5c1459
+      size: 33087814591
+    outs:
+    - path: data/community2vec/RC_2021-08/subreddit_counts.csv
+      md5: eb1b7e58c35e525a2d1971c88759fdcc
+      size: 171743
+    - path: data/community2vec/RC_2021-08/user_contexts
+      md5: b78e3afece551602253f4c1af4fe0fe9.dir
+      size: 131293761
+      nfiles: 2
+  community2vec_models@2021-08:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2021-08/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2021-08/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
+      \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2021-08\
+      \ --workers 12"
+    deps:
+    - path: data/community2vec/RC_2021-08/subreddit_counts.csv
+      md5: eb1b7e58c35e525a2d1971c88759fdcc
+      size: 171743
+    - path: data/community2vec/RC_2021-08/user_contexts
+      md5: b78e3afece551602253f4c1af4fe0fe9.dir
+      size: 131293761
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2021-08/analogy_accuracy_results.csv
+      md5: 11b50cf5999ecf4cc92390dbcc874f23
+      size: 4460
+    - path: data/community2vec/RC_2021-08/best_model/keyedVectors
+      md5: 8daa9202ce1dac8cffd90d6ab2f61ca2
+      size: 4378145
+    - path: data/community2vec/RC_2021-08/best_model/metrics.json
+      md5: d1aeb6c407d50b7c21b6b9d1a7b39d69
+      size: 621
+    - path: data/community2vec/RC_2021-08/best_model/parameters.json
+      md5: 7f7e27f8b52e0eaafb82a63757de242f
+      size: 301
+    - path: data/community2vec/RC_2021-08/best_model/word2vec.pickle
+      md5: d56905d97344444efd4081a3e6a2de6c
+      size: 8382864
+  tsne_visualizations@2021-08:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2021-08/best_model
+      data/community2vec/RC_2021-08/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2021-08/best_model/keyedVectors
+      md5: 8daa9202ce1dac8cffd90d6ab2f61ca2
+      size: 4378145
+    - path: data/community2vec/RC_2021-08/best_model/parameters.json
+      md5: 7f7e27f8b52e0eaafb82a63757de242f
+      size: 301
+    - path: data/community2vec/RC_2021-08/best_model/word2vec.pickle
+      md5: d56905d97344444efd4081a3e6a2de6c
+      size: 8382864
+    outs:
+    - path: data/community2vec/RC_2021-08/best_model/tsne.csv
+      md5: c3563e29c0f01c349dfa3349eba8c4c7
+      size: 320551
+  tsne_visualizations@2021-11:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2021-11/best_model
+      data/community2vec/RC_2021-11/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2021-11/best_model/keyedVectors
+      md5: b0a20a6d5eed90d9877c7074f7f32b43
+      size: 4378644
+    - path: data/community2vec/RC_2021-11/best_model/parameters.json
+      md5: 241bf9cb6713787d838fa55b347a05dc
+      size: 305
+    - path: data/community2vec/RC_2021-11/best_model/word2vec.pickle
+      md5: d8b1620998bad8aff79a3e0be71ae4a6
+      size: 8383382
+    outs:
+    - path: data/community2vec/RC_2021-11/best_model/tsne.csv
+      md5: 2430c53e8cfa0cf0b7f78c6ae7b5af3b
+      size: 320701
