@@ -46,8 +46,14 @@
         "April 2021": "data/community2vec/RC_2021-04/best_model",
         "May 2021": "data/community2vec/RC_2021-05/best_model",
         "June 2021": "data/community2vec/RC_2021-06/best_model",
+        "July 2021": "data/community2vec/RC_2021-07/best_model",
+        "August 2021": "data/community2vec/RC_2021-08/best_model",
+        "September 2021": "data/community2vec/RC_2021-09/best_model",
         "October 2021": "data/community2vec/RC_2021-10/best_model",
         "November 2021": "data/community2vec/RC_2021-11/best_model",
-        "December 2021": "data/community2vec/RC_2021-12/best_model"
+        "December 2021": "data/community2vec/RC_2021-12/best_model",
+        "January 2022": "data/community2vec/RC_2022-01/best_model",
+        "February 2022": "data/community2vec/RC_2022-02/best_model",
+        "March 2022": "data/community2vec/RC_2022-03/best_model"
     }
 }
