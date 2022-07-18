@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package installation switched to use setup.cfg and pyproject.toml rather than setup.py
 - Slurm python version changed from 3.8 to 3.9
 - Separate Dash app requirements in requirements.txt from ihop package requirments in setup.py
+- T-SNE visualiations for each community2vec model are generated using a DVC pipeline step and written to CSV in order to speed up interaction times and avoid re-generating the projection each time a new month is selected
 
 ### Fixed
 - Fixed bug in app where wrong clusters are highlighted after changing selected subreddits and using the "Highlight selected clusters" button
