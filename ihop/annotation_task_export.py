@@ -6,7 +6,9 @@ enough to identify a common theme or topic.
 """
 import argparse
 import logging
+from multiprocessing.sharedctypes import Value
 import pathlib
+import random
 
 import pandas as pd
 
@@ -39,7 +41,7 @@ def export_cluster_label_agreement_task(cluster_assignments_df, model_name):
         columns={model_name: CLUSTER_ID_KEY, SUBREDDIT_KEY: subreddit_col_header},
         inplace=True,
     )
-    # Fill in fields needed for annotators
+    # Blank fields that annotators will fill in
     dataframe_to_write[COHERENT_KEY] = ""
     dataframe_to_write[CLUSTER_LABEL_KEY] = ""
     dataframe_to_write[MODEL_ID_KEY] = model_name
@@ -58,13 +60,122 @@ def export_cluster_label_agreement_task(cluster_assignments_df, model_name):
     return dataframe_to_write
 
 
-def export_intruder_task(cluster_assignments_df, model_name, top_n=5):
-    """Groups the subreddit clusters, then takes
+def get_eligible_intruders(
+    source_df, group, overall_stddev, model_name, cluster_id, popularity_col="count"
+):
+    """Returns a dataframe
 
-    :param cluster_assignments_df: _description_
-    :param model_name:
+    :param source_df: pandas DataFrame to filter and sample intruders from
+    :param group: pandas GroupBy object containing the popularity_col
+    :param overall_stddev: numeric, used to determine the upper and lower bounds for popularity filtering
+    :param cluster_id: obj, the id of the current cluster, the intruder cannot be in the same cluster
+    :param popularity_col: str, name of column for filtering for an itruder subreddit with similar popularity to the given cluster, defaults to "count"
     """
-    count_stddev = cluster_assignments_df["count"].std()
+    count_mean = group[popularity_col].mean()
+    upper_bound = count_mean + overall_stddev
+    lower_bound = count_mean - overall_stddev
+
+    eligible_intruders = source_df[
+        (source_df[popularity_col] >= lower_bound)
+        & (source_df[popularity_col] <= upper_bound)
+        & (source_df[model_name] != cluster_id)
+    ]
+
+    return eligible_intruders
+
+
+def shuffle_intruder(true_elements, intruder_element):
+    """Returns a new list containing all elements with the intruder shuffled in and the index of the intruder
+
+    :param true_elements: list of elements
+    :param intruder_element: object
+    :raises: ValueError if the intruder is already in true_elements list
+    """
+    if intruder_element in true_elements:
+        raise ValueError(
+            f"List of true elements {true_elements} already contains intruder '{intruder_element}'"
+        )
+    result_list = true_elements + [intruder_element]
+    random.shuffle(result_list)
+
+    intruder_idx = result_list.index(intruder_element)
+    return result_list, intruder_idx
+
+
+def export_intruder_task(
+    cluster_assignments_df,
+    model_name,
+    top_n=5,
+    do_sort=True,
+    random_seed=None,
+    popularity_col="count",
+):
+    """Groups the subreddit clusters, then takes top_n most popular subreddits in group and inserts a random intruder
+    that is within 1 stdev of popularity relative the to average popularity of the top_n subreddits of the cluster.
+
+    Returns a dataframe with randomized intruders for the cluster and
+
+    :param cluster_assignments_df: pandas DataFrame, must have a 'count' column containing a numeric indication of subreddits' popularity and a 'subreddit' column
+    :param model_name: str, key identifying the model and cluster assignment column
+    :param top_n: int, how many of the top subreddits in the cluster (besides the intruder) to keep
+    :param do_sort: boolean, True to sort by decreasing popularity before grouping
+    """
+    logger.info("Determining intruders for model %s", model_name)
+    count_stddev = cluster_assignments_df[popularity_col].std()
+    logger.info("Standard deviation of subreddit counts: %s", count_stddev)
+
+    random.seed(random_seed)
+
+    source_df = cluster_assignments_df
+    if do_sort:
+        source_df = cluster_assignments_df.sort_values(
+            by=popularity_col, ascending=False
+        )
+
+    annotatable_results = list()
+    answer_key_results = list()
+
+    cluster_groups = source_df.groupby(model_name).head(top_n)
+    for cluster_id, group in cluster_groups:
+        logger.info(
+            "Finding intruder for cluster id %s with top subreddits: %s",
+            cluster_id,
+            group["subreddit"],
+        )
+        eligible_intruders = get_eligible_intruders(
+            source_df, group, count_stddev, model_name, cluster_id, popularity_col
+        )
+        subreddits = list(group["subreddits"].values)
+
+        if len(eligible_intruders) == 0:
+            logger.warning("No eligible intruders for cluster id %s", cluster_id)
+            continue
+
+        if random_seed is not None:
+            intruder = eligible_intruders.sample(random_state=random_seed)[
+                "subreddit"
+            ].iloc[0]
+        else:
+            intruder = eligible_intruders.sample()["subreddit"].iloc[0]
+        shuffled_elements, intruder_idx = shuffle_intruder(subreddits, intruder)
+
+        curr_annotation_row = [model_name, cluster_id] + shuffled_elements
+        annotatable_results.append(curr_annotation_row + [""])
+
+        # Since humans will be reviewing this, we'll index starting at 1, not 0
+        curr_answer_key_row = curr_annotation_row + [intruder_idx + 1]
+        answer_key_results.append(curr_answer_key_row)
+
+        cols = ["Model ID", "Cluster ID"] + [i + 1 for i in range(top_n + 1)]
+        annotation_df = pd.DataFrame.from_records(
+            annotatable_results, columns=cols + ["Index of intruder (annotated)"]
+        )
+
+        answer_key_df = pd.DataFrame.from_records(
+            answer_key_results, columns=cols + ["Index of intruder (answer)"]
+        )
+
+        return annotation_df, answer_key_df
 
 
 def get_answer_key_filename(intruder_csv):
