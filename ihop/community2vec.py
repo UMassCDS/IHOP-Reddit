@@ -29,11 +29,21 @@ import ihop.utils
 
 logger = logging.getLogger(__name__)
 
-# NB documents don't really need to be Reddit users, could be other text
+# Documents don't really need to be Reddit users, could be other text
 INPUT_CSV_SCHEMA = StructType([StructField("subreddit_list", StringType(), False)])
 
 # The filename for gensim vectors stored for community2vec models
 VECTORS_FILE_NAME = "keyedVectors"
+
+# Metrics json output keys
+# These are the only ones that need to be used outside this class for displaying
+# metrics in the app
+MODEL_ID_KEY = "model_id"
+CONTEXTS_PATH_KEY = "contexts_path"
+ANALOGY_ACC_KEY = "analogy_accuracy"
+DETAILED_ANALOGY_KEY = "detailed_analogy_results"
+NUM_USERS_KEY = "num_users"
+MAX_COMMENTS_KEY = "max_comments"
 
 
 def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1):
@@ -106,8 +116,7 @@ class EpochLossCallback(gensim.models.callbacks.CallbackAny2Vec):
 
 
 class SaveVectorsCallback(gensim.models.callbacks.CallbackAny2Vec):
-    """Callback to save embeddings for a model after each epoch
-    """
+    """Callback to save embeddings for a model after each epoch"""
 
     def __init__(self, save_vector_prefix):
         """
@@ -124,8 +133,7 @@ class SaveVectorsCallback(gensim.models.callbacks.CallbackAny2Vec):
 
 
 class AnalogyAccuracyCallback(gensim.models.callbacks.CallbackAny2Vec):
-    """Callback for reporting analogy accuracy after each epoch
-    """
+    """Callback for reporting analogy accuracy after each epoch"""
 
     def __init__(self, analogies_path, case_insensitive=False):
         """
@@ -211,12 +219,11 @@ class GensimCommunity2Vec:
         self.w2v_model.build_vocab_from_freq(vocab_dict)
 
     def get_params_as_dict(self):
-        """Returns dictionary of parameters for tracking experiments.
-        """
+        """Returns dictionary of parameters for tracking experiments."""
         return {
-            "num_users": self.num_users,
-            "max_comments": self.max_comments,
-            "contexts_path": self.contexts_path,
+            NUM_USERS_KEY: self.num_users,
+            MAX_COMMENTS_KEY: self.max_comments,
+            CONTEXTS_PATH_KEY: self.contexts_path,
             "epochs": self.epochs,
             "vector_size": self.w2v_model.vector_size,
             "skip_gram": self.w2v_model.sg,
@@ -283,57 +290,23 @@ class GensimCommunity2Vec:
             json.dump(self.get_params_as_dict(), f)
 
     def save_vectors(self, save_path):
-        """Save only the embeddings from this model as gensim KeyedVectors. These can't be used for further training of the Community2Vec model, but have smaller RAM footprint and are more efficient
-        """
+        """Save only the embeddings from this model as gensim KeyedVectors. These can't be used for further training of the Community2Vec model, but have smaller RAM footprint and are more efficient"""
         self.w2v_model.wv.save(save_path)
 
     def get_normed_vectors(self):
-        """Returns the normed embedding weights for the Gensim Keyed Vectors
-        """
+        """Returns the normed embedding weights for the Gensim Keyed Vectors"""
         return self.w2v_model.wv.get_normed_vectors()
 
-    def get_tsne_dataframe(self, key_col="subreddit", n_components=2, **kwargs):
-        """Fits a TSNE representation of the dataframe.
-        Returns the results as both a pandas dataframe and the resulting TSNE projection as a numpy array
-
-        :param key_col: str, column name for indexed values
-        :param n_components: int, usually 2 or 3, since the purpose of this is for creating visualizations
-        :param kwargs: dict params passed to sklearn's TNSE model
-        """
-        tsne_fitter = TSNE(
-            **kwargs,
-            n_components=n_components,
-            init="pca",
-            metric="cosine",
-            learning_rate="auto",
-            square_distances=True,
-        )
-        tsne_projection = tsne_fitter.fit_transform(self.get_normed_vectors())
-        dataframe_elements = list()
-        for i, vocab_elem in enumerate(self.w2v_model.wv.index_to_key):
-            elem_proj = tsne_projection[i]
-            dataframe_elements.append((vocab_elem, *elem_proj))
-
-        # Generate columns for dataframe
-        cols = [key_col]
-        for i in range(1, n_components + 1):
-            cols.append(f"tsne_{i}")
-
-        dataframe = pd.DataFrame.from_records(dataframe_elements, columns=cols)
-        return dataframe, tsne_projection
-
     def get_index_to_key(self):
-        """Returns the vocab of the Word2Vec embeddings as an indexed list of strings.
-        """
+        """Returns the vocab of the Word2Vec embeddings as an indexed list of strings."""
         return self.w2v_model.wv.index_to_key
 
     def get_index_as_dict(self):
-        """Returns the index of the Word2Vec embeddings as a dictionary mapping int -> string
-        """
+        """Returns the index of the Word2Vec embeddings as a dictionary mapping int -> string"""
         return dict(enumerate(self.w2v_model.wv.index_to_key))
 
     def score_analogies(self, analogies_path=None, case_insensitive=False):
-        """"Returns the trained embedding's accuracy for solving subreddit algebra analogies and detailed section results. If not file path is specified, return results on the default sports and university-city analogies from ihop.resources.analogies.
+        """ "Returns the trained embedding's accuracy for solving subreddit algebra analogies and detailed section results. If not file path is specified, return results on the default sports and university-city analogies from ihop.resources.analogies.
 
         :param analogies_path: str, optional. Define to use a particular analogies file where lines are whitespace separated 4-tuples and split into sections by ': SECTION NAME' lines
         :param case_insensitive: boolean, set to True to deal with case mismatch in analogy pairs. For Reddit, this should typically be False.
@@ -414,9 +387,9 @@ class GensimCommunity2Vec:
             json_params = json.load(j)
         model = GensimCommunity2Vec(
             {},
-            json_params["contexts_path"],
-            json_params["max_comments"],
-            json_params["num_users"],
+            json_params[CONTEXTS_PATH_KEY],
+            json_params[MAX_COMMENTS_KEY],
+            json_params[NUM_USERS_KEY],
             epochs=json_params["epochs"],
         )
         model.w2v_model = gensim.models.Word2Vec.load(w2v_file)
@@ -539,7 +512,9 @@ class GridSearchTrainer:
                 c2v_model.save(curr_model_path)
                 c2v_model.save_vectors(save_vectors_prefix)
 
-            acc, detailed_accs = c2v_model.score_analogies(self.analogies_path,)
+            acc, detailed_accs = c2v_model.score_analogies(
+                self.analogies_path,
+            )
             logger.info(
                 "Model id %s achieved %s accuracy on analogy task", model_id, acc
             )
@@ -582,8 +557,7 @@ class GridSearchTrainer:
         return "_".join(model_id_elems)
 
     def expand_param_grid_to_list(self):
-        """Returns the parameter grid to a list of dicts to iterate over when training.
-        """
+        """Returns the parameter grid to a list of dicts to iterate over when training."""
         result = list()
         for v in itertools.product(*self.param_grid.values()):
             result.append(dict(zip(self.param_grid.keys(), v)))
@@ -596,8 +570,7 @@ class GridSearchTrainer:
         return pd.DataFrame.from_records(self.analogy_results)
 
     def write_performance_results(self):
-        """Writes analogy accuracy results for all models to a csv file in the model_otuput_directory
-        """
+        """Writes analogy accuracy results for all models to a csv file in the model_otuput_directory"""
         self.model_analogy_results_as_dataframe().to_csv(
             os.path.join(self.model_output_dir, self.PERFORMANCE_CSV_NAME), index=False
         )
@@ -617,10 +590,10 @@ class GridSearchTrainer:
         :type save_dir_path: _type_
         """
         results_dict = {
-            "model_id": model_id,
-            "contexts_path": self.contexts_path,
-            "analogy_accuracy": acc,
-            "detailed_analogy_results": analogy_sections_to_str(detailed_accs),
+            MODEL_ID_KEY: model_id,
+            CONTEXTS_PATH_KEY: self.contexts_path,
+            ANALOGY_ACC_KEY: acc,
+            DETAILED_ANALOGY_KEY: analogy_sections_to_str(detailed_accs),
         }
         results_dict.update(c2v_model.get_params_as_dict())
         return results_dict

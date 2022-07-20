@@ -2,6 +2,16 @@ months:
   - 2021-04
   - 2021-05
   - 2021-06
+  - 2021-07
+  - 2021-08
+  - 2021-09
+  - 2021-10
+  - 2021-11
+  - 2021-12
+  - 2022-01
+  - 2022-02
+  - 2022-03
+
 
 # Parameters to the ihop.import_data c2v script
 community2vec_data_prep:
@@ -15,7 +25,7 @@ community2vec_params:
   # How many epochs to train each model for?
   epochs: 5
   # How many workers to use for training the model?
-  workers: 3
+  workers: 12
 
 # Configure directories to store experiment results in
 comments_dir: data/raw_data/comments
