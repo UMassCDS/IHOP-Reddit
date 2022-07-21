@@ -6,7 +6,6 @@ enough to identify a common theme or topic.
 """
 import argparse
 import logging
-from multiprocessing.sharedctypes import Value
 import pathlib
 import random
 
@@ -135,17 +134,20 @@ def export_intruder_task(
     annotatable_results = list()
     answer_key_results = list()
 
-    cluster_groups = source_df.groupby(model_name).head(top_n)
-    for cluster_id, group in cluster_groups:
+    cluster_groups = source_df.groupby(model_name)
+    for group in cluster_groups:
+        logger.debug("Current group: %s", group)
+        cluster_id = group[model_name]
+        group_topn = group.head(top_n)
         logger.info(
             "Finding intruder for cluster id %s with top subreddits: %s",
             cluster_id,
-            group["subreddit"],
+            group_topn["subreddit"],
         )
         eligible_intruders = get_eligible_intruders(
-            source_df, group, count_stddev, model_name, cluster_id, popularity_col
+            source_df, group_topn, count_stddev, model_name, cluster_id, popularity_col
         )
-        subreddits = list(group["subreddits"].values)
+        subreddits = list(group_topn["subreddits"].values)
 
         if len(eligible_intruders) == 0:
             logger.warning("No eligible intruders for cluster id %s", cluster_id)
@@ -206,13 +208,20 @@ def main(
 
     cluster_assignments_df = pd.read_csv(cluster_assignments_csv, header=0)
     model_name = cluster_assignments_df.columns[1]
+    logger.info("Model name is '%s'", model_name)
+    logger.info("Cluster assignment snippet:\n%s", cluster_assignments_df.head())
+    logger.debug("Cluster assignment data types:\n%s", cluster_assignments_df.dtypes)
 
     subreddit_counts_df = pd.read_csv(subreddit_counts_csv, header=0)
+    logger.info("Subreddit counts snippet:\n%s", subreddit_counts_df.head())
+    logger.debug("Subreddit counts data types:\n%s", subreddit_counts_df.dtypes)
 
     # Join in subreddit counts, sorting with most popular subreddits first
-    cluster_assignments_df = cluster_assignments_df.join(
-        subreddit_counts_df, on="subreddit"
-    ).sort_values(by="count", ascending=False)
+    cluster_assignments_df = pd.merge(
+        cluster_assignments_df, subreddit_counts_df, on="subreddit"
+    )
+    cluster_assignments_df.sort_values(by="count", ascending=False, inplace=True)
+    logger.info("Joined table snippet:\n%s", cluster_assignments_df.head())
 
     if label_task_csv is not None:
         label_task_df = export_cluster_label_agreement_task(
@@ -221,7 +230,9 @@ def main(
         label_task_df.to_csv(label_task_csv, index=False)
 
     if intruder_task_csv is not None:
-        intruder_task_df, answer_key_df = export_intruder_task(cluster_assignments_df)
+        intruder_task_df, answer_key_df = export_intruder_task(
+            cluster_assignments_df, model_name
+        )
         answer_key_csv = get_answer_key_filename(intruder_task_csv)
         intruder_task_df.to_csv(intruder_task_csv, index=False)
         answer_key_df.to_csv(answer_key_csv, index=False)
@@ -242,7 +253,7 @@ parser.add_argument(
     help="Path to CSV with cluster assignments from a given subreddit clustering model",
 )
 parser.add_argument(
-    "subbreddit_counts_csv",
+    "subreddit_counts_csv",
     help="Path to CSV storing counts of entries in that subreddit over the same time period as the cluster model.",
 )
 
@@ -258,9 +269,6 @@ parser.add_argument(
     help="Output path to CSV for the subreddit intruder identification task. If not specified, task will be skipped.",
 )
 
-parser.add_argument("--intruder-key", "-k")
-
-
 if __name__ == "__main__":
     try:
         args = parser.parse_args()
@@ -268,10 +276,10 @@ if __name__ == "__main__":
         ihop.utils.configure_logging(config[1])
         logger.debug("Script arguments: %s", args)
         main(
-            args.cluster,
+            args.cluster_assignment_csv,
+            args.subreddit_counts_csv,
             args.cluster_labeling_csv,
             args.intruder_csv,
-            args.subreddit_counts_csv,
         )
     except Exception:
         logger.error("Fatal error during annotation task export", exc_info=True)

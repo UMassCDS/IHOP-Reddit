@@ -873,3 +873,234 @@ stages:
     - path: data/community2vec/RC_2021-11/best_model/tsne.csv
       md5: 2430c53e8cfa0cf0b7f78c6ae7b5af3b
       size: 320701
+  kmeans_cluster_models@2022-03:
+    cmd: mkdir -p data/annotation_data/RC_2022-03/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2022-03/best_model/keyedVectors --output_dir data/annotation_data/RC_2022-03/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2022-03_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2022-03/best_model/keyedVectors
+      md5: 86527f5ec9ee632deebb9259da86aea9
+      size: 4378620
+    outs:
+    - path: data/annotation_data/RC_2022-03/kmeans_model/clusters.csv
+      md5: 66cbfeaa576023a11bd1882b950f3acf
+      size: 147560
+    - path: data/annotation_data/RC_2022-03/kmeans_model/metrics.json
+      md5: 68ed9c9454b5d51caac147fc96374200
+      size: 114
+    - path: data/annotation_data/RC_2022-03/kmeans_model/parameters.json
+      md5: d41dee4c2b8bed8ec54f072dab3c94fb
+      size: 199
+    - path: data/annotation_data/RC_2022-03/kmeans_model/sklearn_cluster_model.joblib
+      md5: 4e293f7557550d4a1559ceb29b6c97f6
+      size: 80694
+  kmeans_cluster_models@2021-11:
+    cmd: mkdir -p data/annotation_data/RC_2021-11/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2021-11/best_model/keyedVectors --output_dir data/annotation_data/RC_2021-11/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2021-11_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2021-11/best_model/keyedVectors
+      md5: b0a20a6d5eed90d9877c7074f7f32b43
+      size: 4378644
+    outs:
+    - path: data/annotation_data/RC_2021-11/kmeans_model/clusters.csv
+      md5: d61ca1078d2ca2148c657b63084561e4
+      size: 147590
+    - path: data/annotation_data/RC_2021-11/kmeans_model/metrics.json
+      md5: 3acfa67b34d29dc171805fee2f881340
+      size: 113
+    - path: data/annotation_data/RC_2021-11/kmeans_model/parameters.json
+      md5: c23586b82ddaa1cc1edcfed464dcfe5a
+      size: 199
+    - path: data/annotation_data/RC_2021-11/kmeans_model/sklearn_cluster_model.joblib
+      md5: a33405505bbd2d323ebb3470d2be61b8
+      size: 80694
+  kmeans_cluster_models@2022-02:
+    cmd: mkdir -p data/annotation_data/RC_2022-02/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2022-02/best_model/keyedVectors --output_dir data/annotation_data/RC_2022-02/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2022-02_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2022-02/best_model/keyedVectors
+      md5: 2b004396a0dcd4bc323dc863b8c4acd4
+      size: 4378683
+    outs:
+    - path: data/annotation_data/RC_2022-02/kmeans_model/clusters.csv
+      md5: d2f73177006f54bf9f6fe85a23f4fd77
+      size: 147471
+    - path: data/annotation_data/RC_2022-02/kmeans_model/metrics.json
+      md5: 38b1cfa5ceffd2568586c0504e5bbb9d
+      size: 112
+    - path: data/annotation_data/RC_2022-02/kmeans_model/parameters.json
+      md5: 729cba8dd81e4be9770ec28fb7ec89f0
+      size: 199
+    - path: data/annotation_data/RC_2022-02/kmeans_model/sklearn_cluster_model.joblib
+      md5: f97b72a4837f17b0c89cb329d681e28a
+      size: 80694
+  kmeans_cluster_models@2021-06:
+    cmd: mkdir -p data/annotation_data/RC_2021-06/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2021-06/best_model/keyedVectors --output_dir data/annotation_data/RC_2021-06/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2021-06_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2021-06/best_model/keyedVectors
+      md5: f0026bcc111274b36e0250d475db1f07
+      size: 4379056
+    outs:
+    - path: data/annotation_data/RC_2021-06/kmeans_model/clusters.csv
+      md5: d768856286d771a102eb06a5761ee356
+      size: 148041
+    - path: data/annotation_data/RC_2021-06/kmeans_model/metrics.json
+      md5: c2a496590ed9054cc5ba71c90fd13ebe
+      size: 112
+    - path: data/annotation_data/RC_2021-06/kmeans_model/parameters.json
+      md5: 262955a3c94ee5e3d303ca45722803b4
+      size: 199
+    - path: data/annotation_data/RC_2021-06/kmeans_model/sklearn_cluster_model.joblib
+      md5: 929fdfe2b2bd1895a885055a04458ab6
+      size: 80694
+  kmeans_cluster_models@2021-08:
+    cmd: mkdir -p data/annotation_data/RC_2021-08/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2021-08/best_model/keyedVectors --output_dir data/annotation_data/RC_2021-08/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2021-08_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2021-08/best_model/keyedVectors
+      md5: 8daa9202ce1dac8cffd90d6ab2f61ca2
+      size: 4378145
+    outs:
+    - path: data/annotation_data/RC_2021-08/kmeans_model/clusters.csv
+      md5: 84c51d89edc1b769721a0df869b4ccb2
+      size: 146854
+    - path: data/annotation_data/RC_2021-08/kmeans_model/metrics.json
+      md5: 32e9bd571961cd6fd2f956f90f321a20
+      size: 114
+    - path: data/annotation_data/RC_2021-08/kmeans_model/parameters.json
+      md5: bd8eac8960bafde2395cfcb666e3393a
+      size: 199
+    - path: data/annotation_data/RC_2021-08/kmeans_model/sklearn_cluster_model.joblib
+      md5: c8547d29a35ebd26879609f56d7b0545
+      size: 80694
+  kmeans_cluster_models@2021-10:
+    cmd: mkdir -p data/annotation_data/RC_2021-10/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2021-10/best_model/keyedVectors --output_dir data/annotation_data/RC_2021-10/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2021-10_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2021-10/best_model/keyedVectors
+      md5: 80e963fe6049497933e123daee4344ac
+      size: 4378696
+    outs:
+    - path: data/annotation_data/RC_2021-10/kmeans_model/clusters.csv
+      md5: 3ba464b7670383202779140245e56a90
+      size: 147340
+    - path: data/annotation_data/RC_2021-10/kmeans_model/metrics.json
+      md5: 061f5588a41ee17f9c0b92e770cea8d0
+      size: 113
+    - path: data/annotation_data/RC_2021-10/kmeans_model/parameters.json
+      md5: 2fbfa24feac6b696a1616039b9e0baf9
+      size: 199
+    - path: data/annotation_data/RC_2021-10/kmeans_model/sklearn_cluster_model.joblib
+      md5: 79248a25bd2b97400bab53fd17eea953
+      size: 80694
+  kmeans_cluster_models@2021-09:
+    cmd: mkdir -p data/annotation_data/RC_2021-09/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2021-09/best_model/keyedVectors --output_dir data/annotation_data/RC_2021-09/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2021-09_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2021-09/best_model/keyedVectors
+      md5: 27e3d4a635d49f76b07c39ab8681d654
+      size: 4378163
+    outs:
+    - path: data/annotation_data/RC_2021-09/kmeans_model/clusters.csv
+      md5: b1a63ab05be5293a17345c1d4945f13b
+      size: 147267
+    - path: data/annotation_data/RC_2021-09/kmeans_model/metrics.json
+      md5: 2cb8c9dd75d01e4b9e477562c1f08628
+      size: 113
+    - path: data/annotation_data/RC_2021-09/kmeans_model/parameters.json
+      md5: d9ab5169de9cbfb83dd6d9b81e861b05
+      size: 199
+    - path: data/annotation_data/RC_2021-09/kmeans_model/sklearn_cluster_model.joblib
+      md5: c158cf77a7ea6f6f120768edfb0f2bd7
+      size: 80694
+  kmeans_cluster_models@2021-04:
+    cmd: mkdir -p data/annotation_data/RC_2021-04/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2021-04/best_model/keyedVectors --output_dir data/annotation_data/RC_2021-04/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2021-04_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2021-04/best_model/keyedVectors
+      md5: 57542bfdb1b96c23d3acd29fef7f7d3a
+      size: 4378233
+    outs:
+    - path: data/annotation_data/RC_2021-04/kmeans_model/clusters.csv
+      md5: 4174c54a3c26b6380087b6c4fdc1f3a2
+      size: 147023
+    - path: data/annotation_data/RC_2021-04/kmeans_model/metrics.json
+      md5: 7868e903020370ef3a886d64b38535e9
+      size: 112
+    - path: data/annotation_data/RC_2021-04/kmeans_model/parameters.json
+      md5: c202e98a404d67088dcc945289eb46d6
+      size: 199
+    - path: data/annotation_data/RC_2021-04/kmeans_model/sklearn_cluster_model.joblib
+      md5: 4c8cec81dbfe2f06ceb4ca490d1dbd40
+      size: 80694
+  kmeans_cluster_models@2021-05:
+    cmd: mkdir -p data/annotation_data/RC_2021-05/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2021-05/best_model/keyedVectors --output_dir data/annotation_data/RC_2021-05/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2021-05_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2021-05/best_model/keyedVectors
+      md5: 416d0dcccbc7b5cc284a9011fd16fbd8
+      size: 4378552
+    outs:
+    - path: data/annotation_data/RC_2021-05/kmeans_model/clusters.csv
+      md5: 67cbc837bbe95910e2360ad858ab0a7f
+      size: 147446
+    - path: data/annotation_data/RC_2021-05/kmeans_model/metrics.json
+      md5: 72c4f5c06795007c1adf439af4592a13
+      size: 113
+    - path: data/annotation_data/RC_2021-05/kmeans_model/parameters.json
+      md5: 4ac9a25e8a6a4e03e799cba742d8b47a
+      size: 199
+    - path: data/annotation_data/RC_2021-05/kmeans_model/sklearn_cluster_model.joblib
+      md5: 8265f6d017d2b829bf8eae69db0884d1
+      size: 80694
+  kmeans_cluster_models@2021-07:
+    cmd: mkdir -p data/annotation_data/RC_2021-07/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2021-07/best_model/keyedVectors --output_dir data/annotation_data/RC_2021-07/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2021-07_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2021-07/best_model/keyedVectors
+      md5: 02441b961e12f9ce825fcc043e8a75a2
+      size: 4378376
+    outs:
+    - path: data/annotation_data/RC_2021-07/kmeans_model/clusters.csv
+      md5: 4b19972e6b03bae128aafca7403448f2
+      size: 147228
+    - path: data/annotation_data/RC_2021-07/kmeans_model/metrics.json
+      md5: 68d01ec5209189c38a915882fdfd161c
+      size: 112
+    - path: data/annotation_data/RC_2021-07/kmeans_model/parameters.json
+      md5: 41e038b81970f846dc5e1223921a91e8
+      size: 199
+    - path: data/annotation_data/RC_2021-07/kmeans_model/sklearn_cluster_model.joblib
+      md5: 8dfda27082907ebc147aa9bda0e0c8b7
+      size: 80694
+  kmeans_cluster_models@2021-12:
+    cmd: mkdir -p data/annotation_data/RC_2021-12/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2021-12/best_model/keyedVectors --output_dir data/annotation_data/RC_2021-12/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2021-12_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2021-12/best_model/keyedVectors
+      md5: 565686468c57e9247629920ccdfd6534
+      size: 4378681
+    outs:
+    - path: data/annotation_data/RC_2021-12/kmeans_model/clusters.csv
+      md5: 60ca536cea83dd0babca7a29cf993daa
+      size: 147625
+    - path: data/annotation_data/RC_2021-12/kmeans_model/metrics.json
+      md5: 7dcab6d2324ec2a12d92741826593bf5
+      size: 114
+    - path: data/annotation_data/RC_2021-12/kmeans_model/parameters.json
+      md5: f030937e1c3c051330a1fd825694dd5b
+      size: 199
+    - path: data/annotation_data/RC_2021-12/kmeans_model/sklearn_cluster_model.joblib
+      md5: facee85ab47f6c4de06e3706bf3ea40d
+      size: 80694
