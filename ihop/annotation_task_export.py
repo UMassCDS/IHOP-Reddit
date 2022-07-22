@@ -2,7 +2,8 @@
 to be annotated in two ways:
 1) Cluster Label Agreement: Determine how much human experts find the clusters of subreddits produced by the approach coherent
 enough to identify a common theme or topic.
-2) Subreddit Intruder Identification: Task where annotators pick out a randomly added subreddit from a list of the top subreddits in a cluster in order to determine how well the model aligns with human intuitions about related subreddits.
+2) Subreddit Intruder Identification: Task where annotators pick out a randomly added subreddit from a list of the
+top subreddits in a cluster in order to determine how well the model aligns with human intuitions about related subreddits.
 """
 import argparse
 import logging
@@ -23,7 +24,8 @@ SUBREDDIT_KEY = "subreddit"
 
 
 def export_cluster_label_agreement_task(cluster_assignments_df, model_name):
-    """Group clusters to a more easy-to-annotate format, returning a dataframe that can be written to CSV. This just groups by cluster ID and adds a few columns for annotators' convenience.
+    """Group clusters to a more easy-to-annotate format, returning a dataframe that can be written to CSV.
+    This just groups by cluster ID and adds a few columns for annotators' convenience.
 
     Note that the order of subreddits is arbitrary, unless cluster_assignments_df is sorted before calling this method.
 
@@ -134,20 +136,18 @@ def export_intruder_task(
     annotatable_results = list()
     answer_key_results = list()
 
-    cluster_groups = source_df.groupby(model_name)
-    for group in cluster_groups:
+    cluster_groups_df = source_df.groupby(model_name).head(top_n)
+    for cluster_id, group in cluster_groups_df.groupby(model_name):
         logger.debug("Current group: %s", group)
-        cluster_id = group[model_name]
-        group_topn = group.head(top_n)
         logger.info(
             "Finding intruder for cluster id %s with top subreddits: %s",
             cluster_id,
-            group_topn["subreddit"],
+            group[SUBREDDIT_KEY],
         )
         eligible_intruders = get_eligible_intruders(
-            source_df, group_topn, count_stddev, model_name, cluster_id, popularity_col
+            source_df, group, count_stddev, model_name, cluster_id, popularity_col
         )
-        subreddits = list(group_topn["subreddits"].values)
+        subreddits = list(group[SUBREDDIT_KEY].values)
 
         if len(eligible_intruders) == 0:
             logger.warning("No eligible intruders for cluster id %s", cluster_id)
@@ -155,10 +155,10 @@ def export_intruder_task(
 
         if random_seed is not None:
             intruder = eligible_intruders.sample(random_state=random_seed)[
-                "subreddit"
+                SUBREDDIT_KEY
             ].iloc[0]
         else:
-            intruder = eligible_intruders.sample()["subreddit"].iloc[0]
+            intruder = eligible_intruders.sample()[SUBREDDIT_KEY].iloc[0]
         shuffled_elements, intruder_idx = shuffle_intruder(subreddits, intruder)
 
         curr_annotation_row = [model_name, cluster_id] + shuffled_elements
