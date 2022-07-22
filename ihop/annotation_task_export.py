@@ -136,18 +136,28 @@ def export_intruder_task(
     annotatable_results = list()
     answer_key_results = list()
 
-    cluster_groups_df = source_df.groupby(model_name).head(top_n)
+    cluster_groups_df = source_df.groupby(model_name).head(top_n).reset_index(drop=True)
+
+    logger.info(
+        "Dataframe with top subreddit onlys:\n%s", cluster_groups_df.head(top_n * 3)
+    )
     for cluster_id, group in cluster_groups_df.groupby(model_name):
-        logger.debug("Current group: %s", group)
         logger.info(
             "Finding intruder for cluster id %s with top subreddits: %s",
             cluster_id,
             group[SUBREDDIT_KEY],
         )
+
         eligible_intruders = get_eligible_intruders(
             source_df, group, count_stddev, model_name, cluster_id, popularity_col
         )
         subreddits = list(group[SUBREDDIT_KEY].values)
+
+        if len(subreddits) < top_n:
+            logger.warning(
+                "Cluster id %s has less than %s subreddits, skipping", cluster_id, top_n
+            )
+            continue
 
         if len(eligible_intruders) == 0:
             logger.warning("No eligible intruders for cluster id %s", cluster_id)
@@ -177,7 +187,7 @@ def export_intruder_task(
             answer_key_results, columns=cols + ["Index of intruder (answer)"]
         )
 
-        return annotation_df, answer_key_df
+    return annotation_df, answer_key_df
 
 
 def get_answer_key_filename(intruder_csv):
@@ -231,7 +241,7 @@ def main(
 
     if intruder_task_csv is not None:
         intruder_task_df, answer_key_df = export_intruder_task(
-            cluster_assignments_df, model_name
+            cluster_assignments_df, model_name, do_sort=False
         )
         answer_key_csv = get_answer_key_filename(intruder_task_csv)
         intruder_task_df.to_csv(intruder_task_csv, index=False)
