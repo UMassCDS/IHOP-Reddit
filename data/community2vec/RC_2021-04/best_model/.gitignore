@@ -2,3 +2,4 @@
 /word2vec.pickle
 /keyedVectors
 /metrics.json
+/tsne.csv

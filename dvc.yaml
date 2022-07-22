@@ -46,7 +46,44 @@ stages:
       metrics:
         - ${community2vec_dir}/RC_${item}/best_model/metrics.json
 
+  # Generate the TSNE visualizations that will be used in the Dash application
+  tsne_visualizations:
+    foreach: ${months}
+    do:
+        desc: Produce the 2 dimensional t-sne visualization for the community2vec model for ${item} Reddit data to be used in the Dash app.
+        cmd: python -m ihop.visualizations --config config.json ${community2vec_dir}/RC_${item}/best_model ${community2vec_dir}/RC_${item}/best_model/tsne.csv
+        deps:
+          - ${community2vec_dir}/RC_${item}/best_model/parameters.json
+          - ${community2vec_dir}/RC_${item}/best_model/word2vec.pickle
+          - ${community2vec_dir}/RC_${item}/best_model/keyedVectors
+        outs:
+          - ${community2vec_dir}/RC_${item}/best_model/tsne.csv
 
 
+  # Note, for ease, this is just kmeans models, but it could easly
+  # be generalized to any clustering model supported in ihop.clustering
+  kmeans_cluster_models:
+    foreach: ${months}
+    do:
+      desc: Train kmeans clusters from the community2vec models.
+      cmd: mkdir -p ${annotation_data_dir}/RC_${item}/kmeans_model && python -m ihop.clustering ${community2vec_dir}/RC_${item}/best_model/keyedVectors --output_dir ${annotation_data_dir}/RC_${item}/kmeans_model --cluster_params ${kmeans_cluster_params.model_params} --model-name ${item}_kmeans_clusters
+      deps:
+        - ${community2vec_dir}/RC_${item}/best_model/keyedVectors
+      outs:
+        - ${annotation_data_dir}/RC_${item}/kmeans_model/clusters.csv
+        - ${annotation_data_dir}/RC_${item}/kmeans_model/sklearn_cluster_model.joblib
+        - ${annotation_data_dir}/RC_${item}/kmeans_model/parameters.json
+      metrics:
+        - ${annotation_data_dir}/RC_${item}/kmeans_model/metrics.json
 
-
+  prep_annotation_data:
+    foreach: ${months}
+    do:
+      desc: Prepare cluster coherence and subreddit intruder annotation tasks given a cluster model and subreddit counts
+      cmd: python -m ihop.annotation_task_export ${annotation_data_dir}/RC_${item}/kmeans_model/clusters.csv  --config config.json ${community2vec_dir}/RC_${item}/subreddit_counts.csv --cluster-labeling-csv ${annotation_data_dir}/RC_${item}/RC_${item}_coherence_task.csv --intruder-csv ${annotation_data_dir}/RC_${item}/RC_${item}_subreddit_intruder_task.csv
+      deps:
+        - ${community2vec_dir}/RC_${item}/subreddit_counts.csv
+        - ${annotation_data_dir}/RC_${item}/kmeans_model/clusters.csv
+      outs:
+        - ${annotation_data_dir}/RC_${item}/RC_${item}_coherence_task.csv
+        - ${annotation_data_dir}/RC_${item}/RC_${item}_subreddit_intruder_task.csv

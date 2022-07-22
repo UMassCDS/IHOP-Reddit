@@ -29,11 +29,21 @@ import ihop.utils
 
 logger = logging.getLogger(__name__)
 
-# NB documents don't really need to be Reddit users, could be other text
+# Documents don't really need to be Reddit users, could be other text
 INPUT_CSV_SCHEMA = StructType([StructField("subreddit_list", StringType(), False)])
 
 # The filename for gensim vectors stored for community2vec models
 VECTORS_FILE_NAME = "keyedVectors"
+
+# Metrics json output keys
+# These are the only ones that need to be used outside this class for displaying
+# metrics in the app
+MODEL_ID_KEY = "model_id"
+CONTEXTS_PATH_KEY = "contexts_path"
+ANALOGY_ACC_KEY = "analogy_accuracy"
+DETAILED_ANALOGY_KEY = "detailed_analogy_results"
+NUM_USERS_KEY = "num_users"
+MAX_COMMENTS_KEY = "max_comments"
 
 
 def get_vocabulary(vocabulary_csv, has_header=True, token_index=0, count_index=1):
@@ -211,9 +221,9 @@ class GensimCommunity2Vec:
     def get_params_as_dict(self):
         """Returns dictionary of parameters for tracking experiments."""
         return {
-            "num_users": self.num_users,
-            "max_comments": self.max_comments,
-            "contexts_path": self.contexts_path,
+            NUM_USERS_KEY: self.num_users,
+            MAX_COMMENTS_KEY: self.max_comments,
+            CONTEXTS_PATH_KEY: self.contexts_path,
             "epochs": self.epochs,
             "vector_size": self.w2v_model.vector_size,
             "skip_gram": self.w2v_model.sg,
@@ -286,36 +296,6 @@ class GensimCommunity2Vec:
     def get_normed_vectors(self):
         """Returns the normed embedding weights for the Gensim Keyed Vectors"""
         return self.w2v_model.wv.get_normed_vectors()
-
-    def get_tsne_dataframe(self, key_col="subreddit", n_components=2, **kwargs):
-        """Fits a TSNE representation of the dataframe.
-        Returns the results as both a pandas dataframe and the resulting TSNE projection as a numpy array
-
-        :param key_col: str, column name for indexed values
-        :param n_components: int, usually 2 or 3, since the purpose of this is for creating visualizations
-        :param kwargs: dict params passed to sklearn's TNSE model
-        """
-        tsne_fitter = TSNE(
-            **kwargs,
-            n_components=n_components,
-            init="pca",
-            metric="cosine",
-            learning_rate="auto",
-            square_distances=True,
-        )
-        tsne_projection = tsne_fitter.fit_transform(self.get_normed_vectors())
-        dataframe_elements = list()
-        for i, vocab_elem in enumerate(self.w2v_model.wv.index_to_key):
-            elem_proj = tsne_projection[i]
-            dataframe_elements.append((vocab_elem, *elem_proj))
-
-        # Generate columns for dataframe
-        cols = [key_col]
-        for i in range(1, n_components + 1):
-            cols.append(f"tsne_{i}")
-
-        dataframe = pd.DataFrame.from_records(dataframe_elements, columns=cols)
-        return dataframe, tsne_projection
 
     def get_index_to_key(self):
         """Returns the vocab of the Word2Vec embeddings as an indexed list of strings."""
@@ -407,9 +387,9 @@ class GensimCommunity2Vec:
             json_params = json.load(j)
         model = GensimCommunity2Vec(
             {},
-            json_params["contexts_path"],
-            json_params["max_comments"],
-            json_params["num_users"],
+            json_params[CONTEXTS_PATH_KEY],
+            json_params[MAX_COMMENTS_KEY],
+            json_params[NUM_USERS_KEY],
             epochs=json_params["epochs"],
         )
         model.w2v_model = gensim.models.Word2Vec.load(w2v_file)
@@ -604,10 +584,10 @@ class GridSearchTrainer:
         :param detailed_accs: str, the detailed accuracy results broken down by category as returned by Gensim
         """
         results_dict = {
-            "model_id": model_id,
-            "contexts_path": self.contexts_path,
-            "analogy_accuracy": acc,
-            "detailed_analogy_results": analogy_sections_to_str(detailed_accs),
+            MODEL_ID_KEY: model_id,
+            CONTEXTS_PATH_KEY: self.contexts_path,
+            ANALOGY_ACC_KEY: acc,
+            DETAILED_ANALOGY_KEY: analogy_sections_to_str(detailed_accs),
         }
         results_dict.update(c2v_model.get_params_as_dict())
         return results_dict

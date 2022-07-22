@@ -6,14 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- Removed prefilled anti-immigrant subreddits selected in subreddit clustering app dropdown. Now the dropdown is initially empty.
 - Package installation switched to use setup.cfg and pyproject.toml rather than setup.py
 - Slurm python version changed from 3.8 to 3.9
 - Separate Dash app requirements in requirements.txt from ihop package requirments in setup.py
+- T-SNE visualiations for each community2vec model are generated using a DVC pipeline step and written to CSV in order to speed up interaction times and avoid re-generating the projection each time a new month is selected
 
 ### Fixed
 - Fixed bug in app where wrong clusters are highlighted after changing selected subreddits and using the "Highlight selected clusters" button
 
 ### Added
+- Feature for selecting community2vec models from different time frames in subreddit clustering app using a dropdown
 - Added notebook demonstrating automatic subreddit or cluster labeling using differential text analysis
 - Added vocabSize option to Spark pipeline in text_preprocessing.py
 - Added pyproject.toml in switch to setup.cfg
@@ -26,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - community2vec hyperparameter tuning bash script
 - Removed requirements.txt, environment.yml in switch to setup.cfg
-
 
 ## [1.0.0] - 2022-05-24
 ### Changed
