@@ -36,6 +36,76 @@ KEYED_VECTORS = "KeyedVectors"
 SPARK_DOCS = "SparkDocuments"
 SPARK_VEC = "SparkVectorized"
 
+# Constant to use for an additional cluster assignment for when
+# a datapoint is missing from one clustering
+MISSING_CLUSTER_ASSIGNMENT = -1
+
+
+def remap_clusters(
+    cluster_mapping_1,
+    cluster_mapping_2,
+    use_union=False,
+    missing_cluster_value=MISSING_CLUSTER_ASSIGNMENT,
+):
+    """Remaps clusterings so that they are partitions of the same data, returning cluster assignments as two lists.
+    Uses the intersection of data points by default.
+
+    :param cluster_mapping_1: dict, maps a data point to its cluster assignment for the first clustering
+    :param cluster_mapping_2: dict, maps a data point to its cluster assignment for the second clustering
+    :param use_union: boolean, set to True to use union of data points by having an additional cluster that consists of those values in only one cluster, defaults to False using the intersection of datapoints
+    """
+    if use_union:
+        all_datapoints = cluster_mapping_1.keys() | cluster_mapping_2.keys()
+        logger.info("Computed cluster partitions using union.")
+    else:
+        all_datapoints = cluster_mapping_1.keys() & cluster_mapping_2.keys()
+        logger.info("Computed cluster partitions using intersection.")
+    logger.info("Number of datapoints: %s", len(all_datapoints))
+    cluster_assignments_1 = list()
+    cluster_assignments_2 = list()
+    for d in all_datapoints:
+        cluster_assignments_1.append(cluster_mapping_1.get(d, missing_cluster_value))
+        cluster_assignments_2.append(cluster_mapping_2.get(d, missing_cluster_value))
+
+    return cluster_assignments_1, cluster_assignments_2
+
+
+def compare_cluterings(
+    cluster_mapping_1,
+    cluster_mapping_2,
+    comparison_metric_func,
+    use_union=False,
+    missing_cluster_assignment=MISSING_CLUSTER_ASSIGNMENT,
+):
+    """Returns the result of the given comparison metric as computed on the cluster mappings.
+
+    :param cluster_mapping_1: dict, maps a data point to its cluster assignment for the first clustering
+    :param cluster_mapping_2: dict, maps a data point to its cluster assignment for the second clustering
+    :param comparison_metric_func: function, takes two lists of cluster assignments as arguments
+    :param use_union: boolean, set to True to use union of data points by having an additional cluster that consists of those values in only one cluster, defaults to False using the intersection of datapoints
+    :param missing_cluster_assignment: constant value to assign clusters when using the union of the partition. User is responsible for ensuring this value doesn't conflict with any actual cluster ids.
+    """
+    cluster_assignment_1, cluster_assignment_2 = remap_clusters(
+        cluster_mapping_1,
+        cluster_mapping_2,
+        use_union=use_union,
+        missing_cluster_value=missing_cluster_assignment,
+    )
+    return comparison_metric_func(cluster_assignment_1, cluster_assignment_2)
+
+
+def variation_of_information(cluster_assignment_1, cluster_assignment_2):
+    """Computes variation of information between two partitions of the same data points.
+
+    Meilă, Marina. “Comparing Clusterings by the Variation of Information.” COLT (2003).
+
+    :param cluster_assignment_1: array type, the cluster assignments for each data point under the first partition
+    :param cluster_assignment_2: array type, the cluster assignments for each data point under the second partition
+    :return: float, the computed variation of information value
+    """
+    # TODO
+    pass
+
 
 class ClusteringModelFactory:
     """Return appropriate class given input params"""
