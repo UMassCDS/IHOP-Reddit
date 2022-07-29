@@ -12,7 +12,6 @@ months:
   - 2022-02
   - 2022-03
 
-
 # Parameters to the ihop.import_data c2v script
 community2vec_data_prep:
   top_n: 10000
@@ -27,7 +26,11 @@ community2vec_params:
   # How many workers to use for training the model?
   workers: 12
 
+kmeans_cluster_params:
+  model_params: "'{\"n_clusters\":100}'"
+
 # Configure directories to store experiment results in
 comments_dir: data/raw_data/comments
 submissions_dir: data/raw_data/submissions
 community2vec_dir: data/community2vec
+annotation_data_dir: data/annotation_data

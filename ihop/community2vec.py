@@ -576,18 +576,12 @@ class GridSearchTrainer:
         )
 
     def get_single_model_full_results(self, model_id, c2v_model, acc, detailed_accs):
-        """Returns all the paramenters and metrics for experimental results tracking for a single model in a dictionary. If model details are being saved
+        """Returns all the paramenters and metrics for experimental results tracking for a single model in a dictionary.
 
-        :param model_id: _description_
-        :type model_id: _type_
-        :param c2v_model: _description_
-        :type c2v_model: _type_
-        :param acc: _description_
-        :type acc: _type_
-        :param detailed_accs: _description_
-        :type detailed_accs: _type_
-        :param save_dir_path: _description_
-        :type save_dir_path: _type_
+        :param model_id: str, unique identifier for this model
+        :param c2v_model: GensimCommunity2Vec object
+        :param acc: float, accuracy on the analogy task
+        :param detailed_accs: str, the detailed accuracy results broken down by category as returned by Gensim
         """
         results_dict = {
             MODEL_ID_KEY: model_id,
