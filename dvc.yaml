@@ -9,13 +9,13 @@ stages:
         - ${comments_dir}/RC_${item}.bz2
 
   # Download Reddit submissions data
-  download_submissions:
-    foreach: ${months}
-    do:
-      desc: Download Reddit submissions (posts) data for the month ${item}.
-      cmd: curl https://files.pushshift.io/reddit/submissions/RS_${item}.zst | unzstd --long=31 | bzip2 > ${submissions_dir}/RS_${item}.bz2
-      outs:
-        - ${submissions_dir}/RS_${item}.bz2
+  #download_submissions:
+  #  foreach: ${months}
+  #  do:
+  #    desc: Download Reddit submissions (posts) data for the month ${item}.
+  #    cmd: curl https://files.pushshift.io/reddit/submissions/RS_${item}.zst | unzstd --long=31 | bzip2 > ${submissions_dir}/RS_${item}.bz2
+  #    outs:
+  #      - ${submissions_dir}/RS_${item}.bz2
 
   # Turn the comments to 'user documents' to train community2vec models
   prep_community2vec_data:
