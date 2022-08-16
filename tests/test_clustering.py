@@ -258,3 +258,44 @@ def test_main_lda(text_features, tmp_path):
 
     words_csv = tmp_path / "keywords.csv"
     assert words_csv.exists()
+
+
+def test_get_probabilities():
+    keys_to_keep = ["aww", "AskReddit", "someOtherSubreddit", "lepoardsatemyface"]
+    comment_counts = {
+        "aww": 75,
+        "AskReddit": 100,
+        "someOtherSubreddit": 25,
+        "conservatives": 25,
+    }
+    expected = np.array([0.375, 0.5, 0.125, 0])
+    assert np.all(ic.get_probabilities(comment_counts, keys_to_keep) == expected)
+
+
+def test_remap_clusters_union():
+    cluster_mapping_1 = {
+        "aww": 1,
+        "AskReddit": 1,
+        "conservatives": 2,
+        "TheDonald": 2,
+        "leopardsatemyface": 3,
+    }
+    cluster_mapping_2 = {
+        "aww": 1,
+        "AskReddit": 1,
+        "conservatives": 2,
+        "leopardsatemyface": 2,
+    }
+    remapping_1, remapping_2, datapoint_indices = ic.remap_clusters(
+        cluster_mapping_1, cluster_mapping_2, use_union=True
+    )
+    assert remapping_1.shape == (5,)
+    assert remapping_2.shape == (5,)
+    assert datapoint_indices.shape == (5,)
+    thedonald_idx = np.where(datapoint_indices == "TheDonald")
+
+    assert remapping_1[thedonald_idx] == 2
+    assert remapping_2[thedonald_idx] == -1
+    leopards_idx = np.where(datapoint_indices == "leopardsatemyface")
+    assert remapping_1[leopards_idx] == 3
+    assert remapping_2[leopards_idx] == 2

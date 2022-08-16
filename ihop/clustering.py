@@ -41,13 +41,31 @@ SPARK_VEC = "SparkVectorized"
 MISSING_CLUSTER_ASSIGNMENT = -1
 
 
+def get_probabilities(counts_dict, keys_to_keep, default_count_value=0):
+    """Returns the probabilities for a list of datapoints keys given
+    from their counts in a dictionary, accounting for keys that should
+    be left out or are missing.
+
+    :param counts_dict: dict, maps key to integer
+    :param keys_to_keep: list of keys
+    :param default_count_value: int, value to use for missing keys, defaults to 0
+    :return: array of floats corresponding to keys_to_keep datapoints
+    """
+    all_counts = np.full(len(keys_to_keep), default_count_value)
+    for i, k in enumerate(keys_to_keep):
+        if k in counts_dict:
+            all_counts[i] = counts_dict[k]
+    return all_counts / np.sum(all_counts)
+
+
 def remap_clusters(
     cluster_mapping_1,
     cluster_mapping_2,
     use_union=False,
     missing_cluster_value=MISSING_CLUSTER_ASSIGNMENT,
 ):
-    """Remaps clusterings so that they are partitions of the same data, returning cluster assignments as two lists.
+    """Remaps clusterings so that they are partitions of the same data, returning cluster assignments as two arrays.
+    Also returns the data point keys as a third array for indexing.
     Uses the intersection of data points by default.
 
     :param cluster_mapping_1: dict, maps a data point to its cluster assignment for the first clustering
@@ -60,6 +78,7 @@ def remap_clusters(
     else:
         all_datapoints = cluster_mapping_1.keys() & cluster_mapping_2.keys()
         logger.info("Computed cluster partitions using intersection.")
+    all_datapoints = np.array(sorted(all_datapoints))
     logger.info("Number of datapoints: %s", len(all_datapoints))
     cluster_assignments_1 = list()
     cluster_assignments_2 = list()
@@ -67,14 +86,19 @@ def remap_clusters(
         cluster_assignments_1.append(cluster_mapping_1.get(d, missing_cluster_value))
         cluster_assignments_2.append(cluster_mapping_2.get(d, missing_cluster_value))
 
-    return cluster_assignments_1, cluster_assignments_2
+    return (
+        np.array(cluster_assignments_1),
+        np.array(cluster_assignments_2),
+        all_datapoints,
+    )
 
 
 def compare_cluterings(
     cluster_mapping_1,
     cluster_mapping_2,
-    comparison_metric_func,
     use_union=False,
+    cluster_1_counts=None,
+    cluster_2_counts=None,
     missing_cluster_assignment=MISSING_CLUSTER_ASSIGNMENT,
 ):
     """Returns the result of the given comparison metric as computed on the cluster mappings.
@@ -83,24 +107,37 @@ def compare_cluterings(
     :param cluster_mapping_2: dict, maps a data point to its cluster assignment for the second clustering
     :param comparison_metric_func: function, takes two lists of cluster assignments as arguments
     :param use_union: boolean, set to True to use union of data points by having an additional cluster that consists of those values in only one cluster, defaults to False using the intersection of datapoints
+    :param cluster_1_counts: dict, maps a datapoint to an integer value, used to compute probabilities
+    :param cluster_2_counts: dict, maps a datapoint to an integer, used to compute probabilities
     :param missing_cluster_assignment: constant value to assign clusters when using the union of the partition. User is responsible for ensuring this value doesn't conflict with any actual cluster ids.
     """
-    cluster_assignment_1, cluster_assignment_2 = remap_clusters(
+    cluster_assignment_1, cluster_assignment_2, datapoint_keys = remap_clusters(
         cluster_mapping_1,
         cluster_mapping_2,
         use_union=use_union,
         missing_cluster_value=missing_cluster_assignment,
     )
+    if cluster_1_counts is not None and cluster_2_counts is not None:
+        normalized_cluster_1_probs = []
+        cluster_1_probs = np.sum()
+
     return comparison_metric_func(cluster_assignment_1, cluster_assignment_2)
 
 
-def variation_of_information(cluster_assignment_1, cluster_assignment_2):
+def variation_of_information(
+    cluster_assignment_1,
+    cluster_assignment_2,
+    cluster_1_counts=None,
+    cluster_2_counts=None,
+):
     """Computes variation of information between two partitions of the same data points.
 
     Meilă, Marina. “Comparing Clusterings by the Variation of Information.” COLT (2003).
 
-    :param cluster_assignment_1: array type, the cluster assignments for each data point under the first partition
-    :param cluster_assignment_2: array type, the cluster assignments for each data point under the second partition
+    :param cluster_assignment_1: array type, the cluster assignments for each data point under the first partitioning
+    :param cluster_assignment_2: array type, the cluster assignments for each data point under the second partitioning
+    :param cluster_1_counts: array type, counts of occurences of a particular cluster under the first partitioning, used to calculate probabilities for entropy and mutual information. If this is not given a uniform probability of all clusters will be used.
+    :param cluster_2_counts: array type, counts of occurences of a particular cluster under the second partitioning, used to calculate probabilities for entropy and mutual information. If this is not given a uniform probability of all clusters will be used.
     :return: float, the computed variation of information value
     """
     # TODO
