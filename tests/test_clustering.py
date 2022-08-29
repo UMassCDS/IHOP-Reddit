@@ -296,6 +296,7 @@ def test_remap_clusters_union():
 
     assert remapping_1[thedonald_idx] == 2
     assert remapping_2[thedonald_idx] == -1
+
     leopards_idx = np.where(datapoint_indices == "leopardsatemyface")
     assert remapping_1[leopards_idx] == 3
     assert remapping_2[leopards_idx] == 2

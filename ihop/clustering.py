@@ -40,6 +40,18 @@ SPARK_VEC = "SparkVectorized"
 # a datapoint is missing from one clustering
 MISSING_CLUSTER_ASSIGNMENT = -1
 
+# Use to idenfity different was of comparing clusterings
+UNION_UNIFORM = "union_uniform_probability"
+INTERSECT_UNIFORM = "intersection_uniform_probability"
+INTERSECT_COMMENT_PROB = "intersection_comment_probability"
+
+VOI = "variation_of_information"
+COMPLETENESS = "completeness"
+HOMOGENEITY = "homogeneity"
+V_MEASURE = "v_measure"
+ADJUSTED_RAND_INDEX = "adjusted_rand_index"
+NORM_MUTUAL_INFO = "normalized_mutual_info"
+
 
 def get_probabilities(counts_dict, keys_to_keep, default_count_value=0):
     """Returns the probabilities for a list of datapoints keys given
@@ -101,7 +113,10 @@ def compare_cluterings(
     cluster_2_counts=None,
     missing_cluster_assignment=MISSING_CLUSTER_ASSIGNMENT,
 ):
-    """Returns the result of the given comparison metric as computed on the cluster mappings.
+    """Returns comparison metrics between two clusterings. Results formated as nested dictionary where the outer key indicates the comparison style:
+    1) whether intersection or union is used
+    2) if uniform probabilities for each data point to cluster (subreddit) or probability counts of data point to cluster (subreddit, probability determined by number of comments over the time period)
+    Returned dictionary like {comparison style: {metric name: metric value}}
 
     :param cluster_mapping_1: dict, maps a data point to its cluster assignment for the first clustering
     :param cluster_mapping_2: dict, maps a data point to its cluster assignment for the second clustering
@@ -117,11 +132,36 @@ def compare_cluterings(
         use_union=use_union,
         missing_cluster_value=missing_cluster_assignment,
     )
-    if cluster_1_counts is not None and cluster_2_counts is not None:
-        normalized_cluster_1_probs = []
-        cluster_1_probs = np.sum()
+    results_key = INTERSECT_UNIFORM
+    results_dict = {}
+    if use_union:
+        results_key = UNION_UNIFORM
 
-    return comparison_metric_func(cluster_assignment_1, cluster_assignment_2)
+    # probabilities can only be used with intersection
+    if not use_union and cluster_1_counts is not None and cluster_2_counts is not None:
+        results_key = INTERSECT_COMMENT_PROB
+        raise ValueError("Probability metrics not yet supported")
+    else:
+
+        results_dict[ADJUSTED_RAND_INDEX] = metrics.adjusted_rand_score(
+            cluster_assignment_1, cluster_assignment_2
+        )
+        results_dict[NORM_MUTUAL_INFO] = metrics.normalized_mutual_info_score(
+            cluster_assignment_1, cluster_assignment_2
+        )
+
+        h, c, v = metrics.homogeneity_completeness_v_measure(
+            cluster_assignment_1, cluster_assignment_2
+        )
+        results_dict[HOMOGENEITY] = h
+        results_dict[COMPLETENESS] = c
+        results_dict[V_MEASURE] = v
+
+        results_dict[VOI] = variation_of_information(
+            cluster_assignment_1, cluster_assignment_2
+        )
+
+    return {results_key: results_dict}
 
 
 def variation_of_information(
@@ -141,6 +181,7 @@ def variation_of_information(
     :return: float, the computed variation of information value
     """
     # TODO
+    print("VOI not yet implemented")
     pass
 
 
