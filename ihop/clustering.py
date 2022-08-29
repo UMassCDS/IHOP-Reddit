@@ -8,6 +8,7 @@ A list of ideas for clustering based on text (not users):
 .. TODO: AuthorTopic models with subreddits as the metadata field (instead of author)
 """
 import argparse
+import collections
 import json
 import logging
 import os
@@ -68,6 +69,35 @@ def get_probabilities(counts_dict, keys_to_keep, default_count_value=0):
         if k in counts_dict:
             all_counts[i] = counts_dict[k]
     return all_counts / np.sum(all_counts)
+
+
+def get_cluster_probabilities(cluster_assignments, datapoint_counts, cluster_indexes):
+    """Return the probability for each cluster based on the probabilities for each data point assigned to the clusters
+
+    :param cluster_assignments: the cluster assignment for each datapoint
+    :param datapoint_counts:
+    :param cluster_indexes: list or array, used to track which cluster is stored at the index in the array
+    """
+    total_counts = np.sum(datapoint_counts)
+    cluster_probs = np.zeros((len(cluster_indexes)))
+    for i, c in enumerate(cluster_indexes):
+        cluster_probs[i] = np.sum(datapoint_counts[np.where(cluster_assignments == c)])
+
+    return cluster_probs / total_counts
+
+
+def get_entropy(probabilities):
+    """Returns entropy of a random variable given probabilities
+
+    :param probabilities: numpy array
+    """
+    inner_product = probabilities * np.log2(probabilities)
+    return -np.sum(inner_product)
+
+
+def get_mutual_information():
+    # TODO
+    pass
 
 
 def remap_clusters(
@@ -140,7 +170,19 @@ def compare_cluterings(
     # probabilities can only be used with intersection
     if not use_union and cluster_1_counts is not None and cluster_2_counts is not None:
         results_key = INTERSECT_COMMENT_PROB
-        raise ValueError("Probability metrics not yet supported")
+        # Order the counts in the same way as cluster assignments
+        cluster_1_counts_reordered = []
+        cluster_2_counts_reordered = []
+        for d in datapoint_keys:
+            cluster_1_counts_reordered.append(cluster_1_counts[d])
+            cluster_2_counts_reordered.append(cluster_2_counts[d])
+
+        results_dict[VOI] = variation_of_information(
+            cluster_assignment_1,
+            cluster_assignment_2,
+            np.array(cluster_1_counts_reordered),
+            np.array(cluster_2_counts_reordered),
+        )
     else:
 
         results_dict[ADJUSTED_RAND_INDEX] = metrics.adjusted_rand_score(
@@ -180,9 +222,31 @@ def variation_of_information(
     :param cluster_2_counts: array type, counts of occurences of a particular cluster under the second partitioning, used to calculate probabilities for entropy and mutual information. If this is not given a uniform probability of all clusters will be used.
     :return: float, the computed variation of information value
     """
-    # TODO
-    print("VOI not yet implemented")
-    pass
+    if len(cluster_assignment_1) != len(cluster_assignment_2):
+        msg = f"Clusterings must have the same number of data points in order to compare. Clustering 1: {len(cluster_assignment_1)}, Clustering 2: {len(cluster_assignment_2)}"
+        logger.error(msg)
+        raise ValueError(msg)
+
+    # If no counts are given, a uniform probability is used
+    if cluster_1_counts is None and cluster_2_counts is None:
+        cluster_1_counts = np.ones(cluster_assignment_1.shape)
+        cluster_2_counts = np.ones(cluster_2_counts.shape)
+    elif not (cluster_1_counts is not None and cluster_2_counts is not None):
+        msg = "Choose either uniform probability or count based probabilities for cluster comparison, do not mix."
+        logger.error(msg)
+
+    cluster_1_indices = sorted(set(cluster_assignment_1))
+    cluster_1_probs = get_cluster_probabilities(
+        cluster_assignment_1, cluster_1_counts, cluster_1_indices
+    )
+
+    cluster_2_indices = sorted(set(cluster_assignment_2))
+    cluster_2_probs = get_cluster_probabilities(
+        cluster_assignment_2, cluster_2_counts, cluster_2_indices
+    )
+
+    clustering_1_entropy = get_entropy(cluster_1_probs)
+    clustering_2_entropy = get_entropy(cluster_2_probs)
 
 
 class ClusteringModelFactory:
