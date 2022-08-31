@@ -272,6 +272,18 @@ def test_get_probabilities():
     assert np.all(ic.get_probabilities(comment_counts, keys_to_keep) == expected)
 
 
+def test_get_cluster_probabilities():
+    cluster_assignments = np.array([1, 2, 1, 2])
+    datapoint_counts = np.array([12, 50, 13, 25])
+    cluster_indices = [1, 2]
+
+    probs = ic.get_cluster_probabilities(
+        cluster_assignments, datapoint_counts, cluster_indices
+    )
+    assert np.array_equal(probs, np.array([0.25, 0.75]))
+
+
+
 def test_remap_clusters_union():
     cluster_mapping_1 = {
         "aww": 1,

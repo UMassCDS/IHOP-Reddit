@@ -8,7 +8,6 @@ A list of ideas for clustering based on text (not users):
 .. TODO: AuthorTopic models with subreddits as the metadata field (instead of author)
 """
 import argparse
-import collections
 import json
 import logging
 import os
@@ -24,6 +23,7 @@ import pyspark.ml.clustering as sparkmc
 import pyspark.sql.functions as fn
 import pyspark.sql.types as sparktypes
 import pytimeparse
+from scipy.stats import entropy
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
 from sklearn import metrics
 
@@ -75,7 +75,7 @@ def get_cluster_probabilities(cluster_assignments, datapoint_counts, cluster_ind
     """Return the probability for each cluster based on the probabilities for each data point assigned to the clusters
 
     :param cluster_assignments: the cluster assignment for each datapoint
-    :param datapoint_counts:
+    :param datapoint_counts: array, store frequency counts for each datapoint
     :param cluster_indexes: list or array, used to track which cluster is stored at the index in the array
     """
     total_counts = np.sum(datapoint_counts)
@@ -86,18 +86,49 @@ def get_cluster_probabilities(cluster_assignments, datapoint_counts, cluster_ind
     return cluster_probs / total_counts
 
 
-def get_entropy(probabilities):
-    """Returns entropy of a random variable given probabilities
+def get_contingency_table(
+    cluster_1_assignments,
+    cluster_2_assignments,
+    cluster_1_counts,
+    cluster_2_counts,
+    cluster_1_indices,
+    cluster_2_indices,
+):
+    """Returns the frequency distributions of datapoints between two clusterings as numpy matrix
+    Clustering 1 is the first axis, clustering 2 is the second axis.
 
-    :param probabilities: numpy array
+    :param cluster_1_assignments: list or array storing cluster assignment for each datapoint in clustering 1
+    :param cluster_2_assignments: list or array storing cluster assignment for each datapoint in clustering 2
+    :param cluster_1_counts: list or array of int, same length as cluster_1_assignments, frequency counts of each datapoint in cluster assignment 1
+    :param cluster_2_counts:  list or array of int, same length as cluster_2_assignments, frequency counts of each datapoint in cluster assignment 2
+    :param cluster_1_indices: list or array index pointer that identifies the position index of each cluster in clustering 1
+    :param cluster_2_indices: list or array index pointer that identifies the position index of each cluster in clustering 2
     """
-    inner_product = probabilities * np.log2(probabilities)
-    return -np.sum(inner_product)
+    contingency_table = np.zeros((len(cluster_1_indices, len(cluster_2_indices))))
+    for i, c1 in enumerate(cluster_1_assignments):
+        c2 = cluster_2_assignments[i]
+        c1_index = cluster_1_indices.index(c1)
+        c2_index = cluster_2_indices.index(c2)
+        contingency_table[c1_index, c2_index] += (
+            cluster_1_counts[i] + cluster_2_counts[i]
+        )
+
+    return contingency_table
 
 
-def get_mutual_information():
-    # TODO
-    pass
+def get_mutual_information(contingency_table, cluster_1_probs, cluster_2_probs):
+    """Returns the mutual information between clusterings 1 and 2 as a float
+    based on the contingency table used to calculate joint distribution and the probability distribution of individual clusterings
+
+    :param contingency_table: Frequency counts of cluster assignments comparison between both clustering 1 on first axis and clustering 2 on second axis
+    :param cluster_1_probs: np array, probability of cluster assignments in clustering 1
+    :param cluster_2_probs: np array, probability of cluster assignments in clustering 2
+    """
+    probs_products = np.outer(cluster_1_probs, cluster_2_probs)
+    total_freqs = np.sum(contingency_table)
+    joint_probs = contingency_table / total_freqs
+    mi = joint_probs * (np.log2(joint_probs / probs_products))
+    return mi
 
 
 def remap_clusters(
@@ -230,7 +261,7 @@ def variation_of_information(
     # If no counts are given, a uniform probability is used
     if cluster_1_counts is None and cluster_2_counts is None:
         cluster_1_counts = np.ones(cluster_assignment_1.shape)
-        cluster_2_counts = np.ones(cluster_2_counts.shape)
+        cluster_2_counts = np.ones(cluster_assignment_2.shape)
     elif not (cluster_1_counts is not None and cluster_2_counts is not None):
         msg = "Choose either uniform probability or count based probabilities for cluster comparison, do not mix."
         logger.error(msg)
@@ -245,8 +276,22 @@ def variation_of_information(
         cluster_assignment_2, cluster_2_counts, cluster_2_indices
     )
 
-    clustering_1_entropy = get_entropy(cluster_1_probs)
-    clustering_2_entropy = get_entropy(cluster_2_probs)
+    clustering_1_entropy = entropy(cluster_1_probs, base=2)
+    clustering_2_entropy = entropy(cluster_2_probs, base=2)
+
+    contingency_table = get_contingency_table(
+        cluster_assignment_1,
+        cluster_assignment_2,
+        cluster_1_counts,
+        cluster_2_counts,
+        cluster_1_indices,
+        cluster_2_indices,
+    )
+
+    mi = get_mutual_information(contingency_table, cluster_1_probs, cluster_2_probs)
+
+    voi = clustering_1_entropy + clustering_2_entropy - 2 * mi
+    return voi
 
 
 class ClusteringModelFactory:
