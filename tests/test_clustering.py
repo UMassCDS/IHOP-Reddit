@@ -1,6 +1,7 @@
 """Unit tests for ihop.clustering
 """
 import collections
+import math
 
 import gensim.models as gm
 import numpy as np
@@ -282,6 +283,67 @@ def test_get_cluster_probabilities():
     )
     assert np.array_equal(probs, np.array([0.25, 0.75]))
 
+
+def test_get_contingency_table():
+    cluster_1_assignments = [-1, 1, 2]
+    cluster_2_assignments = [1, 2, -1]
+    uniform_counts = np.ones((3,))
+    cluster_1_indices = [-1, 1, 2]
+    cluster_2_indices = [-1, 1, 2]
+    expected_table = np.array([[0, 2, 0], [0, 0, 2], [2, 0, 0]])
+    result_table = ic.get_contingency_table(
+        cluster_1_assignments,
+        cluster_2_assignments,
+        uniform_counts,
+        uniform_counts,
+        cluster_1_indices,
+        cluster_2_indices,
+    )
+    assert np.array_equal(expected_table, result_table)
+
+
+def test_get_mutual_information():
+    cont_table = np.array([[0, 2, 0], [0, 0, 2], [2, 0, 0]])
+    probs = np.full((3,), 1 / 3)
+    expected_mi = np.log2(3)
+    computed_mi = ic.get_mutual_information(cont_table, probs, probs)
+    assert math.isclose(expected_mi, computed_mi)
+
+
+def test_variation_of_information_uniform_prob():
+    clustering_1 = np.array([-1, 1, 2])
+    clustering_2 = np.array([1, 2, -1])
+    computed_voi = ic.variation_of_information(clustering_1, clustering_2)
+    # voi = H(C) + H(C') - 2I(C, C')
+    expected_voi = -2 * np.log2(1 / 3) - 2 * np.log2(3)
+    assert math.isclose(expected_voi, computed_voi)
+
+
+def test_variation_of_information_freq_counts():
+    clustering_1 = np.array([-1, 1, 2])
+    clustering_2 = np.array([1, 2, -1])
+    counts_1 = np.array([10, 5, 10])
+    counts_2 = np.array([8, 8, 8])
+    # Check MI is close first
+    expected_mi = 2 * ((18 / 49) * np.log2((9 * 15) / 49)) + (13 / 49) * np.log2(
+        (13 * 15) / 49
+    )
+    computed_mi = ic.get_mutual_information(
+        np.array([[0, 18, 0], [0, 0, 13], [18, 0, 0]]),
+        np.array([2 / 5, 1 / 5, 2 / 5]),
+        np.array([1 / 3, 1 / 3, 1 / 3]),
+    )
+    assert math.isclose(expected_mi, computed_mi)
+    # voi = H(C) + H(C') - 2I(C, C')
+    expected_voi = (
+        -((4 / 5) * np.log2(2 / 5) + (1 / 5) * np.log2(1 / 5))
+        - np.log2(1 / 3)
+        - 2 * expected_mi
+    )
+    computed_voi = ic.variation_of_information(
+        clustering_1, clustering_2, counts_1, counts_2
+    )
+    assert math.isclose(expected_voi, computed_voi)
 
 
 def test_remap_clusters_union():

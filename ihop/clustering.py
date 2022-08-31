@@ -104,7 +104,7 @@ def get_contingency_table(
     :param cluster_1_indices: list or array index pointer that identifies the position index of each cluster in clustering 1
     :param cluster_2_indices: list or array index pointer that identifies the position index of each cluster in clustering 2
     """
-    contingency_table = np.zeros((len(cluster_1_indices, len(cluster_2_indices))))
+    contingency_table = np.zeros((len(cluster_1_indices), len(cluster_2_indices)))
     for i, c1 in enumerate(cluster_1_assignments):
         c2 = cluster_2_assignments[i]
         c1_index = cluster_1_indices.index(c1)
@@ -127,7 +127,9 @@ def get_mutual_information(contingency_table, cluster_1_probs, cluster_2_probs):
     probs_products = np.outer(cluster_1_probs, cluster_2_probs)
     total_freqs = np.sum(contingency_table)
     joint_probs = contingency_table / total_freqs
-    mi = joint_probs * (np.log2(joint_probs / probs_products))
+    # Can safely ignore divide by zero in log2 warnings, they aren't included in the final sum
+    mi_components = joint_probs * (np.log2(joint_probs / probs_products))
+    mi = np.sum(mi_components[np.where(mi_components > 0)])
     return mi
 
 
