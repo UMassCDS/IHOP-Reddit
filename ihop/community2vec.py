@@ -23,7 +23,6 @@ import gensim
 import pandas as pd
 import pyspark.sql.functions as fn
 from pyspark.sql.types import StringType, StructField, StructType
-from sklearn.manifold import TSNE
 
 import ihop.utils
 
@@ -327,6 +326,18 @@ class GensimCommunity2Vec:
                     restrict_vocab=max_vocab,
                     case_insensitive=case_insensitive,
                 )
+
+    def get_nearest_neighbors(self, term, topn):
+        """Returns the list of topn nearest neighbors to the given term in the community2vec model. If the term isn't in the model's vocab, an empty list is returned.
+
+        :param term: str, the subreddit term you'd like to get neighbors for
+        :param topn: int, the number of top nearest neighbors to return
+        """
+        if term in self.w2v_model.wv:
+            term_score_tuples = self.w2v_model.wv.most_similar(term, topn=topn)
+            return [p[0] for p in term_score_tuples]
+
+        return []
 
     @classmethod
     def init_with_spark(
