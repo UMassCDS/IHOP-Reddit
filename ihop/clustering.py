@@ -128,7 +128,8 @@ def get_mutual_information(contingency_table, cluster_1_probs, cluster_2_probs):
     total_freqs = np.sum(contingency_table)
     joint_probs = contingency_table / total_freqs
     # Can safely ignore divide by zero in log2 warnings, they aren't included in the final sum
-    mi_components = joint_probs * (np.log2(joint_probs / probs_products))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mi_components = joint_probs * (np.log2(joint_probs / probs_products))
     mi = np.sum(mi_components[np.where(mi_components > 0)])
     return mi
 
@@ -183,7 +184,6 @@ def compare_cluterings(
 
     :param cluster_mapping_1: dict, maps a data point to its cluster assignment for the first clustering
     :param cluster_mapping_2: dict, maps a data point to its cluster assignment for the second clustering
-    :param comparison_metric_func: function, takes two lists of cluster assignments as arguments
     :param use_union: boolean, set to True to use union of data points by having an additional cluster that consists of those values in only one cluster, defaults to False using the intersection of datapoints
     :param cluster_1_counts: dict, maps a datapoint to an integer value, used to compute probabilities
     :param cluster_2_counts: dict, maps a datapoint to an integer, used to compute probabilities
@@ -236,7 +236,7 @@ def compare_cluterings(
             cluster_assignment_1, cluster_assignment_2
         )
 
-    return {results_key: results_dict}
+    return {f"{results_key}_{m}": v for m, v in results_dict.items()}
 
 
 def variation_of_information(
