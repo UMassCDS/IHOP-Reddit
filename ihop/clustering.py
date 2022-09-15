@@ -51,6 +51,7 @@ COMPLETENESS = "completeness"
 HOMOGENEITY = "homogeneity"
 V_MEASURE = "v_measure"
 ADJUSTED_RAND_INDEX = "adjusted_rand_index"
+RAND_INDEX = "rand_index"
 NORM_MUTUAL_INFO = "normalized_mutual_info"
 
 
@@ -219,6 +220,9 @@ def compare_cluterings(
     else:
 
         results_dict[ADJUSTED_RAND_INDEX] = metrics.adjusted_rand_score(
+            cluster_assignment_1, cluster_assignment_2
+        )
+        results_dict[RAND_INDEX] = metrics.rand_score(
             cluster_assignment_1, cluster_assignment_2
         )
         results_dict[NORM_MUTUAL_INFO] = metrics.normalized_mutual_info_score(
