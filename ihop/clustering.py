@@ -102,8 +102,8 @@ def get_contingency_table(
     :param cluster_2_assignments: list or array storing cluster assignment for each datapoint in clustering 2
     :param cluster_1_counts: list or array of int, same length as cluster_1_assignments, frequency counts of each datapoint in cluster assignment 1
     :param cluster_2_counts:  list or array of int, same length as cluster_2_assignments, frequency counts of each datapoint in cluster assignment 2
-    :param cluster_1_indices: list or array index pointer that identifies the position index of each cluster in clustering 1
-    :param cluster_2_indices: list or array index pointer that identifies the position index of each cluster in clustering 2
+    :param cluster_1_indices: list of int/string, index pointer that tells which rows store which clusters from clustering 1 (ideal use sorted list of cluster id/labels)
+    :param cluster_2_indices: list of int/string, index pointer that tells which rows store which clusters from clustering 2 (ideal use sorted list of cluster id/labels)
     """
     contingency_table = np.zeros((len(cluster_1_indices), len(cluster_2_indices)))
     for i, c1 in enumerate(cluster_1_assignments):
@@ -246,8 +246,8 @@ def compare_cluterings(
 def variation_of_information(
     cluster_assignment_1,
     cluster_assignment_2,
-    cluster_1_counts=None,
-    cluster_2_counts=None,
+    cluster_1_datapoint_counts=None,
+    cluster_2_datapoint_counts=None,
 ):
     """Computes variation of information between two partitions of the same data points.
 
@@ -255,8 +255,8 @@ def variation_of_information(
 
     :param cluster_assignment_1: array type, the cluster assignments for each data point under the first partitioning
     :param cluster_assignment_2: array type, the cluster assignments for each data point under the second partitioning
-    :param cluster_1_counts: array type, counts of occurences of a particular cluster under the first partitioning, used to calculate probabilities for entropy and mutual information. If this is not given a uniform probability of all clusters will be used.
-    :param cluster_2_counts: array type, counts of occurences of a particular cluster under the second partitioning, used to calculate probabilities for entropy and mutual information. If this is not given a uniform probability of all clusters will be used.
+    :param cluster_1_datapoint_counts: array type, same length as cluster_assignments_1, counts of occurences of a particular datapoint under the first partitioning, used to calculate probabilities for entropy and mutual information. If this is not given a uniform probability of all clusters will be used.
+    :param cluster_2_datapoint_counts: array type, same length as cluster_assignments_2, counts of occurences of a particular datapoint under the second partitioning, used to calculate probabilities for entropy and mutual information. If this is not given a uniform probability of all clusters will be used.
     :return: float, the computed variation of information value
     """
     if len(cluster_assignment_1) != len(cluster_assignment_2):
@@ -265,21 +265,25 @@ def variation_of_information(
         raise ValueError(msg)
 
     # If no counts are given, a uniform probability is used
-    if cluster_1_counts is None and cluster_2_counts is None:
-        cluster_1_counts = np.ones(cluster_assignment_1.shape)
-        cluster_2_counts = np.ones(cluster_assignment_2.shape)
-    elif not (cluster_1_counts is not None and cluster_2_counts is not None):
+    if cluster_1_datapoint_counts is None and cluster_2_datapoint_counts is None:
+        cluster_1_datapoint_counts = np.ones(cluster_assignment_1.shape)
+        cluster_2_datapoint_counts = np.ones(cluster_assignment_2.shape)
+    elif not (
+        cluster_1_datapoint_counts is not None
+        and cluster_2_datapoint_counts is not None
+    ):
         msg = "Choose either uniform probability or count based probabilities for cluster comparison, do not mix."
         logger.error(msg)
 
+    # Sorted list of clusters for indexint
     cluster_1_indices = sorted(set(cluster_assignment_1))
     cluster_1_probs = get_cluster_probabilities(
-        cluster_assignment_1, cluster_1_counts, cluster_1_indices
+        cluster_assignment_1, cluster_1_datapoint_counts, cluster_1_indices
     )
 
     cluster_2_indices = sorted(set(cluster_assignment_2))
     cluster_2_probs = get_cluster_probabilities(
-        cluster_assignment_2, cluster_2_counts, cluster_2_indices
+        cluster_assignment_2, cluster_2_datapoint_counts, cluster_2_indices
     )
 
     clustering_1_entropy = entropy(cluster_1_probs, base=2)
@@ -288,8 +292,8 @@ def variation_of_information(
     contingency_table = get_contingency_table(
         cluster_assignment_1,
         cluster_assignment_2,
-        cluster_1_counts,
-        cluster_2_counts,
+        cluster_1_datapoint_counts,
+        cluster_2_datapoint_counts,
         cluster_1_indices,
         cluster_2_indices,
     )
