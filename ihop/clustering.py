@@ -300,6 +300,32 @@ def variation_of_information(
     return voi
 
 
+def get_maximum_matching_pairs(contingency_table):
+    """Using the Maximum Match Measure procedure (section 4.2
+    in https://publikationen.bibliothek.kit.edu/1000011477/812079),
+    pair up clusters from different clustering partitions using the contingency table. Returns the optimal tuple of 2 (n,)-shaped numpy array for n pair matches, also two (d, )-shaped for unpaired rows and unpaired columns (no overlap with any cluster in the other clusteirng)
+
+    :continency_table: 2D array storing numeric data
+    """
+    copy_table = np.copy(contingency_table)
+    rows_pairs_list = list()
+    cols_pairs_list = list()
+    while np.max(copy_table) > 0:
+        pair = np.unravel_index(np.argmax(copy_table), copy_table.shape)
+        rows_pairs_list.append(pair[0])
+        cols_pairs_list.append(pair[1])
+        # Don't find this pair again, but don't change the shape of the array
+        copy_table[pair[0]] = -1
+        copy_table[:, pair[1]] = -1
+
+    rows_pairs = np.array(rows_pairs_list)
+    cols_pairs = np.array(cols_pairs_list)
+    pairings = (rows_pairs, cols_pairs)
+    unpaired_rows = set(range(copy_table.shape[0])) - set(rows_pairs)
+    unpaired_cols = set(range(copy_table.shape[1])) - set(cols_pairs)
+    return pairings, np.array(list(unpaired_rows)), np.array(list(unpaired_cols))
+
+
 class ClusteringModelFactory:
     """Return appropriate class given input params"""
 
