@@ -480,6 +480,10 @@ class ClusteringModel:
             )
         return cluster_df
 
+    def get_cluster_assignments_as_dict(self):
+        """Returns a dictionary mapping datapoint key (e.g. subreddit name) to its cluster assignment under this clustering model"""
+        return {k: self.clusters[position] for position, k in self.index_to_key.items()}
+
     def get_metrics(self):
         """Returns Silhouette Coefficient, Caliniski-Harbasz Index and Davis-Bouldin Index for the trained clustering model on the given data as a dictionary.
         Returns an empty dictionary if the model learned only one cluster.

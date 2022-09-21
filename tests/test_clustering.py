@@ -71,6 +71,12 @@ def test_clustering_model(vector_data):
     assert model.predict(np.full((1, 5), 1)) == clusters[0]
 
     assert model.get_cluster_results_as_df().shape == (3, 2)
+    assert len(model.get_cluster_assignments_as_dict()) == 3
+    assert set(model.get_cluster_assignments_as_dict().keys()) == {
+        "AskReddit",
+        "aww",
+        "NBA",
+    }
 
 
 def test_cluster_model_serialization(vector_data, tmp_path):
@@ -90,6 +96,12 @@ def test_cluster_model_serialization(vector_data, tmp_path):
     assert loaded_model.get_parameters() == model.get_parameters()
     assert loaded_model.clusters.shape == model.clusters.shape
     assert (loaded_model.clusters == model.clusters).all()
+    assert len(loaded_model.get_cluster_assignments_as_dict()) == 3
+    assert set(loaded_model.get_cluster_assignments_as_dict().keys()) == {
+        "AskReddit",
+        "aww",
+        "NBA",
+    }
 
 
 def test_main_sklearn(vector_data, tmp_path):
