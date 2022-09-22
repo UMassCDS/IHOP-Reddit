@@ -322,12 +322,16 @@ def get_maximum_matching_pairs(contingency_table):
         copy_table[pair[0]] = -1
         copy_table[:, pair[1]] = -1
 
-    rows_pairs = np.array(rows_pairs_list)
-    cols_pairs = np.array(cols_pairs_list)
-    pairings = (rows_pairs, cols_pairs)
-    unpaired_rows = set(range(copy_table.shape[0])) - set(rows_pairs)
-    unpaired_cols = set(range(copy_table.shape[1])) - set(cols_pairs)
-    return pairings, np.array(list(unpaired_rows)), np.array(list(unpaired_cols))
+    unpaired_rows = set(range(copy_table.shape[0])) - set(rows_pairs_list)
+    unpaired_cols = set(range(copy_table.shape[1])) - set(cols_pairs_list)
+    rows_pairings = (
+        rows_pairs_list + list(unpaired_rows) + [None] * len(unpaired_cols)
+    )
+    cols_pairings = (
+        cols_pairs_list + [None] * len(unpaired_rows) + list(unpaired_cols)
+    )
+
+    return rows_pairings, cols_pairings
 
 
 class ClusteringModelFactory:
