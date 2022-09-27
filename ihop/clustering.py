@@ -10,6 +10,7 @@ A list of ideas for clustering based on text (not users):
 import argparse
 import json
 import logging
+from operator import indexOf
 import os
 import pathlib
 import pickle
@@ -324,12 +325,8 @@ def get_maximum_matching_pairs(contingency_table):
 
     unpaired_rows = set(range(copy_table.shape[0])) - set(rows_pairs_list)
     unpaired_cols = set(range(copy_table.shape[1])) - set(cols_pairs_list)
-    rows_pairings = (
-        rows_pairs_list + list(unpaired_rows) + [None] * len(unpaired_cols)
-    )
-    cols_pairings = (
-        cols_pairs_list + [None] * len(unpaired_rows) + list(unpaired_cols)
-    )
+    rows_pairings = rows_pairs_list + list(unpaired_rows) + [None] * len(unpaired_cols)
+    cols_pairings = cols_pairs_list + [None] * len(unpaired_rows) + list(unpaired_cols)
 
     return rows_pairings, cols_pairings
 
@@ -449,20 +446,37 @@ class ClusteringModel:
         self.index_to_key = index_to_key
         self.clustering_model = clustering_model
         self.model_name = model_name
-        self.clusters = None
+
+    @property
+    def clusters(self):
+        return self.clustering_model.labels_
 
     def train(self):
         """Fits the model to data and predicts the cluster labels for each data point.
         Returns the predicted clusters for each data point in training data
         """
         logger.info("Fitting ClusteringModel")
-        self.clusters = self.clustering_model.fit_predict(self.data)
+        self.clustering_model.fit_predict(self.data)
         logger.info("Finished fitting ClusteringModel")
 
-    def predict(self, new_data):
-        """Returns cluster assignments for the given data as
+    def predict(self, new_data, missing_value_result=None):
+        """Returns cluster assignments for the given data as a numpy array.
+        Note that for AgglomerativeClustering models, this re-fits the model
         :param new_data: numpy array, data to predict clusters for
+        :param missing_value_result: obj, what to fill in if this data point cannot be clustered
         """
+        # sklearn.AgglomerativeClustering doesn't have a .predict method
+        if isinstance(self.clustering_model, AgglomerativeClustering):
+            prediction_results = np.full((len(new_data),), missing_value_result)
+            # Find where each datapoint appeared in the original data, then fill it in
+            for i, datapoint in enumerate(new_data):
+                original_index = np.flatnonzero((datapoint == self.data).all(1))
+                if len(original_index) > 0:
+                    prediction_results[i] = self.clustering_model.labels_[
+                        original_index[0]
+                    ]
+            return prediction_results
+
         return self.clustering_model.predict(new_data)
 
     def get_cluster_results_as_df(self, datapoint_col_name="subreddit", join_df=None):
@@ -472,7 +486,8 @@ class ClusteringModel:
         :param join_df: Pandas DataFrame, optionally inner join this dataframe on the datapoint_col_name in the returned results
         """
         datapoints = [
-            (val, self.clusters[idx]) for idx, val in self.index_to_key.items()
+            (val, self.clustering_model.labels_[idx])
+            for idx, val in self.index_to_key.items()
         ]
         cluster_df = pd.DataFrame(
             datapoints, columns=[datapoint_col_name, self.model_name]
@@ -487,6 +502,16 @@ class ClusteringModel:
                 cluster_df, join_df, how="inner", on=datapoint_col_name, sort=False
             )
         return cluster_df
+
+    def get_cluster_assignment(data_keys, missing_value=None):
+        """TODO
+        :param data_keys: _description_
+        :type data_keys: _type_
+        :param missing_value: _description_, defaults to None
+        :type missing_value: _type_, optional
+        """
+        # TODO
+        pass
 
     def get_cluster_assignments_as_dict(self):
         """Returns a dictionary mapping datapoint key (e.g. subreddit name) to its cluster assignment under this clustering model"""
@@ -586,7 +611,6 @@ class ClusteringModel:
         clustermodel.load_model(cls.get_model_path(directory))
         clustermodel.index_to_key = index_to_key
         clustermodel.data = data
-        clustermodel.clusters = clustermodel.clustering_model.predict(data)
 
         clustermodel.model_name = cls.load_model_name(
             cls.get_param_json_path(directory)

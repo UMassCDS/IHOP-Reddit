@@ -88,6 +88,34 @@ def test_cluster_model_serialization(vector_data, tmp_path):
     )
     model.train()
     model.save(tmp_path)
+    # Giving the AskReddit vector again predicts the same cluster
+    assert model.predict(np.full((1, 5), 1)) == model.clusters[0]
+
+    loaded_model = ic.ClusteringModel.load(
+        tmp_path, vector_data, {0: "AskReddit", 1: "aww", 2: "NBA"}
+    )
+    assert loaded_model.index_to_key == model.index_to_key
+    assert loaded_model.get_parameters() == model.get_parameters()
+    assert loaded_model.clusters.shape == model.clusters.shape
+    assert (loaded_model.clusters == model.clusters).all()
+    assert len(loaded_model.get_cluster_assignments_as_dict()) == 3
+    assert set(loaded_model.get_cluster_assignments_as_dict().keys()) == {
+        "AskReddit",
+        "aww",
+        "NBA",
+    }
+
+
+def test_agglomerative_hierarchical_model(vector_data, tmp_path):
+    model = ic.ClusteringModel(
+        vector_data,
+        AgglomerativeClustering(n_clusters=2, affinity="cosine", linkage="average"),
+        "test",
+        {0: "AskReddit", 1: "aww", 2: "NBA"},
+    )
+
+    model.train()
+    model.save(tmp_path)
 
     loaded_model = ic.ClusteringModel.load(
         tmp_path, vector_data, {0: "AskReddit", 1: "aww", 2: "NBA"}
