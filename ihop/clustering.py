@@ -503,15 +503,18 @@ class ClusteringModel:
             )
         return cluster_df
 
-    def get_cluster_assignment(data_keys, missing_value=None):
-        """TODO
-        :param data_keys: _description_
-        :type data_keys: _type_
-        :param missing_value: _description_, defaults to None
-        :type missing_value: _type_, optional
+    def get_cluster_assignments_from_keys(self, data_keys, missing_value=None):
+        """Given a list of data keys, return the assign clusters.
+
+        :param data_keys: iterable of string keys to find labels for
+        :param missing_value: value to return if a key is missing from the underlying cluster assignments, defaults to None
         """
-        # TODO
-        pass
+        key_to_index = {k:pos for pos, k in self.index_to_key.items()}
+        result_labels = []
+        for k in data_keys:
+            result_labels.append(key_to_index.get(k, missing_value))
+
+        return result_labels
 
     def get_cluster_assignments_as_dict(self):
         """Returns a dictionary mapping datapoint key (e.g. subreddit name) to its cluster assignment under this clustering model"""

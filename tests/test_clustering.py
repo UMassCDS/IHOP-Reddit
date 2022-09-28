@@ -70,6 +70,12 @@ def test_clustering_model(vector_data):
     # Giving the AskReddit vector again predicts the same cluster
     assert model.predict(np.full((1, 5), 1)) == clusters[0]
 
+    cluster_assignments = model.get_cluster_assignments_from_keys(["aww", "AskReddit", "DnD"])
+    assert len(cluster_assignments) == 3
+    assert cluster_assignments[0] in [0,1]
+    assert cluster_assignments[1] in [0,1]
+    assert cluster_assignments[2] is None
+
     assert model.get_cluster_results_as_df().shape == (3, 2)
     assert len(model.get_cluster_assignments_as_dict()) == 3
     assert set(model.get_cluster_assignments_as_dict().keys()) == {
@@ -120,6 +126,13 @@ def test_agglomerative_hierarchical_model(vector_data, tmp_path):
     loaded_model = ic.ClusteringModel.load(
         tmp_path, vector_data, {0: "AskReddit", 1: "aww", 2: "NBA"}
     )
+
+    cluster_assignments = model.get_cluster_assignments_from_keys(["aww", "AskReddit", "DnD"])
+    assert len(cluster_assignments) == 3
+    assert cluster_assignments[0] in [0,1]
+    assert cluster_assignments[1] in [0,1]
+    assert cluster_assignments[2] is None
+
     assert loaded_model.index_to_key == model.index_to_key
     assert loaded_model.get_parameters() == model.get_parameters()
     assert loaded_model.clusters.shape == model.clusters.shape
