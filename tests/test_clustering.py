@@ -431,7 +431,7 @@ def test_remap_clusters_union():
 
 def test_maximum_matching():
     contingency_table = np.array([[0, 1, 2, 0], [4, 2, 0, 0], [1, 1, 1, 0]])
-    pairs = ic.get_maximum_matching_pairs(contingency_table)
+    pairs = ic.get_maximum_matching_pairs(contingency_table, np.array([0, 1, 2, 3]), np.array([0, 1, 2, 3]), missing_fill_value=None)
     expected = ([1, 0, 2, None], [0, 2, 1, 3])
     assert pairs[0] == expected[0]
     assert pairs[1] == expected[1]

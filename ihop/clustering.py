@@ -10,7 +10,6 @@ A list of ideas for clustering based on text (not users):
 import argparse
 import json
 import logging
-from operator import indexOf
 import os
 import pathlib
 import pickle
@@ -305,12 +304,15 @@ def variation_of_information(
     return voi
 
 
-def get_maximum_matching_pairs(contingency_table):
+def get_maximum_matching_pairs(contingency_table, row_mapping, col_mapping, missing_fill_value = -1):
     """Using the Maximum Match Measure procedure (section 4.2
     in https://publikationen.bibliothek.kit.edu/1000011477/812079),
-    pair up clusters from different clustering partitions using the contingency table. Returns the optimal tuple of 2 (n,)-shaped numpy array for n pair matches, also two (d, )-shaped for unpaired rows and unpaired columns (no overlap with any cluster in the other clusteirng)
+    pair up clusters from different clustering partitions using the contingency table. Returns the optimal tuple of 2 (n,)-shaped numpy array for n pair matches, also two (d, )-shaped for unpaired rows and unpaired columns (no overlap with any cluster in the other clustering)
 
-    :continency_table: 2D array storing numeric data
+    :param contingency_table: 2D array storing numeric data
+    :param row_mapping: np array, value at i tells how to name the cluster at row i of contingency table
+    :param col_mapping: np array, value at i tells how to name the cluster at col i of contingency table
+    :param missing_fill_value: object, what to fill the array with when there is no match (None or -1, usually)
     """
     copy_table = np.copy(contingency_table)
     rows_pairs_list = list()
@@ -323,10 +325,16 @@ def get_maximum_matching_pairs(contingency_table):
         copy_table[pair[0]] = -1
         copy_table[:, pair[1]] = -1
 
+    # Retrieve true cluster ids for unmatched clusters
     unpaired_rows = set(range(copy_table.shape[0])) - set(rows_pairs_list)
+    if len(unpaired_rows) > 0:
+       unpaired_rows = row_mapping[list(unpaired_rows)]
     unpaired_cols = set(range(copy_table.shape[1])) - set(cols_pairs_list)
-    rows_pairings = rows_pairs_list + list(unpaired_rows) + [None] * len(unpaired_cols)
-    cols_pairings = cols_pairs_list + [None] * len(unpaired_rows) + list(unpaired_cols)
+    if len(unpaired_cols) > 0:
+        unpaired_cols = col_mapping[list(unpaired_cols)]
+
+    rows_pairings = list(row_mapping[rows_pairs_list]) + list(unpaired_rows) + [missing_fill_value] * len(unpaired_cols)
+    cols_pairings = list(col_mapping[cols_pairs_list]) + [missing_fill_value] * len(unpaired_rows) + list(unpaired_cols)
 
     return rows_pairings, cols_pairings
 
