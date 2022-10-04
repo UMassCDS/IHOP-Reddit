@@ -95,24 +95,29 @@ def get_contingency_table(
     cluster_1_indices,
     cluster_2_indices,
 ):
-    """Returns the frequency distributions of datapoints between two clusterings as numpy matrix
+    """Returns the frequency distributions of datapoints between two clusterings as numpy matrix. If a count
     Clustering 1 is the first axis, clustering 2 is the second axis.
 
     :param cluster_1_assignments: list or array storing cluster assignment for each datapoint in clustering 1
     :param cluster_2_assignments: list or array storing cluster assignment for each datapoint in clustering 2
     :param cluster_1_counts: list or array of int, same length as cluster_1_assignments, frequency counts of each datapoint in cluster assignment 1
     :param cluster_2_counts:  list or array of int, same length as cluster_2_assignments, frequency counts of each datapoint in cluster assignment 2
-    :param cluster_1_indices: list of int/string, index pointer that tells which rows store which clusters from clustering 1 (ideal use sorted list of cluster id/labels)
-    :param cluster_2_indices: list of int/string, index pointer that tells which rows store which clusters from clustering 2 (ideal use sorted list of cluster id/labels)
+    :param cluster_1_indices: list of int/string, index pointer that tells which rows store which clusters from clustering 1 (ideally use sorted list of cluster id/labels)
+    :param cluster_2_indices: list of int/string, index pointer that tells which rows store which clusters from clustering 2 (ideally use sorted list of cluster id/labels)
     """
     contingency_table = np.zeros((len(cluster_1_indices), len(cluster_2_indices)))
     for i, c1 in enumerate(cluster_1_assignments):
         c2 = cluster_2_assignments[i]
-        c1_index = cluster_1_indices.index(c1)
-        c2_index = cluster_2_indices.index(c2)
-        contingency_table[c1_index, c2_index] += (
-            cluster_1_counts[i] + cluster_2_counts[i]
-        )
+        c1_count = cluster_1_counts[i]
+        c2_count = cluster_2_counts[i]
+        # Values can be added to contingency matrix only if both values are non-zero
+        if c1_count > 0 and c2_count > 0:
+            c1_index = cluster_1_indices.index(c1)
+            c2_index = cluster_2_indices.index(c2)
+
+            contingency_table[c1_index, c2_index] += (
+                cluster_1_counts[i] + cluster_2_counts[i]
+            )
 
     return contingency_table
 
