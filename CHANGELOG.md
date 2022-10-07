@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed bug in app where wrong clusters are highlighted after changing selected subreddits and using the "Highlight selected clusters" button
+- ihop.clustering.ClusteringModel predict method now works for sklearn.cluster.AgglomerativeClustering, which doesn't have the same predict API as KMeans and AffinityPropagation
 
 ### Added
 - Feature for selecting community2vec models from different time frames in subreddit clustering app using a dropdown
@@ -28,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MANIFEST.in to include analogy and subreddit collection resource files in package
 - Annotation results from coherence task added in data/annotation_data/Coherence Task March 2022_July 2021 All - both months raw labels.csv
 - Notebook for computing inter-annotator agreement in notebooks/inter_rater_agreements.ipynb
+- Functions that computing metrics to compare clusterings/partitions of data points added to ihop/clustering.py and unit tests
+- Function for computing contingency tables between clusters/partitions of data points added to ihop/clustering.py and unit tests
+- Maximum match algorithm to align two cluster across two partitions of the same datapoints added to ihop/clustering.py and unit tests
+- Method to easy get nearest neighbors for data points from community2vec models added to ihop.community2vec.GensimCommunity2Vec
+- Added notebook to demonstrating comparisons of community2vec models and clustering stability over time, notebooks/clustering_stability_metrics_and_visualizations.ipynb
 
 ### Removed
 - community2vec hyperparameter tuning bash script
