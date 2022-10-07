@@ -1,6 +1,7 @@
 """Unit tests for ihop.clustering
 """
 import collections
+import math
 
 import gensim.models as gm
 import numpy as np
@@ -69,7 +70,19 @@ def test_clustering_model(vector_data):
     # Giving the AskReddit vector again predicts the same cluster
     assert model.predict(np.full((1, 5), 1)) == clusters[0]
 
+    cluster_assignments = model.get_cluster_assignments_from_keys(["aww", "AskReddit", "DnD"])
+    assert len(cluster_assignments) == 3
+    assert cluster_assignments[0] in [0,1]
+    assert cluster_assignments[1] in [0,1]
+    assert cluster_assignments[2] is None
+
     assert model.get_cluster_results_as_df().shape == (3, 2)
+    assert len(model.get_cluster_assignments_as_dict()) == 3
+    assert set(model.get_cluster_assignments_as_dict().keys()) == {
+        "AskReddit",
+        "aww",
+        "NBA",
+    }
 
 
 def test_cluster_model_serialization(vector_data, tmp_path):
@@ -81,6 +94,8 @@ def test_cluster_model_serialization(vector_data, tmp_path):
     )
     model.train()
     model.save(tmp_path)
+    # Giving the AskReddit vector again predicts the same cluster
+    assert model.predict(np.full((1, 5), 1)) == model.clusters[0]
 
     loaded_model = ic.ClusteringModel.load(
         tmp_path, vector_data, {0: "AskReddit", 1: "aww", 2: "NBA"}
@@ -89,6 +104,45 @@ def test_cluster_model_serialization(vector_data, tmp_path):
     assert loaded_model.get_parameters() == model.get_parameters()
     assert loaded_model.clusters.shape == model.clusters.shape
     assert (loaded_model.clusters == model.clusters).all()
+    assert len(loaded_model.get_cluster_assignments_as_dict()) == 3
+    assert set(loaded_model.get_cluster_assignments_as_dict().keys()) == {
+        "AskReddit",
+        "aww",
+        "NBA",
+    }
+
+
+def test_agglomerative_hierarchical_model(vector_data, tmp_path):
+    model = ic.ClusteringModel(
+        vector_data,
+        AgglomerativeClustering(n_clusters=2, affinity="cosine", linkage="average"),
+        "test",
+        {0: "AskReddit", 1: "aww", 2: "NBA"},
+    )
+
+    model.train()
+    model.save(tmp_path)
+
+    loaded_model = ic.ClusteringModel.load(
+        tmp_path, vector_data, {0: "AskReddit", 1: "aww", 2: "NBA"}
+    )
+
+    cluster_assignments = model.get_cluster_assignments_from_keys(["aww", "AskReddit", "DnD"])
+    assert len(cluster_assignments) == 3
+    assert cluster_assignments[0] in [0,1]
+    assert cluster_assignments[1] in [0,1]
+    assert cluster_assignments[2] is None
+
+    assert loaded_model.index_to_key == model.index_to_key
+    assert loaded_model.get_parameters() == model.get_parameters()
+    assert loaded_model.clusters.shape == model.clusters.shape
+    assert (loaded_model.clusters == model.clusters).all()
+    assert len(loaded_model.get_cluster_assignments_as_dict()) == 3
+    assert set(loaded_model.get_cluster_assignments_as_dict().keys()) == {
+        "AskReddit",
+        "aww",
+        "NBA",
+    }
 
 
 def test_main_sklearn(vector_data, tmp_path):
@@ -258,3 +312,126 @@ def test_main_lda(text_features, tmp_path):
 
     words_csv = tmp_path / "keywords.csv"
     assert words_csv.exists()
+
+
+def test_get_probabilities():
+    keys_to_keep = ["aww", "AskReddit", "someOtherSubreddit", "lepoardsatemyface"]
+    comment_counts = {
+        "aww": 75,
+        "AskReddit": 100,
+        "someOtherSubreddit": 25,
+        "conservatives": 25,
+    }
+    expected = np.array([0.375, 0.5, 0.125, 0])
+    assert np.all(ic.get_probabilities(comment_counts, keys_to_keep) == expected)
+
+
+def test_get_cluster_probabilities():
+    cluster_assignments = np.array([1, 2, 1, 2])
+    datapoint_counts = np.array([12, 50, 13, 25])
+    cluster_indices = [1, 2]
+
+    probs = ic.get_cluster_probabilities(
+        cluster_assignments, datapoint_counts, cluster_indices
+    )
+    assert np.array_equal(probs, np.array([0.25, 0.75]))
+
+
+def test_get_contingency_table():
+    cluster_1_assignments = [-1, 1, 2]
+    cluster_2_assignments = [1, 2, -1]
+    uniform_counts = np.ones((3,))
+    cluster_1_indices = [-1, 1, 2]
+    cluster_2_indices = [-1, 1, 2]
+    expected_table = np.array([[0, 2, 0], [0, 0, 2], [2, 0, 0]])
+    result_table = ic.get_contingency_table(
+        cluster_1_assignments,
+        cluster_2_assignments,
+        uniform_counts,
+        uniform_counts,
+        cluster_1_indices,
+        cluster_2_indices,
+    )
+    assert np.array_equal(expected_table, result_table)
+
+
+def test_get_mutual_information():
+    cont_table = np.array([[0, 2, 0], [0, 0, 2], [2, 0, 0]])
+    probs = np.full((3,), 1 / 3)
+    expected_mi = np.log2(3)
+    computed_mi = ic.get_mutual_information(cont_table, probs, probs)
+    assert math.isclose(expected_mi, computed_mi)
+
+
+def test_variation_of_information_uniform_prob():
+    clustering_1 = np.array([-1, 1, 2])
+    clustering_2 = np.array([1, 2, -1])
+    computed_voi = ic.variation_of_information(clustering_1, clustering_2)
+    # voi = H(C) + H(C') - 2I(C, C')
+    expected_voi = -2 * np.log2(1 / 3) - 2 * np.log2(3)
+    assert math.isclose(expected_voi, computed_voi)
+
+
+def test_variation_of_information_freq_counts():
+    clustering_1 = np.array([-1, 1, 2])
+    clustering_2 = np.array([1, 2, -1])
+    counts_1 = np.array([10, 5, 10])
+    counts_2 = np.array([8, 8, 8])
+    # Check MI is close first
+    expected_mi = 2 * ((18 / 49) * np.log2((9 * 15) / 49)) + (13 / 49) * np.log2(
+        (13 * 15) / 49
+    )
+    computed_mi = ic.get_mutual_information(
+        np.array([[0, 18, 0], [0, 0, 13], [18, 0, 0]]),
+        np.array([2 / 5, 1 / 5, 2 / 5]),
+        np.array([1 / 3, 1 / 3, 1 / 3]),
+    )
+    assert math.isclose(expected_mi, computed_mi)
+    # voi = H(C) + H(C') - 2I(C, C')
+    expected_voi = (
+        -((4 / 5) * np.log2(2 / 5) + (1 / 5) * np.log2(1 / 5))
+        - np.log2(1 / 3)
+        - 2 * expected_mi
+    )
+    computed_voi = ic.variation_of_information(
+        clustering_1, clustering_2, counts_1, counts_2
+    )
+    assert math.isclose(expected_voi, computed_voi)
+
+
+def test_remap_clusters_union():
+    cluster_mapping_1 = {
+        "aww": 1,
+        "AskReddit": 1,
+        "conservatives": 2,
+        "TheDonald": 2,
+        "leopardsatemyface": 3,
+    }
+    cluster_mapping_2 = {
+        "aww": 1,
+        "AskReddit": 1,
+        "conservatives": 2,
+        "leopardsatemyface": 2,
+    }
+    remapping_1, remapping_2, datapoint_indices = ic.remap_clusters(
+        cluster_mapping_1, cluster_mapping_2, use_union=True
+    )
+    assert remapping_1.shape == (5,)
+    assert remapping_2.shape == (5,)
+    assert datapoint_indices.shape == (5,)
+    thedonald_idx = np.where(datapoint_indices == "TheDonald")
+
+    assert remapping_1[thedonald_idx] == 2
+    assert remapping_2[thedonald_idx] == -1
+
+    leopards_idx = np.where(datapoint_indices == "leopardsatemyface")
+    assert remapping_1[leopards_idx] == 3
+    assert remapping_2[leopards_idx] == 2
+
+
+def test_maximum_matching():
+    contingency_table = np.array([[0, 1, 2, 0], [4, 2, 0, 0], [1, 1, 1, 0]])
+    pairs = ic.get_maximum_matching_pairs(contingency_table, np.array([0, 1, 2, 3]), np.array([0, 1, 2, 3]), missing_fill_value=None)
+    expected = ([1, 0, 2, None], [0, 2, 1, 3])
+    assert pairs[0] == expected[0]
+    assert pairs[1] == expected[1]

@@ -77,6 +77,7 @@ def test_init_gensim_community2vec(spark, vocab_csv, sample_sentences):
 
 
 def test_gensim_community2vec_train_no_errors(vocab_csv, sample_sentences):
+    # Test that training doesn't error out
     c2v_model = c2v.GensimCommunity2Vec(
         c2v.get_vocabulary(vocab_csv), sample_sentences, 9, 4, vector_size=25, epochs=2
     )
@@ -84,6 +85,13 @@ def test_gensim_community2vec_train_no_errors(vocab_csv, sample_sentences):
     train_result = c2v_model.train()
 
     assert type(train_result) == tuple
+
+    # We should also be able to get some reasonable nearest neighbor results
+    hockey_neighbors = c2v_model.get_nearest_neighbors("hockey", 5)
+    assert len(hockey_neighbors) == 5
+    assert "nba" in hockey_neighbors
+    assert "funny" in hockey_neighbors
+
 
 
 def test_gensim_community2vec_compressed_sentences(sample_compressed):

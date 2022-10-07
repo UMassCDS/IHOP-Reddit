@@ -23,6 +23,7 @@ import pyspark.ml.clustering as sparkmc
 import pyspark.sql.functions as fn
 import pyspark.sql.types as sparktypes
 import pytimeparse
+from scipy.stats import entropy
 from sklearn.cluster import KMeans, AffinityPropagation, AgglomerativeClustering
 from sklearn import metrics
 
@@ -35,6 +36,312 @@ logger = logging.getLogger(__name__)
 KEYED_VECTORS = "KeyedVectors"
 SPARK_DOCS = "SparkDocuments"
 SPARK_VEC = "SparkVectorized"
+
+# Constant to use for an additional cluster assignment for when
+# a datapoint is missing from one clustering
+MISSING_CLUSTER_ASSIGNMENT = -1
+
+# Use to idenfity different was of comparing clusterings
+UNION_UNIFORM = "union_uniform_probability"
+INTERSECT_UNIFORM = "intersection_uniform_probability"
+INTERSECT_COMMENT_PROB = "intersection_comment_probability"
+
+VOI = "variation_of_information"
+COMPLETENESS = "completeness"
+HOMOGENEITY = "homogeneity"
+V_MEASURE = "v_measure"
+ADJUSTED_RAND_INDEX = "adjusted_rand_index"
+RAND_INDEX = "rand_index"
+NORM_MUTUAL_INFO = "normalized_mutual_info"
+
+
+def get_probabilities(counts_dict, keys_to_keep, default_count_value=0):
+    """Returns the probabilities for a list of datapoints keys given
+    from their counts in a dictionary, accounting for keys that should
+    be left out or are missing.
+
+    :param counts_dict: dict, maps key to integer
+    :param keys_to_keep: list of keys
+    :param default_count_value: int, value to use for missing keys, defaults to 0
+    :return: array of floats corresponding to keys_to_keep datapoints
+    """
+    all_counts = np.full(len(keys_to_keep), default_count_value)
+    for i, k in enumerate(keys_to_keep):
+        if k in counts_dict:
+            all_counts[i] = counts_dict[k]
+    return all_counts / np.sum(all_counts)
+
+
+def get_cluster_probabilities(cluster_assignments, datapoint_counts, cluster_indexes):
+    """Return the probability for each cluster based on the probabilities for each data point assigned to the clusters
+
+    :param cluster_assignments: the cluster assignment for each datapoint
+    :param datapoint_counts: array, store frequency counts for each datapoint
+    :param cluster_indexes: list or array, used to track which cluster is stored at the index in the array
+    """
+    total_counts = np.sum(datapoint_counts)
+    cluster_probs = np.zeros((len(cluster_indexes)))
+    for i, c in enumerate(cluster_indexes):
+        cluster_probs[i] = np.sum(datapoint_counts[np.where(cluster_assignments == c)])
+
+    return cluster_probs / total_counts
+
+
+def get_contingency_table(
+    cluster_1_assignments,
+    cluster_2_assignments,
+    cluster_1_counts,
+    cluster_2_counts,
+    cluster_1_indices,
+    cluster_2_indices,
+):
+    """Returns the frequency distributions of datapoints between two clusterings as numpy matrix. If a count
+    Clustering 1 is the first axis, clustering 2 is the second axis.
+
+    :param cluster_1_assignments: list or array storing cluster assignment for each datapoint in clustering 1
+    :param cluster_2_assignments: list or array storing cluster assignment for each datapoint in clustering 2
+    :param cluster_1_counts: list or array of int, same length as cluster_1_assignments, frequency counts of each datapoint in cluster assignment 1
+    :param cluster_2_counts:  list or array of int, same length as cluster_2_assignments, frequency counts of each datapoint in cluster assignment 2
+    :param cluster_1_indices: list of int/string, index pointer that tells which rows store which clusters from clustering 1 (ideally use sorted list of cluster id/labels)
+    :param cluster_2_indices: list of int/string, index pointer that tells which rows store which clusters from clustering 2 (ideally use sorted list of cluster id/labels)
+    """
+    contingency_table = np.zeros((len(cluster_1_indices), len(cluster_2_indices)))
+    for i, c1 in enumerate(cluster_1_assignments):
+        c2 = cluster_2_assignments[i]
+        c1_count = cluster_1_counts[i]
+        c2_count = cluster_2_counts[i]
+        # Values can be added to contingency matrix only if both values are non-zero
+        if c1_count > 0 and c2_count > 0:
+            c1_index = cluster_1_indices.index(c1)
+            c2_index = cluster_2_indices.index(c2)
+
+            contingency_table[c1_index, c2_index] += (
+                cluster_1_counts[i] + cluster_2_counts[i]
+            )
+
+    return contingency_table
+
+
+def get_mutual_information(contingency_table, cluster_1_probs, cluster_2_probs):
+    """Returns the mutual information between clusterings 1 and 2 as a float
+    based on the contingency table used to calculate joint distribution and the probability distribution of individual clusterings
+
+    :param contingency_table: Frequency counts of cluster assignments comparison between both clustering 1 on first axis and clustering 2 on second axis
+    :param cluster_1_probs: np array, probability of cluster assignments in clustering 1
+    :param cluster_2_probs: np array, probability of cluster assignments in clustering 2
+    """
+    probs_products = np.outer(cluster_1_probs, cluster_2_probs)
+    total_freqs = np.sum(contingency_table)
+    joint_probs = contingency_table / total_freqs
+    # Can safely ignore divide by zero in log2 warnings, they aren't included in the final sum
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mi_components = joint_probs * (np.log2(joint_probs / probs_products))
+    mi = np.sum(mi_components[np.where(mi_components > 0)])
+    return mi
+
+
+def remap_clusters(
+    cluster_mapping_1,
+    cluster_mapping_2,
+    use_union=False,
+    missing_cluster_value=MISSING_CLUSTER_ASSIGNMENT,
+):
+    """Remaps clusterings so that they are partitions of the same data, returning cluster assignments as two arrays.
+    Also returns the data point keys as a third array for indexing.
+    Uses the intersection of data points by default.
+
+    :param cluster_mapping_1: dict, maps a data point to its cluster assignment for the first clustering
+    :param cluster_mapping_2: dict, maps a data point to its cluster assignment for the second clustering
+    :param use_union: boolean, set to True to use union of data points by having an additional cluster that consists of those values in only one cluster, defaults to False using the intersection of datapoints
+    """
+    if use_union:
+        all_datapoints = cluster_mapping_1.keys() | cluster_mapping_2.keys()
+        logger.info("Computed cluster partitions using union.")
+    else:
+        all_datapoints = cluster_mapping_1.keys() & cluster_mapping_2.keys()
+        logger.info("Computed cluster partitions using intersection.")
+    all_datapoints = np.array(sorted(all_datapoints))
+    logger.info("Number of datapoints: %s", len(all_datapoints))
+    cluster_assignments_1 = list()
+    cluster_assignments_2 = list()
+    for d in all_datapoints:
+        cluster_assignments_1.append(cluster_mapping_1.get(d, missing_cluster_value))
+        cluster_assignments_2.append(cluster_mapping_2.get(d, missing_cluster_value))
+
+    return (
+        np.array(cluster_assignments_1),
+        np.array(cluster_assignments_2),
+        all_datapoints,
+    )
+
+
+def compare_cluterings(
+    cluster_mapping_1,
+    cluster_mapping_2,
+    use_union=False,
+    cluster_1_counts=None,
+    cluster_2_counts=None,
+    missing_cluster_assignment=MISSING_CLUSTER_ASSIGNMENT,
+):
+    """Returns comparison metrics between two clusterings. Results formated as nested dictionary where the outer key indicates the comparison style:
+    1) whether intersection or union is used
+    2) if uniform probabilities for each data point to cluster (subreddit) or probability counts of data point to cluster (subreddit, probability determined by number of comments over the time period)
+    Returned dictionary like {comparison style: {metric name: metric value}}
+
+    :param cluster_mapping_1: dict, maps a data point to its cluster assignment for the first clustering
+    :param cluster_mapping_2: dict, maps a data point to its cluster assignment for the second clustering
+    :param use_union: boolean, set to True to use union of data points by having an additional cluster that consists of those values in only one cluster, defaults to False using the intersection of datapoints
+    :param cluster_1_counts: dict, maps a datapoint to an integer value, used to compute probabilities
+    :param cluster_2_counts: dict, maps a datapoint to an integer, used to compute probabilities
+    :param missing_cluster_assignment: constant value to assign clusters when using the union of the partition. User is responsible for ensuring this value doesn't conflict with any actual cluster ids.
+    """
+    cluster_assignment_1, cluster_assignment_2, datapoint_keys = remap_clusters(
+        cluster_mapping_1,
+        cluster_mapping_2,
+        use_union=use_union,
+        missing_cluster_value=missing_cluster_assignment,
+    )
+    results_key = INTERSECT_UNIFORM
+    results_dict = {}
+    if use_union:
+        results_key = UNION_UNIFORM
+
+    # probabilities can only be used with intersection
+    if not use_union and cluster_1_counts is not None and cluster_2_counts is not None:
+        results_key = INTERSECT_COMMENT_PROB
+        # Order the counts in the same way as cluster assignments
+        cluster_1_counts_reordered = []
+        cluster_2_counts_reordered = []
+        for d in datapoint_keys:
+            cluster_1_counts_reordered.append(cluster_1_counts[d])
+            cluster_2_counts_reordered.append(cluster_2_counts[d])
+
+        results_dict[VOI] = variation_of_information(
+            cluster_assignment_1,
+            cluster_assignment_2,
+            np.array(cluster_1_counts_reordered),
+            np.array(cluster_2_counts_reordered),
+        )
+    else:
+
+        results_dict[ADJUSTED_RAND_INDEX] = metrics.adjusted_rand_score(
+            cluster_assignment_1, cluster_assignment_2
+        )
+        results_dict[RAND_INDEX] = metrics.rand_score(
+            cluster_assignment_1, cluster_assignment_2
+        )
+        results_dict[NORM_MUTUAL_INFO] = metrics.normalized_mutual_info_score(
+            cluster_assignment_1, cluster_assignment_2
+        )
+
+        h, c, v = metrics.homogeneity_completeness_v_measure(
+            cluster_assignment_1, cluster_assignment_2
+        )
+        results_dict[HOMOGENEITY] = h
+        results_dict[COMPLETENESS] = c
+        results_dict[V_MEASURE] = v
+
+        results_dict[VOI] = variation_of_information(
+            cluster_assignment_1, cluster_assignment_2
+        )
+
+    return {f"{results_key}_{m}": v for m, v in results_dict.items()}
+
+
+def variation_of_information(
+    cluster_assignment_1,
+    cluster_assignment_2,
+    cluster_1_datapoint_counts=None,
+    cluster_2_datapoint_counts=None,
+):
+    """Computes variation of information between two partitions of the same data points.
+
+    Meilă, Marina. “Comparing Clusterings by the Variation of Information.” COLT (2003).
+
+    :param cluster_assignment_1: array type, the cluster assignments for each data point under the first partitioning
+    :param cluster_assignment_2: array type, the cluster assignments for each data point under the second partitioning
+    :param cluster_1_datapoint_counts: array type, same length as cluster_assignments_1, counts of occurences of a particular datapoint under the first partitioning, used to calculate probabilities for entropy and mutual information. If this is not given a uniform probability of all clusters will be used.
+    :param cluster_2_datapoint_counts: array type, same length as cluster_assignments_2, counts of occurences of a particular datapoint under the second partitioning, used to calculate probabilities for entropy and mutual information. If this is not given a uniform probability of all clusters will be used.
+    :return: float, the computed variation of information value
+    """
+    if len(cluster_assignment_1) != len(cluster_assignment_2):
+        msg = f"Clusterings must have the same number of data points in order to compare. Clustering 1: {len(cluster_assignment_1)}, Clustering 2: {len(cluster_assignment_2)}"
+        logger.error(msg)
+        raise ValueError(msg)
+
+    # If no counts are given, a uniform probability is used
+    if cluster_1_datapoint_counts is None and cluster_2_datapoint_counts is None:
+        cluster_1_datapoint_counts = np.ones(cluster_assignment_1.shape)
+        cluster_2_datapoint_counts = np.ones(cluster_assignment_2.shape)
+    elif not (
+        cluster_1_datapoint_counts is not None
+        and cluster_2_datapoint_counts is not None
+    ):
+        msg = "Choose either uniform probability or count based probabilities for cluster comparison, do not mix."
+        logger.error(msg)
+
+    # Sorted list of clusters for indexint
+    cluster_1_indices = sorted(set(cluster_assignment_1))
+    cluster_1_probs = get_cluster_probabilities(
+        cluster_assignment_1, cluster_1_datapoint_counts, cluster_1_indices
+    )
+
+    cluster_2_indices = sorted(set(cluster_assignment_2))
+    cluster_2_probs = get_cluster_probabilities(
+        cluster_assignment_2, cluster_2_datapoint_counts, cluster_2_indices
+    )
+
+    clustering_1_entropy = entropy(cluster_1_probs, base=2)
+    clustering_2_entropy = entropy(cluster_2_probs, base=2)
+
+    contingency_table = get_contingency_table(
+        cluster_assignment_1,
+        cluster_assignment_2,
+        cluster_1_datapoint_counts,
+        cluster_2_datapoint_counts,
+        cluster_1_indices,
+        cluster_2_indices,
+    )
+
+    mi = get_mutual_information(contingency_table, cluster_1_probs, cluster_2_probs)
+
+    voi = clustering_1_entropy + clustering_2_entropy - 2 * mi
+    return voi
+
+
+def get_maximum_matching_pairs(contingency_table, row_mapping, col_mapping, missing_fill_value = -1):
+    """Using the Maximum Match Measure procedure (section 4.2
+    in https://publikationen.bibliothek.kit.edu/1000011477/812079),
+    pair up clusters from different clustering partitions using the contingency table. Returns the optimal tuple of 2 (n,)-shaped numpy array for n pair matches, also two (d, )-shaped for unpaired rows and unpaired columns (no overlap with any cluster in the other clustering)
+
+    :param contingency_table: 2D array storing numeric data
+    :param row_mapping: np array, value at i tells how to name the cluster at row i of contingency table
+    :param col_mapping: np array, value at i tells how to name the cluster at col i of contingency table
+    :param missing_fill_value: object, what to fill the array with when there is no match (None or -1, usually)
+    """
+    copy_table = np.copy(contingency_table)
+    rows_pairs_list = list()
+    cols_pairs_list = list()
+    while np.max(copy_table) > 0:
+        pair = np.unravel_index(np.argmax(copy_table), copy_table.shape)
+        rows_pairs_list.append(pair[0])
+        cols_pairs_list.append(pair[1])
+        # Don't find this pair again, but don't change the shape of the array
+        copy_table[pair[0]] = -1
+        copy_table[:, pair[1]] = -1
+
+    # Retrieve true cluster ids for unmatched clusters
+    unpaired_rows = set(range(copy_table.shape[0])) - set(rows_pairs_list)
+    if len(unpaired_rows) > 0:
+       unpaired_rows = row_mapping[list(unpaired_rows)]
+    unpaired_cols = set(range(copy_table.shape[1])) - set(cols_pairs_list)
+    if len(unpaired_cols) > 0:
+        unpaired_cols = col_mapping[list(unpaired_cols)]
+
+    rows_pairings = list(row_mapping[rows_pairs_list]) + list(unpaired_rows) + [missing_fill_value] * len(unpaired_cols)
+    cols_pairings = list(col_mapping[cols_pairs_list]) + [missing_fill_value] * len(unpaired_rows) + list(unpaired_cols)
+
+    return rows_pairings, cols_pairings
 
 
 class ClusteringModelFactory:
@@ -152,20 +459,37 @@ class ClusteringModel:
         self.index_to_key = index_to_key
         self.clustering_model = clustering_model
         self.model_name = model_name
-        self.clusters = None
+
+    @property
+    def clusters(self):
+        return self.clustering_model.labels_
 
     def train(self):
         """Fits the model to data and predicts the cluster labels for each data point.
         Returns the predicted clusters for each data point in training data
         """
         logger.info("Fitting ClusteringModel")
-        self.clusters = self.clustering_model.fit_predict(self.data)
+        self.clustering_model.fit_predict(self.data)
         logger.info("Finished fitting ClusteringModel")
 
-    def predict(self, new_data):
-        """Returns cluster assignments for the given data as
+    def predict(self, new_data, missing_value_result=None):
+        """Returns cluster assignments for the given data as a numpy array.
+        Note that for AgglomerativeClustering models, this re-fits the model
         :param new_data: numpy array, data to predict clusters for
+        :param missing_value_result: obj, what to fill in if this data point cannot be clustered
         """
+        # sklearn.AgglomerativeClustering doesn't have a .predict method
+        if isinstance(self.clustering_model, AgglomerativeClustering):
+            prediction_results = np.full((len(new_data),), missing_value_result)
+            # Find where each datapoint appeared in the original data, then fill it in
+            for i, datapoint in enumerate(new_data):
+                original_index = np.flatnonzero((datapoint == self.data).all(1))
+                if len(original_index) > 0:
+                    prediction_results[i] = self.clustering_model.labels_[
+                        original_index[0]
+                    ]
+            return prediction_results
+
         return self.clustering_model.predict(new_data)
 
     def get_cluster_results_as_df(self, datapoint_col_name="subreddit", join_df=None):
@@ -175,7 +499,8 @@ class ClusteringModel:
         :param join_df: Pandas DataFrame, optionally inner join this dataframe on the datapoint_col_name in the returned results
         """
         datapoints = [
-            (val, self.clusters[idx]) for idx, val in self.index_to_key.items()
+            (val, self.clustering_model.labels_[idx])
+            for idx, val in self.index_to_key.items()
         ]
         cluster_df = pd.DataFrame(
             datapoints, columns=[datapoint_col_name, self.model_name]
@@ -190,6 +515,23 @@ class ClusteringModel:
                 cluster_df, join_df, how="inner", on=datapoint_col_name, sort=False
             )
         return cluster_df
+
+    def get_cluster_assignments_from_keys(self, data_keys, missing_value=None):
+        """Given a list of data keys, return the assign clusters.
+
+        :param data_keys: iterable of string keys to find labels for
+        :param missing_value: value to return if a key is missing from the underlying cluster assignments, defaults to None
+        """
+        key_to_index = {k:pos for pos, k in self.index_to_key.items()}
+        result_labels = []
+        for k in data_keys:
+            result_labels.append(key_to_index.get(k, missing_value))
+
+        return result_labels
+
+    def get_cluster_assignments_as_dict(self):
+        """Returns a dictionary mapping datapoint key (e.g. subreddit name) to its cluster assignment under this clustering model"""
+        return {k: self.clusters[position] for position, k in self.index_to_key.items()}
 
     def get_metrics(self):
         """Returns Silhouette Coefficient, Caliniski-Harbasz Index and Davis-Bouldin Index for the trained clustering model on the given data as a dictionary.
@@ -285,7 +627,6 @@ class ClusteringModel:
         clustermodel.load_model(cls.get_model_path(directory))
         clustermodel.index_to_key = index_to_key
         clustermodel.data = data
-        clustermodel.clusters = clustermodel.clustering_model.predict(data)
 
         clustermodel.model_name = cls.load_model_name(
             cls.get_param_json_path(directory)
