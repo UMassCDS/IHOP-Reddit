@@ -71,6 +71,21 @@ def filter_top_n(dataframe, top_n_counts, col="subreddit"):
     logger.debug("Filtering dataframe by values matching column '%s'", col)
     return dataframe.join(top_n_counts, col, "leftsemi")
 
+def filter_by_regex(dataframe, col="subreddit", regex_pattern="^u_.*", match_complement=True):
+    """Filters the dataframe where the given column matches (or doesn't match) the given regex. Th
+
+    :param dataframe: a Spark DataFrame to be filtered
+    :param col: str, the column to filter, defaults to "subreddit"
+    :param pattern: str, a Java-style regex pattern, defaults to "^u_.*" to match subreddits that are user pages
+    :param complement: bool, True to filter for NOT LIKE pattern and False to filter for LIKE pattern, defaults to True
+    """
+    if match_complement:
+        logger.debug("Removing rows which match column '%s' with the following regex pattern: %s", col, regex_pattern)
+        return dataframe.where(~ fn.col(col).rlike(regex_pattern))
+    else:
+        logger.debug("Filtering dataframe for rows which match column '%s' with the following regex pattern: %s", col, regex_pattern)
+        return dataframe.where(fn.col(col).rlike(regex_pattern))
+
 
 def remove_deleted_authors(dataframe):
     """Filters out comments or submissions that have had the author deleted.
