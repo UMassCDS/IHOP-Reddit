@@ -446,7 +446,7 @@ def community2vec(
         if not quiet:
             print("Spark dataframe from json:")
             spark_df.show()
-        top_n_df = get_top_n_counts(spark_df, n=top_n)
+        top_n_df = get_top_n_counts(filter_by_regex(spark_df), n=top_n)
         filtered_df = filter_top_n(spark_df, top_n_df)
         filtered_df = remove_deleted_authors(filtered_df)
         if not quiet:
@@ -495,15 +495,22 @@ def bag_of_words(
     )
     logger.debug("Reading in comments from %s", comments_paths)
     comments_df = get_spark_dataframe(comments_paths, spark, COMMENTS)
+    comments_df = filter_by_regex(comments_df) # Removes "user pages" from the subreddits
     logger.debug("Comments schema: %s", comments_df.schema.names)
     logger.debug("Reading in submissions from %s", submissions_paths)
     submissions_df = get_spark_dataframe(submissions_paths, spark, SUBMISSIONS)
+    submissions_df = filter_by_regex(submissions_df) # Removes "user pages from the subreddits"
     logger.debug("Submissions schema: %s", submissions_df.schema.names)
+
+    # Retrieve top n most popular subreddits by...
     if type_for_top_n == COMMENTS:
+        # ... number of comments in the time period
         top_n_df = get_top_n_counts(comments_df, n=top_n)
     else:
+        # ... number of posts originating in the time period
         top_n_df = get_top_n_counts(submissions_df, n=top_n)
 
+    # Remove any comments where the author or comment itself was deleted
     filtered_comments = remove_deleted_authors(
         remove_deleted_text(filter_top_n(comments_df, top_n_df), COMMENTS)
     )
@@ -512,6 +519,7 @@ def bag_of_words(
             filtered_comments, exclude_top_perc=exclude_top_perc
         )
 
+    # Remove any submissions where the author or submission itself was deleted
     filtered_submissions = remove_deleted_authors(
         remove_deleted_text(filter_top_n(submissions_df, top_n_df), SUBMISSIONS)
     )
@@ -522,6 +530,8 @@ def bag_of_words(
 
     filtered_submissions = prefix_id_column(filtered_submissions)
     joined_df = join_submissions_and_comments(filtered_submissions, filtered_comments)
+
+    # Keep only comments which come within a time window of the original submission
     if max_time_delta:
         joined_df = filter_by_time_between_submission_and_comment(
             joined_df, max_time_delta=max_time_delta, min_time_delta=min_time_delta
