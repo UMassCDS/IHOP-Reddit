@@ -1126,11 +1126,18 @@ stages:
       md5: 5cd5e415b86968cedcdc2db3e3d84e4e
       size: 80694
   prep_annotation_data@2021-04:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2021-04/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2021-04/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2021-04/RC_2021-04_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2021-04/RC_2021-04_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2021-04/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-04/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-04/kmeans_model/RC_2021-04_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-04/kmeans_model/RC_2021-04_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2021-04/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-04/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-04/agglomerative_model/RC_2021-04_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-04/agglomerative_model/RC_2021-04_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2021-04/agglomerative_model/clusters.csv
+      md5: c8d0f02890027b8e33c61611b4e94585
+      size: 144972
     - path: data/annotation_data/RC_2021-04/kmeans_model/clusters.csv
       md5: ec3a86487c7dc3a17127e2ad81dd1a14
       size: 147142
@@ -1138,18 +1145,37 @@ stages:
       md5: 881813271bcd6a5b6c5b00f82a423600
       size: 171395
     outs:
-    - path: data/annotation_data/RC_2021-04/RC_2021-04_coherence_task.csv
+    - path: data/annotation_data/RC_2021-04/agglomerative_model/RC_2021-04_coherence_task.csv
+      md5: 0d85fc9dd58e263a45ec54c733d448d1
+      size: 121672
+    - path: data/annotation_data/RC_2021-04/agglomerative_model/RC_2021-04_subreddit_intruder_task.csv
+      md5: 76e26fbc27dfb088c6745af8710cf54e
+      size: 5955
+    - path: data/annotation_data/RC_2021-04/agglomerative_model/RC_2021-04_subreddit_intruder_task_answers.csv
+      md5: 7909e713c2bd1dcc6e68a0a4b244df3c
+      size: 6010
+    - path: data/annotation_data/RC_2021-04/kmeans_model/RC_2021-04_coherence_task.csv
       md5: 2fe83a8b40a390fbeabee7c362fa2785
       size: 120972
-    - path: data/annotation_data/RC_2021-04/RC_2021-04_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2021-04/kmeans_model/RC_2021-04_subreddit_intruder_task.csv
       md5: f769688becff5c7b09c79ff382d0ea43
       size: 9547
+    - path: data/annotation_data/RC_2021-04/kmeans_model/RC_2021-04_subreddit_intruder_task_answers.csv
+      md5: 4133b5363f64be225212c43090f135d7
+      size: 9643
   prep_annotation_data@2021-05:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2021-05/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2021-05/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2021-05/RC_2021-05_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2021-05/RC_2021-05_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2021-05/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-05/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-05/kmeans_model/RC_2021-05_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-05/kmeans_model/RC_2021-05_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2021-05/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-05/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-05/agglomerative_model/RC_2021-05_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-05/agglomerative_model/RC_2021-05_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2021-05/agglomerative_model/clusters.csv
+      md5: 15d501a2778207a62470b507d975b7e1
+      size: 144821
     - path: data/annotation_data/RC_2021-05/kmeans_model/clusters.csv
       md5: a0ca653486ed993f36984d920a3108de
       size: 147139
@@ -1157,18 +1183,37 @@ stages:
       md5: d366e2a8b95ddb1530884a78349ce016
       size: 171796
     outs:
-    - path: data/annotation_data/RC_2021-05/RC_2021-05_coherence_task.csv
+    - path: data/annotation_data/RC_2021-05/agglomerative_model/RC_2021-05_coherence_task.csv
+      md5: ebb739c2bab1e88795c6831d0c951549
+      size: 121985
+    - path: data/annotation_data/RC_2021-05/agglomerative_model/RC_2021-05_subreddit_intruder_task.csv
+      md5: 68de5e3b6d08047570b16102c2b34a9c
+      size: 5817
+    - path: data/annotation_data/RC_2021-05/agglomerative_model/RC_2021-05_subreddit_intruder_task_answers.csv
+      md5: 88708f6ce96e3975723d57e37960699c
+      size: 5871
+    - path: data/annotation_data/RC_2021-05/kmeans_model/RC_2021-05_coherence_task.csv
       md5: a9382d24b0d2462d1f9d3b0f39a4e59c
       size: 121285
-    - path: data/annotation_data/RC_2021-05/RC_2021-05_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2021-05/kmeans_model/RC_2021-05_subreddit_intruder_task.csv
       md5: 0de193aacdc7c95362cc74a251037728
       size: 9322
+    - path: data/annotation_data/RC_2021-05/kmeans_model/RC_2021-05_subreddit_intruder_task_answers.csv
+      md5: e6f5b623eac25cd53abb50a6f6408fff
+      size: 9417
   prep_annotation_data@2021-06:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2021-06/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2021-06/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2021-06/RC_2021-06_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2021-06/RC_2021-06_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2021-06/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-06/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-06/kmeans_model/RC_2021-06_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-06/kmeans_model/RC_2021-06_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2021-06/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-06/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-06/agglomerative_model/RC_2021-06_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-06/agglomerative_model/RC_2021-06_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2021-06/agglomerative_model/clusters.csv
+      md5: d972435aba797f95723a414af0bff003
+      size: 146870
     - path: data/annotation_data/RC_2021-06/kmeans_model/clusters.csv
       md5: df9a44a53cbcc4775233af668661c3de
       size: 147748
@@ -1176,18 +1221,37 @@ stages:
       md5: 03720916d8a23f5c1cc6e53bc1aed6b0
       size: 172093
     outs:
-    - path: data/annotation_data/RC_2021-06/RC_2021-06_coherence_task.csv
+    - path: data/annotation_data/RC_2021-06/agglomerative_model/RC_2021-06_coherence_task.csv
+      md5: 4c16dec5a2679a5acf1406a37417189f
+      size: 122433
+    - path: data/annotation_data/RC_2021-06/agglomerative_model/RC_2021-06_subreddit_intruder_task.csv
+      md5: db9381c8d622f1c6560c4e905ede9eb5
+      size: 5647
+    - path: data/annotation_data/RC_2021-06/agglomerative_model/RC_2021-06_subreddit_intruder_task_answers.csv
+      md5: 6a6a483ff5e6f935422db2a0458553bf
+      size: 5699
+    - path: data/annotation_data/RC_2021-06/kmeans_model/RC_2021-06_coherence_task.csv
       md5: cb3018eee7ff20b73077b8b3a26e5adf
       size: 121733
-    - path: data/annotation_data/RC_2021-06/RC_2021-06_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2021-06/kmeans_model/RC_2021-06_subreddit_intruder_task.csv
       md5: d43f71a26da45adf620815e760130fc6
       size: 9541
+    - path: data/annotation_data/RC_2021-06/kmeans_model/RC_2021-06_subreddit_intruder_task_answers.csv
+      md5: 2c3884ec2399de44ee81133fbb196292
+      size: 9637
   prep_annotation_data@2021-07:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2021-07/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2021-07/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2021-07/RC_2021-07_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2021-07/RC_2021-07_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2021-07/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-07/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-07/kmeans_model/RC_2021-07_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-07/kmeans_model/RC_2021-07_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2021-07/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-07/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-07/agglomerative_model/RC_2021-07_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-07/agglomerative_model/RC_2021-07_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2021-07/agglomerative_model/clusters.csv
+      md5: f882694f520ed46547e3c3aaac16658d
+      size: 145699
     - path: data/annotation_data/RC_2021-07/kmeans_model/clusters.csv
       md5: b18b2bbbc9c1f8e759c1ef10bd5f1cda
       size: 146835
@@ -1195,18 +1259,37 @@ stages:
       md5: 9703089de3cf78139889d04b554b2905
       size: 171589
     outs:
-    - path: data/annotation_data/RC_2021-07/RC_2021-07_coherence_task.csv
+    - path: data/annotation_data/RC_2021-07/agglomerative_model/RC_2021-07_coherence_task.csv
+      md5: 0abca2e4f015490d5ad31f5f4fe5fa67
+      size: 121796
+    - path: data/annotation_data/RC_2021-07/agglomerative_model/RC_2021-07_subreddit_intruder_task.csv
+      md5: 84ba167b2276f233f24eccbdc7a70ec7
+      size: 6232
+    - path: data/annotation_data/RC_2021-07/agglomerative_model/RC_2021-07_subreddit_intruder_task_answers.csv
+      md5: 46339b73a228bd25856d921a14e1dd04
+      size: 6290
+    - path: data/annotation_data/RC_2021-07/kmeans_model/RC_2021-07_coherence_task.csv
       md5: 0f6b2d28f76ae4a145b9c7f2488f9424
       size: 121096
-    - path: data/annotation_data/RC_2021-07/RC_2021-07_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2021-07/kmeans_model/RC_2021-07_subreddit_intruder_task.csv
       md5: ffe831fae21b763982028af4ca7f0c3a
       size: 9610
+    - path: data/annotation_data/RC_2021-07/kmeans_model/RC_2021-07_subreddit_intruder_task_answers.csv
+      md5: 1d152919f15050209c2309f12786bb97
+      size: 9706
   prep_annotation_data@2021-08:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2021-08/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2021-08/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2021-08/RC_2021-08_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2021-08/RC_2021-08_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2021-08/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-08/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-08/kmeans_model/RC_2021-08_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-08/kmeans_model/RC_2021-08_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2021-08/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-08/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-08/agglomerative_model/RC_2021-08_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-08/agglomerative_model/RC_2021-08_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2021-08/agglomerative_model/clusters.csv
+      md5: 70724b5e65befd832f00855363ad6c5b
+      size: 144643
     - path: data/annotation_data/RC_2021-08/kmeans_model/clusters.csv
       md5: e8dd0da9dd0e0a9eef54ccf39264c2c6
       size: 146961
@@ -1214,18 +1297,37 @@ stages:
       md5: 53204aaa3ea41be9275a37ecb70c5e63
       size: 171606
     outs:
-    - path: data/annotation_data/RC_2021-08/RC_2021-08_coherence_task.csv
+    - path: data/annotation_data/RC_2021-08/agglomerative_model/RC_2021-08_coherence_task.csv
+      md5: 966cd93cf922ab062729580f22639426
+      size: 121556
+    - path: data/annotation_data/RC_2021-08/agglomerative_model/RC_2021-08_subreddit_intruder_task.csv
+      md5: b9652489f28de7971ea62fbe785153a9
+      size: 6351
+    - path: data/annotation_data/RC_2021-08/agglomerative_model/RC_2021-08_subreddit_intruder_task_answers.csv
+      md5: 0337ed2efc8a80fc2c9e553afd680986
+      size: 6411
+    - path: data/annotation_data/RC_2021-08/kmeans_model/RC_2021-08_coherence_task.csv
       md5: 2000615b05bc60abd43929120f36707d
       size: 120856
-    - path: data/annotation_data/RC_2021-08/RC_2021-08_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2021-08/kmeans_model/RC_2021-08_subreddit_intruder_task.csv
       md5: fa96207a45537a9ede148c014034f6dd
       size: 9504
+    - path: data/annotation_data/RC_2021-08/kmeans_model/RC_2021-08_subreddit_intruder_task_answers.csv
+      md5: a05b42e1cd6a15447b77588d15b32af1
+      size: 9600
   prep_annotation_data@2021-09:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2021-09/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2021-09/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2021-09/RC_2021-09_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2021-09/RC_2021-09_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2021-09/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-09/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-09/kmeans_model/RC_2021-09_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-09/kmeans_model/RC_2021-09_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2021-09/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-09/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-09/agglomerative_model/RC_2021-09_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-09/agglomerative_model/RC_2021-09_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2021-09/agglomerative_model/clusters.csv
+      md5: cff2f8bf81c4b87119d729d940736919
+      size: 144982
     - path: data/annotation_data/RC_2021-09/kmeans_model/clusters.csv
       md5: c84c045f386c9de90a4978979cf0a174
       size: 147066
@@ -1233,18 +1335,37 @@ stages:
       md5: 2c480c1f245d786128c9ca6e867e6246
       size: 171481
     outs:
-    - path: data/annotation_data/RC_2021-09/RC_2021-09_coherence_task.csv
+    - path: data/annotation_data/RC_2021-09/agglomerative_model/RC_2021-09_coherence_task.csv
+      md5: 32cc3aa0694ad312e66be4b4d04a43ae
+      size: 121572
+    - path: data/annotation_data/RC_2021-09/agglomerative_model/RC_2021-09_subreddit_intruder_task.csv
+      md5: 52e2a649684249fe448ac9e5081ba28d
+      size: 5090
+    - path: data/annotation_data/RC_2021-09/agglomerative_model/RC_2021-09_subreddit_intruder_task_answers.csv
+      md5: 1823b527b1c7af0f753a28bd169a09ef
+      size: 5136
+    - path: data/annotation_data/RC_2021-09/kmeans_model/RC_2021-09_coherence_task.csv
       md5: ba391d26e37e07e08cf581497855f7d6
       size: 120872
-    - path: data/annotation_data/RC_2021-09/RC_2021-09_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2021-09/kmeans_model/RC_2021-09_subreddit_intruder_task.csv
       md5: 448252be1d709d1c2fc5c67a56461c92
       size: 9479
+    - path: data/annotation_data/RC_2021-09/kmeans_model/RC_2021-09_subreddit_intruder_task_answers.csv
+      md5: 5735f1fbbec1b9f1b9b76451f7aa934f
+      size: 9575
   prep_annotation_data@2021-10:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2021-10/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2021-10/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2021-10/RC_2021-10_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2021-10/RC_2021-10_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2021-10/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-10/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-10/kmeans_model/RC_2021-10_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-10/kmeans_model/RC_2021-10_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2021-10/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-10/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-10/agglomerative_model/RC_2021-10_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-10/agglomerative_model/RC_2021-10_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2021-10/agglomerative_model/clusters.csv
+      md5: b849bd805b603778124e9e40b4b0fe08
+      size: 144770
     - path: data/annotation_data/RC_2021-10/kmeans_model/clusters.csv
       md5: 66fce43f9b919792f0bdd278c9644eeb
       size: 147259
@@ -1252,18 +1373,37 @@ stages:
       md5: fdf986d7c61065120b61334d65bdbf33
       size: 172049
     outs:
-    - path: data/annotation_data/RC_2021-10/RC_2021-10_coherence_task.csv
+    - path: data/annotation_data/RC_2021-10/agglomerative_model/RC_2021-10_coherence_task.csv
+      md5: a61ef80d5fda6b6adf7dbe9d38a8f4e3
+      size: 122051
+    - path: data/annotation_data/RC_2021-10/agglomerative_model/RC_2021-10_subreddit_intruder_task.csv
+      md5: c10ac901477cfc205fe7275af704f9cb
+      size: 4607
+    - path: data/annotation_data/RC_2021-10/agglomerative_model/RC_2021-10_subreddit_intruder_task_answers.csv
+      md5: 579e5513231bc65cf3e56579d6786e1c
+      size: 4649
+    - path: data/annotation_data/RC_2021-10/kmeans_model/RC_2021-10_coherence_task.csv
       md5: 5efb1372879735cf72f457788435afa9
       size: 121351
-    - path: data/annotation_data/RC_2021-10/RC_2021-10_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2021-10/kmeans_model/RC_2021-10_subreddit_intruder_task.csv
       md5: ef95cbea0f7011b903b9273455dcab15
       size: 9488
+    - path: data/annotation_data/RC_2021-10/kmeans_model/RC_2021-10_subreddit_intruder_task_answers.csv
+      md5: 0d29bc8f98d828d0a66952b7cbf2bc6e
+      size: 9585
   prep_annotation_data@2021-11:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2021-11/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2021-11/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2021-11/RC_2021-11_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2021-11/RC_2021-11_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2021-11/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-11/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-11/kmeans_model/RC_2021-11_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-11/kmeans_model/RC_2021-11_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2021-11/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-11/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-11/agglomerative_model/RC_2021-11_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-11/agglomerative_model/RC_2021-11_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2021-11/agglomerative_model/clusters.csv
+      md5: 643688c6158944e9c543100775791296
+      size: 145121
     - path: data/annotation_data/RC_2021-11/kmeans_model/clusters.csv
       md5: 612f38e0e3b32bbe16d493ca432351b7
       size: 147155
@@ -1271,18 +1411,37 @@ stages:
       md5: e2824367f028a76c39afe8148b4c538d
       size: 171974
     outs:
-    - path: data/annotation_data/RC_2021-11/RC_2021-11_coherence_task.csv
+    - path: data/annotation_data/RC_2021-11/agglomerative_model/RC_2021-11_coherence_task.csv
+      md5: d9abef682a6b1efcf7ee0ac0d4480c3a
+      size: 121957
+    - path: data/annotation_data/RC_2021-11/agglomerative_model/RC_2021-11_subreddit_intruder_task.csv
+      md5: 55461223a8a5c47e12fe3092a7a81bcd
+      size: 4634
+    - path: data/annotation_data/RC_2021-11/agglomerative_model/RC_2021-11_subreddit_intruder_task_answers.csv
+      md5: ff395ed0f03fd86cf406f5060e853b28
+      size: 4677
+    - path: data/annotation_data/RC_2021-11/kmeans_model/RC_2021-11_coherence_task.csv
       md5: 172890601db7f93d06072973c0ad5374
       size: 121257
-    - path: data/annotation_data/RC_2021-11/RC_2021-11_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2021-11/kmeans_model/RC_2021-11_subreddit_intruder_task.csv
       md5: c2666ab963df5659284746429053b95f
       size: 9695
+    - path: data/annotation_data/RC_2021-11/kmeans_model/RC_2021-11_subreddit_intruder_task_answers.csv
+      md5: 66cba7857228d0e8cc672eeaf8b33921
+      size: 9792
   prep_annotation_data@2021-12:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2021-12/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2021-12/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2021-12/RC_2021-12_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2021-12/RC_2021-12_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2021-12/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-12/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-12/kmeans_model/RC_2021-12_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-12/kmeans_model/RC_2021-12_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2021-12/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2021-12/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2021-12/agglomerative_model/RC_2021-12_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2021-12/agglomerative_model/RC_2021-12_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2021-12/agglomerative_model/clusters.csv
+      md5: 2b5b4290f0967586ea39f23105a229af
+      size: 142744
     - path: data/annotation_data/RC_2021-12/kmeans_model/clusters.csv
       md5: 61670a692405f059dccced15bf433d56
       size: 147286
@@ -1290,18 +1449,37 @@ stages:
       md5: 79d839e5967baa9a05fe469cf354af2d
       size: 172200
     outs:
-    - path: data/annotation_data/RC_2021-12/RC_2021-12_coherence_task.csv
+    - path: data/annotation_data/RC_2021-12/agglomerative_model/RC_2021-12_coherence_task.csv
+      md5: 3c81d14e208c171b984a2b27e6200848
+      size: 122063
+    - path: data/annotation_data/RC_2021-12/agglomerative_model/RC_2021-12_subreddit_intruder_task.csv
+      md5: fbb26f5e826187fe8afd28451f999af1
+      size: 4538
+    - path: data/annotation_data/RC_2021-12/agglomerative_model/RC_2021-12_subreddit_intruder_task_answers.csv
+      md5: 61da038037bb0f8895156ffd9899206f
+      size: 4579
+    - path: data/annotation_data/RC_2021-12/kmeans_model/RC_2021-12_coherence_task.csv
       md5: b4d9e7d860167c19120585c72621fdab
       size: 121363
-    - path: data/annotation_data/RC_2021-12/RC_2021-12_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2021-12/kmeans_model/RC_2021-12_subreddit_intruder_task.csv
       md5: 3b55619354e04ec56e601ea4545c36f6
       size: 9438
+    - path: data/annotation_data/RC_2021-12/kmeans_model/RC_2021-12_subreddit_intruder_task_answers.csv
+      md5: 52ed9b811025efb80f7f63abe0285530
+      size: 9534
   prep_annotation_data@2022-01:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2022-01/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2022-01/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2022-01/RC_2022-01_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2022-01/RC_2022-01_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2022-01/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2022-01/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2022-01/kmeans_model/RC_2022-01_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2022-01/kmeans_model/RC_2022-01_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2022-01/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2022-01/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2022-01/agglomerative_model/RC_2022-01_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2022-01/agglomerative_model/RC_2022-01_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2022-01/agglomerative_model/clusters.csv
+      md5: c1f22cae42219fe09e4027f1d3eea8b3
+      size: 145929
     - path: data/annotation_data/RC_2022-01/kmeans_model/clusters.csv
       md5: ce5cc3050e3f48ddd390737bc074f278
       size: 147232
@@ -1309,18 +1487,37 @@ stages:
       md5: 9244d14e6127ace15538cfe1751980fc
       size: 172470
     outs:
-    - path: data/annotation_data/RC_2022-01/RC_2022-01_coherence_task.csv
+    - path: data/annotation_data/RC_2022-01/agglomerative_model/RC_2022-01_coherence_task.csv
+      md5: a4107d61dfcb329dc064ad48fed4e29e
+      size: 122013
+    - path: data/annotation_data/RC_2022-01/agglomerative_model/RC_2022-01_subreddit_intruder_task.csv
+      md5: 0c715d4e3394533b18ef792eaf58561f
+      size: 4347
+    - path: data/annotation_data/RC_2022-01/agglomerative_model/RC_2022-01_subreddit_intruder_task_answers.csv
+      md5: 8ed755569bb7eb7483950f40305e7d5b
+      size: 4387
+    - path: data/annotation_data/RC_2022-01/kmeans_model/RC_2022-01_coherence_task.csv
       md5: 3e2311dc4a7a96954ab843f33da4b6cd
       size: 121313
-    - path: data/annotation_data/RC_2022-01/RC_2022-01_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2022-01/kmeans_model/RC_2022-01_subreddit_intruder_task.csv
       md5: 1342bc37f13d22f59a21864cd49667f5
       size: 9413
+    - path: data/annotation_data/RC_2022-01/kmeans_model/RC_2022-01_subreddit_intruder_task_answers.csv
+      md5: c80b01bd0a144ede0d45f36161d1685d
+      size: 9510
   prep_annotation_data@2022-02:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2022-02/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2022-02/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2022-02/RC_2022-02_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2022-02/RC_2022-02_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2022-02/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2022-02/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2022-02/kmeans_model/RC_2022-02_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2022-02/kmeans_model/RC_2022-02_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2022-02/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2022-02/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2022-02/agglomerative_model/RC_2022-02_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2022-02/agglomerative_model/RC_2022-02_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2022-02/agglomerative_model/clusters.csv
+      md5: 3876170e3b238eb488fa30a8cadef702
+      size: 145958
     - path: data/annotation_data/RC_2022-02/kmeans_model/clusters.csv
       md5: 0db18b01d2c9f2d4e35b212d7a8b899a
       size: 147388
@@ -1328,18 +1525,37 @@ stages:
       md5: 17d619a1d41b0c935773b6649c0f23d8
       size: 172065
     outs:
-    - path: data/annotation_data/RC_2022-02/RC_2022-02_coherence_task.csv
+    - path: data/annotation_data/RC_2022-02/agglomerative_model/RC_2022-02_coherence_task.csv
+      md5: d714ffa9c1b74f34dac29adc50a88d0f
+      size: 122126
+    - path: data/annotation_data/RC_2022-02/agglomerative_model/RC_2022-02_subreddit_intruder_task.csv
+      md5: cf863eaf5ba3cfeb852194aab2c41db8
+      size: 4203
+    - path: data/annotation_data/RC_2022-02/agglomerative_model/RC_2022-02_subreddit_intruder_task_answers.csv
+      md5: 55dc6ba12693cadd9362e231a479001e
+      size: 4241
+    - path: data/annotation_data/RC_2022-02/kmeans_model/RC_2022-02_coherence_task.csv
       md5: 817a67d7f42ecb6234d20d06bc9f6e91
       size: 121426
-    - path: data/annotation_data/RC_2022-02/RC_2022-02_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2022-02/kmeans_model/RC_2022-02_subreddit_intruder_task.csv
       md5: e699f54cf656e22f4f221c29e2337844
       size: 9519
+    - path: data/annotation_data/RC_2022-02/kmeans_model/RC_2022-02_subreddit_intruder_task_answers.csv
+      md5: b58c466ff49644f3d3dea9e68373b733
+      size: 9615
   prep_annotation_data@2022-03:
-    cmd: python -m ihop.annotation_task_export data/annotation_data/RC_2022-03/kmeans_model/clusters.csv  --config
-      config.json data/community2vec/RC_2022-03/subreddit_counts.csv --cluster-labeling-csv
-      data/annotation_data/RC_2022-03/RC_2022-03_coherence_task.csv --intruder-csv
-      data/annotation_data/RC_2022-03/RC_2022-03_subreddit_intruder_task.csv
+    cmd: "python -m ihop.annotation_task_export data/annotation_data/RC_2022-03/kmeans_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2022-03/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2022-03/kmeans_model/RC_2022-03_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2022-03/kmeans_model/RC_2022-03_subreddit_intruder_task.csv\n\
+      python -m ihop.annotation_task_export data/annotation_data/RC_2022-03/agglomerative_model/clusters.csv\
+      \  --config config.json data/community2vec/RC_2022-03/subreddit_counts.csv --cluster-labeling-csv\
+      \ data/annotation_data/RC_2022-03/agglomerative_model/RC_2022-03_coherence_task.csv\
+      \ --intruder-csv data/annotation_data/RC_2022-03/agglomerative_model/RC_2022-03_subreddit_intruder_task.csv\n"
     deps:
+    - path: data/annotation_data/RC_2022-03/agglomerative_model/clusters.csv
+      md5: 7ddae0ee2d5962d25a8b09bbf470724e
+      size: 143527
     - path: data/annotation_data/RC_2022-03/kmeans_model/clusters.csv
       md5: 6a21cd57c4a460ab1375b450b7326275
       size: 147332
@@ -1347,9 +1563,285 @@ stages:
       md5: 1a16c234b3b7c8c18198ba8643549cc2
       size: 172252
     outs:
-    - path: data/annotation_data/RC_2022-03/RC_2022-03_coherence_task.csv
+    - path: data/annotation_data/RC_2022-03/agglomerative_model/RC_2022-03_coherence_task.csv
+      md5: 7587200fb97bf75fdd192a97c1298978
+      size: 122077
+    - path: data/annotation_data/RC_2022-03/agglomerative_model/RC_2022-03_subreddit_intruder_task.csv
+      md5: 5e5aea8a94c14012d02dc337abba579b
+      size: 6018
+    - path: data/annotation_data/RC_2022-03/agglomerative_model/RC_2022-03_subreddit_intruder_task_answers.csv
+      md5: 799bee31d8d06bf4bf26d27f167be612
+      size: 6074
+    - path: data/annotation_data/RC_2022-03/kmeans_model/RC_2022-03_coherence_task.csv
       md5: b4f08e9811919b229d732a838af02161
       size: 121377
-    - path: data/annotation_data/RC_2022-03/RC_2022-03_subreddit_intruder_task.csv
+    - path: data/annotation_data/RC_2022-03/kmeans_model/RC_2022-03_subreddit_intruder_task.csv
       md5: 77ff1cdd31e8c6623fc14cacbe7b9c3f
       size: 9496
+    - path: data/annotation_data/RC_2022-03/kmeans_model/RC_2022-03_subreddit_intruder_task_answers.csv
+      md5: 36ab3378c75204c3932185825ece5951
+      size: 9593
+  agglomerative_cluster_models@2021-10:
+    cmd: mkdir -p data/annotation_data/RC_2021-10/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2021-10/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2021-10/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2021-10_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2021-10/best_model/keyedVectors
+      md5: 87903464d51b2ff1827f9cd07f473e80
+      size: 4378504
+    outs:
+    - path: data/annotation_data/RC_2021-10/agglomerative_model/clusters.csv
+      md5: b849bd805b603778124e9e40b4b0fe08
+      size: 144770
+    - path: data/annotation_data/RC_2021-10/agglomerative_model/metrics.json
+      md5: 5f0c99b6445629a8634d4f961043da0f
+      size: 114
+    - path: data/annotation_data/RC_2021-10/agglomerative_model/parameters.json
+      md5: 43a5b08b1f64f78ef41f5e9f580c1ca8
+      size: 233
+    - path: data/annotation_data/RC_2021-10/agglomerative_model/sklearn_cluster_model.joblib
+      md5: 8f465e39cb3f45dfe28b2d32bc875755
+      size: 320647
+  agglomerative_cluster_models@2021-04:
+    cmd: mkdir -p data/annotation_data/RC_2021-04/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2021-04/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2021-04/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2021-04_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2021-04/best_model/keyedVectors
+      md5: 2437517f963327f4118cc8916deb6a22
+      size: 4378125
+    outs:
+    - path: data/annotation_data/RC_2021-04/agglomerative_model/clusters.csv
+      md5: c8d0f02890027b8e33c61611b4e94585
+      size: 144972
+    - path: data/annotation_data/RC_2021-04/agglomerative_model/metrics.json
+      md5: b523d6e2539a1ce4e80f62dd2c5a8587
+      size: 113
+    - path: data/annotation_data/RC_2021-04/agglomerative_model/parameters.json
+      md5: 513871e4c6e159ed977bbde8548c41ed
+      size: 233
+    - path: data/annotation_data/RC_2021-04/agglomerative_model/sklearn_cluster_model.joblib
+      md5: ce8e83cc85a1e950041170baf3ebbf4f
+      size: 320647
+  agglomerative_cluster_models@2021-05:
+    cmd: mkdir -p data/annotation_data/RC_2021-05/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2021-05/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2021-05/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2021-05_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2021-05/best_model/keyedVectors
+      md5: 97de61be6c9a590d9b7862a3fa1e5c21
+      size: 4378438
+    outs:
+    - path: data/annotation_data/RC_2021-05/agglomerative_model/clusters.csv
+      md5: 15d501a2778207a62470b507d975b7e1
+      size: 144821
+    - path: data/annotation_data/RC_2021-05/agglomerative_model/metrics.json
+      md5: 67005a0f7e70f0e6e86d83fe57a78e4a
+      size: 113
+    - path: data/annotation_data/RC_2021-05/agglomerative_model/parameters.json
+      md5: 19f4bd7b482e6939c351bbf166d7118e
+      size: 233
+    - path: data/annotation_data/RC_2021-05/agglomerative_model/sklearn_cluster_model.joblib
+      md5: a30443dd627251572f17c4a62b359b0b
+      size: 320647
+  agglomerative_cluster_models@2021-12:
+    cmd: mkdir -p data/annotation_data/RC_2021-12/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2021-12/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2021-12/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2021-12_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2021-12/best_model/keyedVectors
+      md5: 2a79e6fdab92135423d892b3a9706da8
+      size: 4378516
+    outs:
+    - path: data/annotation_data/RC_2021-12/agglomerative_model/clusters.csv
+      md5: 2b5b4290f0967586ea39f23105a229af
+      size: 142744
+    - path: data/annotation_data/RC_2021-12/agglomerative_model/metrics.json
+      md5: 9899e79cf54f34995bb92e60769c1f0d
+      size: 112
+    - path: data/annotation_data/RC_2021-12/agglomerative_model/parameters.json
+      md5: 060506e057f71d1ee5be04869eb5d398
+      size: 233
+    - path: data/annotation_data/RC_2021-12/agglomerative_model/sklearn_cluster_model.joblib
+      md5: 1987b02a386e7a2196a61d8c074420cf
+      size: 320647
+  agglomerative_cluster_models@2021-08:
+    cmd: mkdir -p data/annotation_data/RC_2021-08/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2021-08/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2021-08/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2021-08_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2021-08/best_model/keyedVectors
+      md5: d736cbc567a35d5b766478d474658c84
+      size: 4378009
+    outs:
+    - path: data/annotation_data/RC_2021-08/agglomerative_model/clusters.csv
+      md5: 70724b5e65befd832f00855363ad6c5b
+      size: 144643
+    - path: data/annotation_data/RC_2021-08/agglomerative_model/metrics.json
+      md5: d6f04060a0a117e222d27ba56b40759f
+      size: 113
+    - path: data/annotation_data/RC_2021-08/agglomerative_model/parameters.json
+      md5: 43e50b7ca6cea9e2e895d9759574e3d0
+      size: 233
+    - path: data/annotation_data/RC_2021-08/agglomerative_model/sklearn_cluster_model.joblib
+      md5: e1b98a5c22d0f68f7604c551593af820
+      size: 320647
+  agglomerative_cluster_models@2022-01:
+    cmd: mkdir -p data/annotation_data/RC_2022-01/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2022-01/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2022-01/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2022-01_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2022-01/best_model/keyedVectors
+      md5: 9c28977afd93942e4a8b5d7e8e403001
+      size: 4378466
+    outs:
+    - path: data/annotation_data/RC_2022-01/agglomerative_model/clusters.csv
+      md5: c1f22cae42219fe09e4027f1d3eea8b3
+      size: 145929
+    - path: data/annotation_data/RC_2022-01/agglomerative_model/metrics.json
+      md5: 3c30f495ad93587249756c24bb99791d
+      size: 113
+    - path: data/annotation_data/RC_2022-01/agglomerative_model/parameters.json
+      md5: b4557b9090933d605af9174a851362e0
+      size: 233
+    - path: data/annotation_data/RC_2022-01/agglomerative_model/sklearn_cluster_model.joblib
+      md5: 346906c34ccf7047d6feddc08361f883
+      size: 320647
+  agglomerative_cluster_models@2021-07:
+    cmd: mkdir -p data/annotation_data/RC_2021-07/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2021-07/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2021-07/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2021-07_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2021-07/best_model/keyedVectors
+      md5: 07cf3c3233c2edd09ca04905b3d7ea87
+      size: 4378249
+    outs:
+    - path: data/annotation_data/RC_2021-07/agglomerative_model/clusters.csv
+      md5: f882694f520ed46547e3c3aaac16658d
+      size: 145699
+    - path: data/annotation_data/RC_2021-07/agglomerative_model/metrics.json
+      md5: 9746e1253c7921c7935d1374daf3c367
+      size: 112
+    - path: data/annotation_data/RC_2021-07/agglomerative_model/parameters.json
+      md5: cb2562a077732f5e7bddc8062c4a5037
+      size: 233
+    - path: data/annotation_data/RC_2021-07/agglomerative_model/sklearn_cluster_model.joblib
+      md5: 6816bb9bdfa3d36c7825cbe305faf164
+      size: 320647
+  agglomerative_cluster_models@2022-03:
+    cmd: mkdir -p data/annotation_data/RC_2022-03/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2022-03/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2022-03/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2022-03_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2022-03/best_model/keyedVectors
+      md5: a2c307ee24ad6f775733d378346f4b45
+      size: 4378530
+    outs:
+    - path: data/annotation_data/RC_2022-03/agglomerative_model/clusters.csv
+      md5: 7ddae0ee2d5962d25a8b09bbf470724e
+      size: 143527
+    - path: data/annotation_data/RC_2022-03/agglomerative_model/metrics.json
+      md5: e70fc0c64b6a7b8e37cfdf31c37f491a
+      size: 114
+    - path: data/annotation_data/RC_2022-03/agglomerative_model/parameters.json
+      md5: 390070b3a52c2f6ce8694856f991188d
+      size: 233
+    - path: data/annotation_data/RC_2022-03/agglomerative_model/sklearn_cluster_model.joblib
+      md5: 1285ac71ffc76d2e2ebb7b41435ca68b
+      size: 320647
+  agglomerative_cluster_models@2021-09:
+    cmd: mkdir -p data/annotation_data/RC_2021-09/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2021-09/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2021-09/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2021-09_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2021-09/best_model/keyedVectors
+      md5: a63ae0d4b17e9acf197ba08d8f34c964
+      size: 4378025
+    outs:
+    - path: data/annotation_data/RC_2021-09/agglomerative_model/clusters.csv
+      md5: cff2f8bf81c4b87119d729d940736919
+      size: 144982
+    - path: data/annotation_data/RC_2021-09/agglomerative_model/metrics.json
+      md5: 9ab2efbf536ba5a9729dd1ab71d28d50
+      size: 113
+    - path: data/annotation_data/RC_2021-09/agglomerative_model/parameters.json
+      md5: c45d1cce6ce635eeed91438a0daa875e
+      size: 233
+    - path: data/annotation_data/RC_2021-09/agglomerative_model/sklearn_cluster_model.joblib
+      md5: efcebfaa8cb88f31bfb6d4f1092428cd
+      size: 320647
+  agglomerative_cluster_models@2022-02:
+    cmd: mkdir -p data/annotation_data/RC_2022-02/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2022-02/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2022-02/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2022-02_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2022-02/best_model/keyedVectors
+      md5: 35b97ad3b82fcbb246da53ae73865651
+      size: 4378579
+    outs:
+    - path: data/annotation_data/RC_2022-02/agglomerative_model/clusters.csv
+      md5: 3876170e3b238eb488fa30a8cadef702
+      size: 145958
+    - path: data/annotation_data/RC_2022-02/agglomerative_model/metrics.json
+      md5: 20711df91e20323a5e2d3f306cc5cd72
+      size: 114
+    - path: data/annotation_data/RC_2022-02/agglomerative_model/parameters.json
+      md5: fa7382e192a05558f41a59940cc85999
+      size: 233
+    - path: data/annotation_data/RC_2022-02/agglomerative_model/sklearn_cluster_model.joblib
+      md5: 485b3cd7352fc257fffc9876659bb5e8
+      size: 320647
+  agglomerative_cluster_models@2021-06:
+    cmd: mkdir -p data/annotation_data/RC_2021-06/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2021-06/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2021-06/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2021-06_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2021-06/best_model/keyedVectors
+      md5: 574577113291a1d823cf6bc3ae0813a1
+      size: 4378886
+    outs:
+    - path: data/annotation_data/RC_2021-06/agglomerative_model/clusters.csv
+      md5: d972435aba797f95723a414af0bff003
+      size: 146870
+    - path: data/annotation_data/RC_2021-06/agglomerative_model/metrics.json
+      md5: f7223f0de985e34567ba583375e14bbf
+      size: 110
+    - path: data/annotation_data/RC_2021-06/agglomerative_model/parameters.json
+      md5: f59af30599a27d86e6be0bad5cbbcf5f
+      size: 233
+    - path: data/annotation_data/RC_2021-06/agglomerative_model/sklearn_cluster_model.joblib
+      md5: 3b2f7efe8758efb308171216e152fd0d
+      size: 320647
+  agglomerative_cluster_models@2021-11:
+    cmd: mkdir -p data/annotation_data/RC_2021-11/agglomerative_model && python -m
+      ihop.clustering data/community2vec/RC_2021-11/best_model/keyedVectors --output_dir
+      data/annotation_data/RC_2021-11/agglomerative_model --cluster_params '{"n_clusters":100}'
+      --model-name 2021-11_agglomerative_clusters --cluster_type agglomerative
+    deps:
+    - path: data/community2vec/RC_2021-11/best_model/keyedVectors
+      md5: 597f36adbf0a42f06571de35a052c5c2
+      size: 4378410
+    outs:
+    - path: data/annotation_data/RC_2021-11/agglomerative_model/clusters.csv
+      md5: 643688c6158944e9c543100775791296
+      size: 145121
+    - path: data/annotation_data/RC_2021-11/agglomerative_model/metrics.json
+      md5: c3902944750d7b1743968ed78ee7692f
+      size: 114
+    - path: data/annotation_data/RC_2021-11/agglomerative_model/parameters.json
+      md5: 807b47777fc48b4108f1e4fbb7b366a0
+      size: 233
+    - path: data/annotation_data/RC_2021-11/agglomerative_model/sklearn_cluster_model.joblib
+      md5: 802810a0abb07a098fc2b80c7c2ef0bd
+      size: 320647

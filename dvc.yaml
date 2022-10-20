@@ -84,7 +84,7 @@ stages:
       desc: Train hierarchical agglomerative clusters from the community2vec models.
       cmd: >-
         mkdir -p ${annotation_data_dir}/RC_${item}/agglomerative_model
-        && python -m ihop.clustering ${community2vec_dir}/RC_${item}/best_model/keyedVectors --output_dir ${annotation_data_dir}/RC_${item}/agglomerative_model --cluster_params ${agglomerative_cluster_params.model_params} --model-name ${item}_agglomerative_clusters
+        && python -m ihop.clustering ${community2vec_dir}/RC_${item}/best_model/keyedVectors --output_dir ${annotation_data_dir}/RC_${item}/agglomerative_model --cluster_params ${agglomerative_cluster_params.model_params} --model-name ${item}_agglomerative_clusters --cluster_type agglomerative
       deps:
         - ${community2vec_dir}/RC_${item}/best_model/keyedVectors
       outs:
@@ -100,7 +100,7 @@ stages:
     do:
       desc: Prepare cluster coherence and subreddit intruder annotation tasks given a kmeans and agglomerative cluster models and subreddit counts
       cmd: |
-        python -m ihop.annotation_task_export ${annotation_data_dir}/RC_${item}/kmeans_model/clusters.csv  --config config.json ${community2vec_dir}/RC_${item}/kmeans_model/subreddit_counts.csv --cluster-labeling-csv ${annotation_data_dir}/RC_${item}/kmeans_model/RC_${item}_coherence_task.csv --intruder-csv ${annotation_data_dir}/RC_${item}/kmeans_model/RC_${item}_subreddit_intruder_task.csv
+        python -m ihop.annotation_task_export ${annotation_data_dir}/RC_${item}/kmeans_model/clusters.csv  --config config.json ${community2vec_dir}/RC_${item}/subreddit_counts.csv --cluster-labeling-csv ${annotation_data_dir}/RC_${item}/kmeans_model/RC_${item}_coherence_task.csv --intruder-csv ${annotation_data_dir}/RC_${item}/kmeans_model/RC_${item}_subreddit_intruder_task.csv
         python -m ihop.annotation_task_export ${annotation_data_dir}/RC_${item}/agglomerative_model/clusters.csv  --config config.json ${community2vec_dir}/RC_${item}/subreddit_counts.csv --cluster-labeling-csv ${annotation_data_dir}/RC_${item}/agglomerative_model/RC_${item}_coherence_task.csv --intruder-csv ${annotation_data_dir}/RC_${item}/agglomerative_model/RC_${item}_subreddit_intruder_task.csv
       deps:
         - ${community2vec_dir}/RC_${item}/subreddit_counts.csv
