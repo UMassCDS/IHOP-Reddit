@@ -45,6 +45,7 @@ def regex_filter_example(spark):
         {"author":"user1", "subreddit":"u_user1"},
         {"author":"2user", "subreddit":"u_2user"},
         {"author":"empty_user", "subreddit":"u_"},
+        {"author":"realuser", "subreddit":"arealsubreddit_u"},
         {"author":"normalperson", "subreddit": "nba"},
         {"author":"basketballfan", "subreddit":"NBA2K"}
     ]
@@ -81,9 +82,11 @@ def test_filter_top_n(comments, spark):
 def test_regex_complement_filter(regex_filter_example):
     complement_filter = filter_by_regex(regex_filter_example)
     complement_list = sorted(complement_filter.collect(), key=lambda x: x.author)
-    assert len(complement_list) == 2
+    assert len(complement_list) == 3
     assert complement_list[0].author == "basketballfan"
     assert complement_list[1].author == "normalperson"
+    assert complement_list[2].author == "realuser"
+
 
 def test_regex_match_filter(regex_filter_example):
     match_filter = filter_by_regex(regex_filter_example, regex_pattern="(?i).*nba.*", match_complement=False)
