@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed bug in app where wrong clusters are highlighted after changing selected subreddits and using the "Highlight selected clusters" button
 - ihop.clustering.ClusteringModel predict method now works for sklearn.cluster.AgglomerativeClustering, which doesn't have the same predict API as KMeans and AffinityPropagation
+- Filter out subreddits that are actually user profile pages, denoted by starting with "u_", in both community2vec and bow pre-processing steps in ihop.import_data
 
 ### Added
 - Feature for selecting community2vec models from different time frames in subreddit clustering app using a dropdown
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Maximum match algorithm to align two cluster across two partitions of the same datapoints added to ihop/clustering.py and unit tests
 - Method to easy get nearest neighbors for data points from community2vec models added to ihop.community2vec.GensimCommunity2Vec
 - Added notebook to demonstrating comparisons of community2vec models and clustering stability over time, notebooks/clustering_stability_metrics_and_visualizations.ipynb
+- DVC stage for producing agglomerative clustering models for annotation
 
 ### Removed
 - community2vec hyperparameter tuning bash script
