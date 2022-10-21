@@ -60,13 +60,15 @@ stages:
           - ${community2vec_dir}/RC_${item}/best_model/tsne.csv
 
 
-  # Note, for ease, this is just kmeans models, but it could easly
-  # be generalized to any clustering model supported in ihop.clustering
+  # Note, for ease, this this just has explicit steps for kmeans and hierarchical agglomerative models,
+  # but it could easly be generalized to any clustering model supported in ihop.clustering
   kmeans_cluster_models:
     foreach: ${months}
     do:
       desc: Train kmeans clusters from the community2vec models.
-      cmd: mkdir -p ${annotation_data_dir}/RC_${item}/kmeans_model && python -m ihop.clustering ${community2vec_dir}/RC_${item}/best_model/keyedVectors --output_dir ${annotation_data_dir}/RC_${item}/kmeans_model --cluster_params ${kmeans_cluster_params.model_params} --model-name ${item}_kmeans_clusters
+      cmd: >-
+        mkdir -p ${annotation_data_dir}/RC_${item}/kmeans_model
+        && python -m ihop.clustering ${community2vec_dir}/RC_${item}/best_model/keyedVectors --output_dir ${annotation_data_dir}/RC_${item}/kmeans_model --cluster_params ${kmeans_cluster_params.model_params} --model-name ${item}_kmeans_clusters
       deps:
         - ${community2vec_dir}/RC_${item}/best_model/keyedVectors
       outs:
@@ -76,14 +78,38 @@ stages:
       metrics:
         - ${annotation_data_dir}/RC_${item}/kmeans_model/metrics.json
 
+  agglomerative_cluster_models:
+    foreach: ${months}
+    do:
+      desc: Train hierarchical agglomerative clusters from the community2vec models.
+      cmd: >-
+        mkdir -p ${annotation_data_dir}/RC_${item}/agglomerative_model
+        && python -m ihop.clustering ${community2vec_dir}/RC_${item}/best_model/keyedVectors --output_dir ${annotation_data_dir}/RC_${item}/agglomerative_model --cluster_params ${agglomerative_cluster_params.model_params} --model-name ${item}_agglomerative_clusters --cluster_type agglomerative
+      deps:
+        - ${community2vec_dir}/RC_${item}/best_model/keyedVectors
+      outs:
+        - ${annotation_data_dir}/RC_${item}/agglomerative_model/clusters.csv
+        - ${annotation_data_dir}/RC_${item}/agglomerative_model/sklearn_cluster_model.joblib
+        - ${annotation_data_dir}/RC_${item}/agglomerative_model/parameters.json
+      metrics:
+        - ${annotation_data_dir}/RC_${item}/agglomerative_model/metrics.json
+
+
   prep_annotation_data:
     foreach: ${months}
     do:
-      desc: Prepare cluster coherence and subreddit intruder annotation tasks given a cluster model and subreddit counts
-      cmd: python -m ihop.annotation_task_export ${annotation_data_dir}/RC_${item}/kmeans_model/clusters.csv  --config config.json ${community2vec_dir}/RC_${item}/subreddit_counts.csv --cluster-labeling-csv ${annotation_data_dir}/RC_${item}/RC_${item}_coherence_task.csv --intruder-csv ${annotation_data_dir}/RC_${item}/RC_${item}_subreddit_intruder_task.csv
+      desc: Prepare cluster coherence and subreddit intruder annotation tasks given a kmeans and agglomerative cluster models and subreddit counts
+      cmd: |
+        python -m ihop.annotation_task_export ${annotation_data_dir}/RC_${item}/kmeans_model/clusters.csv  --config config.json ${community2vec_dir}/RC_${item}/subreddit_counts.csv --cluster-labeling-csv ${annotation_data_dir}/RC_${item}/kmeans_model/RC_${item}_coherence_task.csv --intruder-csv ${annotation_data_dir}/RC_${item}/kmeans_model/RC_${item}_subreddit_intruder_task.csv
+        python -m ihop.annotation_task_export ${annotation_data_dir}/RC_${item}/agglomerative_model/clusters.csv  --config config.json ${community2vec_dir}/RC_${item}/subreddit_counts.csv --cluster-labeling-csv ${annotation_data_dir}/RC_${item}/agglomerative_model/RC_${item}_coherence_task.csv --intruder-csv ${annotation_data_dir}/RC_${item}/agglomerative_model/RC_${item}_subreddit_intruder_task.csv
       deps:
         - ${community2vec_dir}/RC_${item}/subreddit_counts.csv
         - ${annotation_data_dir}/RC_${item}/kmeans_model/clusters.csv
+        - ${annotation_data_dir}/RC_${item}/agglomerative_model/clusters.csv
       outs:
-        - ${annotation_data_dir}/RC_${item}/RC_${item}_coherence_task.csv
-        - ${annotation_data_dir}/RC_${item}/RC_${item}_subreddit_intruder_task.csv
+        - ${annotation_data_dir}/RC_${item}/kmeans_model/RC_${item}_coherence_task.csv
+        - ${annotation_data_dir}/RC_${item}/kmeans_model/RC_${item}_subreddit_intruder_task.csv
+        - ${annotation_data_dir}/RC_${item}/kmeans_model/RC_${item}_subreddit_intruder_task_answers.csv
+        - ${annotation_data_dir}/RC_${item}/agglomerative_model/RC_${item}_coherence_task.csv
+        - ${annotation_data_dir}/RC_${item}/agglomerative_model/RC_${item}_subreddit_intruder_task.csv
+        - ${annotation_data_dir}/RC_${item}/agglomerative_model/RC_${item}_subreddit_intruder_task_answers.csv

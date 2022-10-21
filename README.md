@@ -11,23 +11,6 @@ The `ihop` directory is a python module with submodules that can also be run as 
 	- `ihop.resources.analogies`: Subreddit algebra analogies for tuning community2vec, taken from [social-dimensions](https://github.com/CSSLab/social-dimensions) with minor updates
     - `ihop.resources.collections`: Pre-defined collections of subreddits from the Media Cloud team.
 
-## Subreddit Clustering Application
-The `app.py` program is a [Dash](https://plotly.com/dash/) app that allows for filtering and visualizing subreddit clusters using the community2vec embeddings.
-It expects a JSON configuration file with paths to trained community2vec models, for example:
-```
-{
-    "logger": {<log config, refer to ihop.utils.py for examples>},
-    "model_paths": {
-        "Model ID displayed in UI dropdown, typically month time frame": "<path to single model output of ihop.community2vec.py model training>",
-        "May 2021": ""data/community2vec/RC_2021-05/best_model"
-    }
-}
-```
-Run `python app.py --config config.json` to start the application on port 8050, you will be able to navigate to http://localhost:8050/ to see the app running. You can also run using the `--debug` flag to have the application dynamically relaunch on code changes.
-
-The committed `config.json` is configured to load in the best models for each month over a year, from April 2021 through March 2022. To pull the models, run `dvc pull community2vec_models`, assuming you have access to the `s3://ihopmeag` bucket on AWS. See more details on DVC below.
-
-
 # External Dependencies
 - Python >= 3.7
 - [Java](https://docs.oracle.com/en/java/javase/17/install/overview-jdk-installation.html) or [OpenJDK](https://openjdk.java.net/install/) (at least version 8). Make sure you have `JAVA_HOME` set appropriately
@@ -61,7 +44,14 @@ conda activate ihop
 
 An example of using these modules to submit community2vec jobs to slurm on Unity is given in `scripts/hyperparam_tune_c2v_slurm.sh`
 
-# Data Verion Control
+# Testing
+Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x/).
+
+# Logging
+Logging is configured in `config.json` using the `"logger": {options}` fields. See [Python's logging configuration documentation](https://docs.python.org/3/library/logging.config.html) for details or refer to the example in `ihop/utils.py`.
+
+
+# Data Processing and Data Version Control
 The data, experiments and metrics for this project are tracked using [Data Version Control](https://dvc.org/)(DVC) and backed up in the s3 bucket `s3://ihopmeag`.
 
 Some useful commands are:
@@ -71,8 +61,29 @@ Some useful commands are:
 
 See the DVC documentation for more details.
 
-# Testing
-Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x/).
+## Tips for Processing Data
+- To reprocess the data without downloading the comments and submissions from Pushshift again, you can use the `dvc repro --downstream` option. There is an example in `scripts/reprocessing.sh`
+- The `ihop.import_data` script uses Apache Spark under the hood, so that tasks can be distributed across resources, which will allow customizing processing to whatever resources are on hand. The Spark configuration options are described in the [Spark Documentation](https://spark.apache.org/docs/latest/configuration.html) and can be easily customized by adding a `"spark": {"option_name":"option_value"}` field in the `config.json` file. The default is to use 4G of memory for both the driver and executor, done in `ihop/utils.py`.
+- While the `ihop.import_data` script is running locally, you can go to <http://localhost:4040/jobs/> to monitor the Spark jobs progress.
+
+
+# Subreddit Clustering Application
+The `app.py` program is a [Dash](https://plotly.com/dash/) app that allows for filtering and visualizing subreddit clusters using the community2vec embeddings.
+It expects a JSON configuration file with paths to trained community2vec models, for example:
+```
+{
+    "logger": {<log config, refer to ihop/utils.py for examples>},
+    "model_paths": {
+        "Model ID displayed in UI dropdown, typically month time frame": "<path to single model output of ihop.community2vec.py model training>",
+        "May 2021": ""data/community2vec/RC_2021-05/best_model"
+    }
+}
+```
+Run `python app.py --config config.json` to start the application on port 8050, you will be able to navigate to http://localhost:8050/ to see the app running. You can also run using the `--debug` flag to have the application dynamically relaunch on code changes.
+
+The committed `config.json` is configured to load in the best models for each month over a year, from April 2021 through March 2022. To pull the models, run `dvc pull community2vec_models`, assuming you have access to the `s3://ihopmeag` bucket on AWS. See more details on DVC below.
+
+
 
 # Known Issues
 - Spark can't read the origial zst compressed files from Pushshift, due to the window size being larger than 27 and I didn't know how to change the Spark/Hadoop settings to fix this (see note in [zstd man page](https://manpages.debian.org/unstable/zstd/zstd.1.en.html) and [Stackoverflow: Read zst to pandas](https://stackoverflow.com/questions/61067762/how-to-extract-zst-files-into-a-pandas-dataframe))). Moreover, if you try to read in large .zst files in Spark, you are limited by memory and if there's not enough, the dataframe just gets filled with `null`. The workaround is re-compress the file as a bzip2 before running `ihop.import_data.py`. This takes a long time, but is simple on the command line and `scripts/export_c2v.sh` is provided as a wrapper for the import.

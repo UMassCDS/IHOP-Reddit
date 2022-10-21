@@ -39,6 +39,19 @@ def context_dataframe(spark):
     return spark.createDataFrame(data)
 
 
+@pytest.fixture
+def regex_filter_example(spark):
+    data = [
+        {"author":"user1", "subreddit":"u_user1"},
+        {"author":"2user", "subreddit":"u_2user"},
+        {"author":"empty_user", "subreddit":"u_"},
+        {"author":"realuser", "subreddit":"arealsubreddit_u"},
+        {"author":"normalperson", "subreddit": "nba"},
+        {"author":"basketballfan", "subreddit":"NBA2K"}
+    ]
+    return spark.createDataFrame(data)
+
+
 def test_get_spark_dataframe_comments(comments):
     assert len(comments.columns) == 8
     assert comments.count() == 3
@@ -66,6 +79,21 @@ def test_filter_top_n(comments, spark):
     assert as_list[0].author == "[deleted]"
     assert as_list[1].author == "sampleauth2"
 
+def test_regex_complement_filter(regex_filter_example):
+    complement_filter = filter_by_regex(regex_filter_example)
+    complement_list = sorted(complement_filter.collect(), key=lambda x: x.author)
+    assert len(complement_list) == 3
+    assert complement_list[0].author == "basketballfan"
+    assert complement_list[1].author == "normalperson"
+    assert complement_list[2].author == "realuser"
+
+
+def test_regex_match_filter(regex_filter_example):
+    match_filter = filter_by_regex(regex_filter_example, regex_pattern="(?i).*nba.*", match_complement=False)
+    match_list = sorted(match_filter.collect(), key=lambda x: x.author)
+    assert len(match_list) == 2
+    assert match_list[0].author == "basketballfan"
+    assert match_list[1].author == "normalperson"
 
 def test_remove_deleted_authors(comments):
     filtered = sorted(
