@@ -13,6 +13,7 @@ import logging
 import os
 import pathlib
 import pickle
+from tkinter.font import _MetricsDict
 
 import gensim.models as gm
 import gensim.corpora as gc
@@ -549,6 +550,18 @@ class ClusteringModel:
             }
         else:
             return {}
+
+    def write_metrics(self, json_path):
+        """Writes the metrics of the given model to a json file.
+        Returns a dictionary of the metrics that were written.
+
+        :param json_path: Path to a json file
+        """
+        metrics = self.get_metrics()
+        with json_path.open(mode='w') as metrics_json:
+            json.dump(metrics, metrics_json, cls=ihop.utils.NumpyFloatEncoder)
+
+        return metrics
 
     def get_parameters(self):
         """Returns the model name and salient parameters as a dictionary"""
