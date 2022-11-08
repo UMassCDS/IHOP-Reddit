@@ -13,7 +13,6 @@ import logging
 import os
 import pathlib
 import pickle
-from tkinter.font import _MetricsDict
 
 import gensim.models as gm
 import gensim.corpora as gc
