@@ -1,0 +1,4 @@
+# Background
+This is the first round of data we generated for annotation. It was generated in the same manner as the KMeans `prep_annotation_data` targets in the DVC config.
+
+Because of this task, we noticed the user profile pages appearing with the subreddits. We fixed that issue in data pre-processing for later models. However, the results for this annotation task are still valid, as removing a few user profile pages from the clusterings will not hurt coherence or interpretability. These annotations are kept for transparency, completeness and to avoid repeating the task. Any future clusterings will be at least as good as this one.
