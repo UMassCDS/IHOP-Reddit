@@ -41,9 +41,15 @@ SPARK_VEC = "SparkVectorized"
 # a datapoint is missing from one clustering
 MISSING_CLUSTER_ASSIGNMENT = -1
 
-# Use to idenfity different was of comparing clusterings
+# Use these keys to idenfity different was of comparing clusterings
+
+# Take union of datapoints (subreddits) bewtween months and assume all datapoints (subreddits) have the same weight
 UNION_UNIFORM = "union_uniform_probability"
+
+# Take union of datapoints (subreddits) and assume all datapoints (subreddits) have the same weight
 INTERSECT_UNIFORM = "intersection_uniform_probability"
+
+# Take intersections of datapoints (subreddits) and assume all datapoints are weighted by the probability of a comment being in the subreddit
 INTERSECT_COMMENT_PROB = "intersection_comment_probability"
 
 VOI = "variation_of_information"
