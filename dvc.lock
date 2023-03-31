@@ -1845,3 +1845,279 @@ stages:
     - path: data/annotation_data/RC_2021-11/agglomerative_model/sklearn_cluster_model.joblib
       md5: 802810a0abb07a098fc2b80c7c2ef0bd
       size: 320647
+  download_comments@2022-12:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2022-12.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2022-12.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2022-12.bz2
+      md5: 58f89e3faacfc95fe9528e3e904f10cc
+      size: 11537528765
+  prep_community2vec_data@2022-12:
+    cmd: mkdir -p data/community2vec/RC_2022-12 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2022-12/subreddit_counts.csv
+      data/community2vec/RC_2022-12/user_contexts data/raw_data/comments/RC_2022-12.bz2
+      && rm data/community2vec/RC_2022-12/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2022-12.bz2
+      md5: 58f89e3faacfc95fe9528e3e904f10cc
+      size: 11537528765
+    outs:
+    - path: data/community2vec/RC_2022-12/subreddit_counts.csv
+      md5: 51621a0df050019a0f177772b6e2f844
+      size: 169560
+    - path: data/community2vec/RC_2022-12/user_contexts
+      md5: aa94b4168921c7c6f69a3dfa702cebed.dir
+      size: 58937809
+      nfiles: 2
+  download_comments@2023-01:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2023-01.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2023-01.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-01.bz2
+      md5: e00cda44ea01709793c66549dd91357f
+      size: 12832792683
+  prep_community2vec_data@2023-01:
+    cmd: mkdir -p data/community2vec/RC_2023-01 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-01/subreddit_counts.csv
+      data/community2vec/RC_2023-01/user_contexts data/raw_data/comments/RC_2023-01.bz2
+      && rm data/community2vec/RC_2023-01/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-01.bz2
+      md5: e00cda44ea01709793c66549dd91357f
+      size: 12832792683
+    outs:
+    - path: data/community2vec/RC_2023-01/subreddit_counts.csv
+      md5: 528af8715ee443096696f1533a579ace
+      size: 170345
+    - path: data/community2vec/RC_2023-01/user_contexts
+      md5: 5b6b1ed7d35f3f1e361c5b8363dae091.dir
+      size: 64120134
+      nfiles: 2
+  download_comments@2023-02:
+    cmd: curl  https://files.pushshift.io/reddit/comments/RC_2023-02.zst | unzstd
+      --long=31 | bzip2 > data/raw_data/comments/RC_2023-02.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-02.bz2
+      md5: 121fe7b727c7578cbb57db8894238a40
+      size: 34084765491
+  prep_community2vec_data@2023-02:
+    cmd: mkdir -p data/community2vec/RC_2023-02 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-02/subreddit_counts.csv
+      data/community2vec/RC_2023-02/user_contexts data/raw_data/comments/RC_2023-02.bz2
+      && rm data/community2vec/RC_2023-02/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-02.bz2
+      md5: 121fe7b727c7578cbb57db8894238a40
+      size: 34084765491
+    outs:
+    - path: data/community2vec/RC_2023-02/subreddit_counts.csv
+      md5: 8454544f682bc4a703faa76833b909d3
+      size: 173956
+    - path: data/community2vec/RC_2023-02/user_contexts
+      md5: a50bf3230fc6c2c10afaad7e81320ac0.dir
+      size: 142832480
+      nfiles: 2
+  community2vec_models@2022-12:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2022-12/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2022-12/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
+      \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2022-12\
+      \ --workers 12"
+    deps:
+    - path: data/community2vec/RC_2022-12/subreddit_counts.csv
+      md5: 51621a0df050019a0f177772b6e2f844
+      size: 169560
+    - path: data/community2vec/RC_2022-12/user_contexts
+      md5: aa94b4168921c7c6f69a3dfa702cebed.dir
+      size: 58937809
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2022-12/analogy_accuracy_results.csv
+      md5: 081ba2e56c73df67f4442b4abb04f4e0
+      size: 4445
+    - path: data/community2vec/RC_2022-12/best_model/keyedVectors
+      md5: 70739111b9dd2fdcb8c9fe7c12b6015d
+      size: 4379779
+    - path: data/community2vec/RC_2022-12/best_model/metrics.json
+      md5: d338e0d5cb26381e14a16c5c295227f0
+      size: 626
+    - path: data/community2vec/RC_2022-12/best_model/parameters.json
+      md5: 8642ef143a23c12cb277129186a03e3e
+      size: 305
+    - path: data/community2vec/RC_2022-12/best_model/word2vec.pickle
+      md5: 33716da4f272ed1a5884960f695979f8
+      size: 8384513
+  kmeans_cluster_models@2022-12:
+    cmd: mkdir -p data/annotation_data/RC_2022-12/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2022-12/best_model/keyedVectors --output_dir data/annotation_data/RC_2022-12/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2022-12_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2022-12/best_model/keyedVectors
+      md5: 70739111b9dd2fdcb8c9fe7c12b6015d
+      size: 4379779
+    outs:
+    - path: data/annotation_data/RC_2022-12/kmeans_model/clusters.csv
+      md5: 31e0df8326ddb56931164d3d1d767f08
+      size: 148403
+    - path: data/annotation_data/RC_2022-12/kmeans_model/metrics.json
+      md5: 1b99f7712bdc961956d5b40f2fc35269
+      size: 114
+    - path: data/annotation_data/RC_2022-12/kmeans_model/parameters.json
+      md5: 546b812ba35e54a28e34c10ce8477ddc
+      size: 199
+    - path: data/annotation_data/RC_2022-12/kmeans_model/sklearn_cluster_model.joblib
+      md5: 9db4fbb40c0be6cd381ab13f4c6951ed
+      size: 80694
+  community2vec_models@2023-01:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-01/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2023-01/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
+      \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-01\
+      \ --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-01/subreddit_counts.csv
+      md5: 528af8715ee443096696f1533a579ace
+      size: 170345
+    - path: data/community2vec/RC_2023-01/user_contexts
+      md5: 5b6b1ed7d35f3f1e361c5b8363dae091.dir
+      size: 64120134
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-01/analogy_accuracy_results.csv
+      md5: 312e264d0f845358d41c45e530e6261c
+      size: 4438
+    - path: data/community2vec/RC_2023-01/best_model/keyedVectors
+      md5: 6c51fefd3750b9f60dd0e748d1f937ff
+      size: 4379788
+    - path: data/community2vec/RC_2023-01/best_model/metrics.json
+      md5: b60c2136f1313a3114470a11cdf50b17
+      size: 627
+    - path: data/community2vec/RC_2023-01/best_model/parameters.json
+      md5: 5c0386a54d1e9d2df9d1483865760c35
+      size: 305
+    - path: data/community2vec/RC_2023-01/best_model/word2vec.pickle
+      md5: 21ffe44d0d2cc6759b5e6e9312a6d3c0
+      size: 8384522
+  kmeans_cluster_models@2023-01:
+    cmd: mkdir -p data/annotation_data/RC_2023-01/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2023-01/best_model/keyedVectors --output_dir data/annotation_data/RC_2023-01/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2023-01_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2023-01/best_model/keyedVectors
+      md5: 6c51fefd3750b9f60dd0e748d1f937ff
+      size: 4379788
+    outs:
+    - path: data/annotation_data/RC_2023-01/kmeans_model/clusters.csv
+      md5: 20818884f663ff36c1c7bffd03a7ccdf
+      size: 148734
+    - path: data/annotation_data/RC_2023-01/kmeans_model/metrics.json
+      md5: c99e78eb126b25eab3ee22f1b475158c
+      size: 113
+    - path: data/annotation_data/RC_2023-01/kmeans_model/parameters.json
+      md5: 4fc72f1a9dcbadff640d489ad9f95134
+      size: 199
+    - path: data/annotation_data/RC_2023-01/kmeans_model/sklearn_cluster_model.joblib
+      md5: 27e2a28619b879445e16e1afc9fe6cb4
+      size: 80694
+  community2vec_models@2023-02:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-02/user_contexts\
+      \ --vocab_csv data/community2vec/RC_2023-02/subreddit_counts.csv --param_grid\
+      \ '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],\
+      \ \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-02\
+      \ --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-02/subreddit_counts.csv
+      md5: 8454544f682bc4a703faa76833b909d3
+      size: 173956
+    - path: data/community2vec/RC_2023-02/user_contexts
+      md5: a50bf3230fc6c2c10afaad7e81320ac0.dir
+      size: 142832480
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-02/analogy_accuracy_results.csv
+      md5: 6fa7108a8ad2a630f07f1174fdd3ef55
+      size: 4447
+    - path: data/community2vec/RC_2023-02/best_model/keyedVectors
+      md5: df5c3b45e050346f742afd9ff19890e8
+      size: 4380030
+    - path: data/community2vec/RC_2023-02/best_model/metrics.json
+      md5: 8dbbb18cdf9f522d672a71d7230d8c53
+      size: 627
+    - path: data/community2vec/RC_2023-02/best_model/parameters.json
+      md5: d6ffee9d4f6db2149de89837e886b036
+      size: 305
+    - path: data/community2vec/RC_2023-02/best_model/word2vec.pickle
+      md5: b90029a41e3382c7361e58525c5f8983
+      size: 8384768
+  kmeans_cluster_models@2023-02:
+    cmd: mkdir -p data/annotation_data/RC_2023-02/kmeans_model && python -m ihop.clustering
+      data/community2vec/RC_2023-02/best_model/keyedVectors --output_dir data/annotation_data/RC_2023-02/kmeans_model
+      --cluster_params '{"n_clusters":100}' --model-name 2023-02_kmeans_clusters
+    deps:
+    - path: data/community2vec/RC_2023-02/best_model/keyedVectors
+      md5: df5c3b45e050346f742afd9ff19890e8
+      size: 4380030
+    outs:
+    - path: data/annotation_data/RC_2023-02/kmeans_model/clusters.csv
+      md5: 9441cc0632dcefcd8138ccecbf54cff6
+      size: 148785
+    - path: data/annotation_data/RC_2023-02/kmeans_model/metrics.json
+      md5: 5424e47de0dd31f10e4abcb4c561c7ad
+      size: 109
+    - path: data/annotation_data/RC_2023-02/kmeans_model/parameters.json
+      md5: 74feb2dc65760c4217e4f134e09058c9
+      size: 199
+    - path: data/annotation_data/RC_2023-02/kmeans_model/sklearn_cluster_model.joblib
+      md5: 78cad400417f34490ac01f61272497f3
+      size: 80694
+  tsne_visualizations@2022-12:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2022-12/best_model
+      data/community2vec/RC_2022-12/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2022-12/best_model/keyedVectors
+      md5: 70739111b9dd2fdcb8c9fe7c12b6015d
+      size: 4379779
+    - path: data/community2vec/RC_2022-12/best_model/parameters.json
+      md5: 8642ef143a23c12cb277129186a03e3e
+      size: 305
+    - path: data/community2vec/RC_2022-12/best_model/word2vec.pickle
+      md5: 33716da4f272ed1a5884960f695979f8
+      size: 8384513
+    outs:
+    - path: data/community2vec/RC_2022-12/best_model/tsne.csv
+      md5: 9be2ab8c3a622577f3625c9f751bb184
+      size: 322552
+  tsne_visualizations@2023-01:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2023-01/best_model
+      data/community2vec/RC_2023-01/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2023-01/best_model/keyedVectors
+      md5: 6c51fefd3750b9f60dd0e748d1f937ff
+      size: 4379788
+    - path: data/community2vec/RC_2023-01/best_model/parameters.json
+      md5: 5c0386a54d1e9d2df9d1483865760c35
+      size: 305
+    - path: data/community2vec/RC_2023-01/best_model/word2vec.pickle
+      md5: 21ffe44d0d2cc6759b5e6e9312a6d3c0
+      size: 8384522
+    outs:
+    - path: data/community2vec/RC_2023-01/best_model/tsne.csv
+      md5: 9dfa28c74b7aaf960b3394dd8b5f275c
+      size: 322098
+  tsne_visualizations@2023-02:
+    cmd: python -m ihop.visualizations --config config.json data/community2vec/RC_2023-02/best_model
+      data/community2vec/RC_2023-02/best_model/tsne.csv
+    deps:
+    - path: data/community2vec/RC_2023-02/best_model/keyedVectors
+      md5: df5c3b45e050346f742afd9ff19890e8
+      size: 4380030
+    - path: data/community2vec/RC_2023-02/best_model/parameters.json
+      md5: d6ffee9d4f6db2149de89837e886b036
+      size: 305
+    - path: data/community2vec/RC_2023-02/best_model/word2vec.pickle
+      md5: b90029a41e3382c7361e58525c5f8983
+      size: 8384768
+    outs:
+    - path: data/community2vec/RC_2023-02/best_model/tsne.csv
+      md5: 6dd57cee21ee416b18bd39ea7e1dce8e
+      size: 321993
