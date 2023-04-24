@@ -6,12 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+
+### Fixed
+
+### Added
+
+### Removed
+
+## [2.0.0]
+### Changed
 - Removed prefilled anti-immigrant subreddits selected in subreddit clustering app dropdown. Now the dropdown is initially empty.
 - Package installation switched to use setup.cfg and pyproject.toml rather than setup.py
 - Slurm python version changed from 3.8 to 3.9
 - Separate Dash app requirements in requirements.txt from ihop package requirments in setup.py
 - T-SNE visualiations for each community2vec model are generated using a DVC pipeline step and written to CSV in order to speed up interaction times and avoid re-generating the projection each time a new month is selected
 - Pandas version updated from 1.3.4 to 1.3.5
+- Notebooks with many changes to support visualizations and analysis for ICWSM paper
 
 ### Fixed
 - Fixed bug in app where wrong clusters are highlighted after changing selected subreddits and using the "Highlight selected clusters" button
@@ -28,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Output analogy accuracy metrics and community2vec model parameters for tracking experiments with DVC
 - Github workflow for running tests on pull requests to the main branch
 - MANIFEST.in to include analogy and subreddit collection resource files in package
-- Annotation results from coherence task added in data/annotation_data/Coherence Task March 2022_July 2021 All - both months raw labels.csv
+- Annotation results from coherence task added in data/kmeans_annotation_task_data and data/average_agglomerative_annoation_task
 - Notebook for computing inter-annotator agreement in notebooks/inter_rater_agreements.ipynb
 - Functions that computing metrics to compare clusterings/partitions of data points added to ihop/clustering.py and unit tests
 - Function for computing contingency tables between clusters/partitions of data points added to ihop/clustering.py and unit tests
@@ -36,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Method to easy get nearest neighbors for data points from community2vec models added to ihop.community2vec.GensimCommunity2Vec
 - Added notebook to demonstrating comparisons of community2vec models and clustering stability over time, notebooks/clustering_stability_metrics_and_visualizations.ipynb
 - DVC stage for producing agglomerative clustering models for annotation
+- MIT License
 
 ### Removed
 - community2vec hyperparameter tuning bash script
