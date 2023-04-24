@@ -1,5 +1,6 @@
 include README.md
 include CHANGELOG.md
+include LICENSE
 include ihop/resources/analogies/*.csv
 include ihop/resources/analogies/*.txt
 include ihop/resources/collections/*.txt

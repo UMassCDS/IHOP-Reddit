@@ -1,6 +1,6 @@
 #!/bin/bash
-# Reprocesses data and retrains community2vec and Kmeans models for each month using DVC without
-# downloading the Reddit zip files from Pushshift again
+# Reprocesses data and retrains community2vec and all later dependencies
+# without downloading the Reddit zip files from Pushshift again
 
 months=(2022-12 2023-01 2023-02)
 

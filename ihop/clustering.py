@@ -41,9 +41,15 @@ SPARK_VEC = "SparkVectorized"
 # a datapoint is missing from one clustering
 MISSING_CLUSTER_ASSIGNMENT = -1
 
-# Use to idenfity different was of comparing clusterings
+# Use these keys to idenfity different was of comparing clusterings
+
+# Take union of datapoints (subreddits) bewtween months and assume all datapoints (subreddits) have the same weight
 UNION_UNIFORM = "union_uniform_probability"
+
+# Take union of datapoints (subreddits) and assume all datapoints (subreddits) have the same weight
 INTERSECT_UNIFORM = "intersection_uniform_probability"
+
+# Take intersections of datapoints (subreddits) and assume all datapoints are weighted by the probability of a comment being in the subreddit
 INTERSECT_COMMENT_PROB = "intersection_comment_probability"
 
 VOI = "variation_of_information"
@@ -549,6 +555,18 @@ class ClusteringModel:
             }
         else:
             return {}
+
+    def write_metrics(self, json_path):
+        """Writes the metrics of the given model to a json file.
+        Returns a dictionary of the metrics that were written.
+
+        :param json_path: Path to a json file
+        """
+        metrics = self.get_metrics()
+        with json_path.open(mode='w') as metrics_json:
+            json.dump(metrics, metrics_json, cls=ihop.utils.NumpyFloatEncoder)
+
+        return metrics
 
     def get_parameters(self):
         """Returns the model name and salient parameters as a dictionary"""

@@ -29,9 +29,12 @@ community2vec_params:
   # How many workers to use for training the model?
   workers: 12
 
+
+# Kmeans cluster parameter settings for annotation - you can use any options that are available in sklearn.cluster.KMeans init
 kmeans_cluster_params:
   model_params: "'{\"n_clusters\":100}'"
 
+# Agglomerative cluster parameter settings for annotation - you can use any options that are available in sklearn.cluster.AgglomerativeClustering to override the defaults from ihop.clustering. Note that the default linkage option is "average", which may not result in very intuitive clusterings.
 agglomerative_cluster_params:
   model_params: "'{\"n_clusters\":100}'"
 

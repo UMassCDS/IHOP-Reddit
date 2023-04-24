@@ -331,7 +331,7 @@ def get_model_param_details(metrics_dict):
     return [
         dash.html.H3("Community2Vec Model Parameters"),
         dash.dcc.Markdown(
-            f"""A total of {num_users:,} different users were used to train this model, with a maximum of {max_comments} from a single user.
+            f"""A total of {num_users:,} different users were used to train this model, with a maximum of {max_comments} comments from a single user.
              The community2vec model parameters used are as follows, please refer to the [Gensim Word2Vec documentation](https://radimrehurek.com/gensim/models/word2vec.html) for more detailed descriptions:\n{params_list}
              """
         ),
