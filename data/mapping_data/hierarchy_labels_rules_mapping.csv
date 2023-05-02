@@ -1,0 +1,145 @@
+cluster_node_id,label,parent_cluster_node_id,color
+169,Hobbies and Media Interests,198,#22a8cf
+167,Offline Hobbies and Lifestyle,169,#f71ccd
+100,"Music, Film, and TV",167,#b4086e
+135,Music ,100,#e6fca4
+9,Indie and Electronic Music Listeners/Creators,135,#9bde7
+51,"Rock, Instruments, and Recording",135,#601ac0
+74,Rap and Youtube Promotion,135,#7fa5e9
+70,Critically Acclaimed and Cult Following Film and TV,100,#186dee
+69,Performance/Competition Reality TV,100,#e34818
+92,Dramedy TV/Serialized TV,100,#e05113
+98,Drama and Slice of Life Reality TV,100,#b7f680
+125,Hustle and Grind Culture,167,#d9f250
+20,Side Hustles and Contracting,125,#7651a7
+42,Full Time Minimum Wage,125,#b85f12
+102,"Physical/Mental Health, Wellness, Relationships, and Identity",167,#bc66f8
+106,Women's Issues,102,#bc983e
+17,New Mothers/Parents,106,#7f3d0c
+73,Adult Women Lifestyle and Health,106,#5fcd7c
+27,Physical and Mental Health,102,#73b21f
+54,Severe Mental Health and Relationships,102,#68ce2a
+5,Dieting Through Restriction,102,#9a55f2
+89,Home Cooking,102,#3e3d0d
+47,LGBTQ,102,#f674ff
+46,Muscle Development Fitness,102,#f1b8be
+103,Cozy Hobbies and Lifestyle,167,#613eb2
+99,Spiritual Philosophy,103,#a6ad48
+29,Cozy Women Readers/Writers,103,#256bf
+67,Small Pleasures (Stereotypically Feminine),103,#dcac1d
+104,Plants and Pets,103,#ca617
+44,Plants and Tank Pets,104,#53bdf3
+38,Pets (mammals),104,#6e53d4
+108,Beauty and Fashion,167,#926b2c
+55,"Beauty, Makeup, and Body",108,#d5913a
+67,Small Pleasures (Stereotypically Feminine),108,#dcac1d
+34,Sneakers and Male Fashion,108,#834e84
+109,Sports,167,#742ec8
+113,Sports and Outdoor Hobbies (US),109,#f2493a
+13,"Football, Basketball, and Mainstream Sports",113,#3557a6
+96,"Baseball, Hockey, and Outdoor Hobbies",113,#96bb11
+77,Soccer,109,#351e79
+7,Guns,167,#2716ad
+136,Cars and Other Vehicles,167,#d98006
+23,Cars and Mechanics,136,#9162b6
+56,Alternative Motor Vehicles,136,#828d5e
+0,Car Culture and Driving Sims,136,#3406e9
+139,Recreational Drugs,167,#62b94e
+49,Weed/CBD,139,#27d931
+95,Other Drugs/Tips and Tricks,139,#63bc1e
+111,"DIY, Technology, and Self-Learning",167,#b0c4c7
+153,Coding and Modders,111,#375e67
+8,Linux Hacker Content,153,#21dc09
+65,iOS and Mobile Hacking,153,#d62da4
+48,Finance and Startups,153,#e7b3d6
+87,PC DIY,111,#4513eb
+81,DIY And Engineering,111,#2ee57e
+60,Visual Art and NFTs,111,#f14c9a
+76,Human-Powered Transit,111,#da20a7
+2,Attainable Luxuries and Related Hobbies,111,#9e6201
+114,Education,198,#3f8e16
+50,Advanced STEAM Education,114,#c060e9
+97,College and University,114,#8a1f52
+168,Online Nerd Culture,169,#6094f7
+115,Gaming,168,#e69180
+59,PC Gaming,115,#2c2906
+62,Tabletop RPGs and Fantasy Novels,115,#482705
+33,Online Multiplayer Action Games,115,#53c6ca
+52,Online Strategy and Gacha Video Games,115,#cbc7ed
+22,"Action Video Games (online and single player), including Soulslikes",115,#776c73
+88,"Action Games American, almost entirely Single Player",115,#9616c7
+140,Warfare Strategy Game Fandom,115,#dcff68
+21,Historical Politics and Geography,140,#e36f41
+93,"Tanks, Computer Wargames, and ""Real Warfare"" Fandom",140,#d7373
+24,Warhammer,115,#d5cce2
+30,Leauge of Legends Meta,115,#752992
+145,Japanese Console Gaming,115,#e04c1e
+14,Japanese Video Games,145,#12e8a6
+25,Console and Handheld Gaming,145,#9df6e0
+61,Pokemon,145,#407fe6
+147,Japanese Fandom,168,#e4d1e7
+132,Anime and Related Media (inc Porn),147,#66b987
+80,Hentai and Anime Porn,132,#8ac012
+117,Anime and Related Media,132,#204a29
+4,Anime (shows),117,#d0c5af
+75,"Anime (shows and wider fandom, light novels etc)",117,#b307b4
+121,Politics,168,#4ad1c1
+143,American Left Politics,121,#2eaa92
+35,Liberal Rubbernecking/Memes ,143,#406762
+72,Leftist Memes,143,#292ddd
+86,Libertarian and Conservative Politics,121,#da5dde
+149,Bored at School/Work,168,#9503e6
+146,Casual Browsing,149,#6c00b5
+10,Popular Reddit/Schedenfreude,146,#f796eb
+6,Free Online Games Chat/Social,146,#ae92bd
+85,Chat/Social Time Wasters,146,#952880
+43,Casual Science and Politics Chat,146,#5d5837
+110,Gen Z Online Communities,149,#614130
+26,Sarcastic Memes (skewing Gen Z),110,#4a5b29
+63,Youth Games and TV Fandom,110,#6496fd
+16,Casual Teen Video Games/Interests,110,#2276c4
+39,Teen Memes,110,#2da319
+36,"East Asia Local and East Asia Fans (Kpop, language learning, etc)",167,#1a1208
+74,Rap and Youtube Promotion,168,#7fa5e9
+134,SciFi/Fantasy Pop Culture,168,#39061f
+31,Comic Properties,134,#eb6185
+64,Star Wars and adjacent SciFi/Fantasy TV fandoms,134,#ce78b0
+138,Porn,198,#914c14
+32,Porn,138,#48ec0a
+68,Porn,138,#cbca41
+78,Porn,138,#9169b5
+18,Porn,138,#d3e0ed
+45,Porn,138,#5defd9
+19,Porn,138,#4971e
+1,Porn,138,#945a10
+57,Porn,138,#4ba856
+15,Porn,138,#afdda9
+83,Porn,138,#842bae
+154,Finance and Economics (inc Crypto),198,#b3ef73
+12,US-Centric Wealth and Personal Finance,154,#2ec007
+37,Stock Trading,154,#153420
+71,Crypto (Non-Eth),154,#56dc0e
+11,Crypto Mining and Eth,154,#6b593f
+53,Crypto Trading,154,#a064df
+48,Finance and Startups,154,#e7b3d6
+133,Local,198,#e5aecd
+36,"East Asia Local and East Asia Fans (Kpop, language learning, etc)",133,#1a1208
+122,United States Local,133,#9caeb7
+40,West Coast and Southwest Local,122,#3b620c
+79,East Coast Local,122,#d87c65
+12,US-Centric Wealth and Personal Finance,122,#2ec007
+184,East Africa and South Asia Local,133,#e4deae
+41,India Local,184,#1a2539
+66,Islam Religion and Local Interest,184,#d7aaaa
+186,General Europe Local,133,#8972f6
+82,Smaller European Countries Local,186,#63ce07
+84,Larger European Countries Local,186,#9965c1
+90,UK Local,186,#2d296a
+195,Latin America Local,133,#a125aa
+58,Brazil Local,195,#7a54ea
+91,Mexico and other South America Local,195,#8316c8
+94,Australia Local,133,#ed9a84
+28,Canada Local,133,#68bfdf
+198,,,#d733f6
+3,Religion (strong skew towards Christian topics),198,#d733f7
+-1,New Cluster,198,#d733f7

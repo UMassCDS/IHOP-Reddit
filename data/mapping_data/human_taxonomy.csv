@@ -1,0 +1,200 @@
+,cluster_node_id,label,color
+0,167,Offline Hobbies and Lifestyle,#22a8cf
+1,166,United States General Interest,#f71ccd
+2,129,Local Interest and Finance,#b4086e
+3,12,Wealth and Personal Finance,#e6fca4
+4,122,United States Local,#9bde7
+5,40,West Coast and Southwest Local,#601ac0
+6,79,East Coast Local,#186dee
+7,113,Sports and Outdoor Hobbies (US),#39061f
+8,13,"Football, Basketball, and Mainstream Sports",#eb6185
+9,96,"Baseball, Hockey, and Outdoor Hobbies",#ce78b0
+10,163,Media and Lifestyle,#e34818
+11,159,Music and Film,#e05113
+12,135,Music ,#b7f680
+13,9,Indie and Electronic Music Listeners/Creators,#d9f250
+14,51,"Rock, Instruments, and Recording",#7651a7
+15,70,Critically Acclaimed and Cult Following Film and TV,#b85f12
+16,157,Work and Lifestyle,#bc66f8
+17,125,Hustle and Grind Culture,#bc983e
+18,20,Side Hustles and Contracting,#7f3d0c
+19,42,Full Time Minimum Wage,#5fcd7c
+20,156,"Pop Culture, Health, and Lifestyle",#73b21f
+21,134,SciFi/Fantasy Pop Culture,#68ce2a
+22,31,Comic Properties,#9a55f2
+23,64,Star Wars and adjacent SciFi/Fantasy TV fandoms,#3e3d0d
+24,148,"Cozy Hobbies, Health and Lifestyle",#f674ff
+25,44,Plants and Tank Pets,#f1b8be
+26,142,"New Age, Books and TV, Beauty and Health, Lifestyle",#613eb2
+27,99,Spiritual Philosophy,#a6ad48
+28,137,"Books and TV, Beauty & Health, Lifestyle and Pets",#256bf
+29,38,Pets (mammals),#ca617
+30,130,"Books and TV, Beauty & Health/Diets, Lifestyle",#53bdf3
+31,5,Dieting Through Restriction,#6e53d4
+32,126,"Books and TV, Beauty & Health, Lifestyle",#926b2c
+33,29,Cozy Women Readers/Writers,#d5913a
+34,124,"Beauty & Health, Lifestyle, and Potato Chip TV",#dcac1d
+35,118,Television,#834e84
+36,69,Performance/Competition Reality TV,#742ec8
+37,92,Dramedy TV/Serialized TV,#f2493a
+38,123,"Beauty, Health & Mental Health, Lifestyle",#3557a6
+39,54,Severe Mental Health and Relationships,#96bb11
+40,120,"Beauty & Health, Lifestyle, and TV",#351e79
+41,98,Drama and Slice of Life Reality TV,#375e67
+42,116,"Beauty, Health, and Lifestyle",#21dc09
+43,108,Beauty and Fashion,#d62da4
+44,55,"Beauty, makeup and body",#2716ad
+45,67,"Small Pleasures women (eg small purchases, video games, nail polish, lush. Pick me up topics)",#d98006
+46,112,Health and Wellness,#9e6201
+47,27,Physical and Mental Health,#9e60d7
+48,106,Women's Issues,#9162b6
+49,17,New Mothers/Parents,#828d5e
+50,73,Adult Women Lifestyle and Health,#3406e9
+51,168,Online Nerd Culture,#62b94e
+52,59,PC Gaming,#27d931
+53,164,"Youth, Politics, and Video/Analog Gaming",#63bc1e
+54,62,Tabletop RPGs and Fantasy Novels,#b0c4c7
+55,162,"Youth, Politics, and Gaming",#4513eb
+56,74,Rap and Youtube Promotion,#2ee57e
+57,160,"Youth, Politics, and Video Games",#f14c9a
+58,140,Warfare Strategy Game Fandom,#da20a7
+59,21,Historical Politics and Geography,#3f8e16
+60,93,"Tanks, Computer Wargames, and ""Real Warfare"" Fandom",#c060e9
+61,158,"Youth, Politics (left), and Action/Adventure Video Games",#8a1f52
+62,151,General Video Games,#6094f7
+63,33,Online Multiplayer Action Games,#e69180
+64,144,Mostly Single Player Games,#2c2906
+65,52,Online Strategy and Gacha Video Games,#482705
+66,131,Action Video Games,#53c6ca
+67,22,"Action Video Games (online and single player), including Soulslikes",#cbc7ed
+68,88,"Action Games American, almost entirely Single Player",#776c73
+69,155,Reddit Browsing and Japanese Media Fans,#9616c7
+70,147,Japanese Fandom,#dcff68
+71,145,Japanese Console Gaming,#e36f41
+72,14,Japanese Video Games,#d7373
+73,25,Console and Handheld gaming,#d5cce2
+74,132,Anime and Related Media (inc Porn),#752992
+75,80,Hentai and Anime Porn,#e4d1e7
+76,117,Anime,#e04c1e
+77,4,Anime (shows),#12e8a6
+78,75,"Anime (shows and wider fandom, light novels etc)",#9df6e0
+79,152,Reddit Browsing and Politics,#407fe6
+80,143,American Left Politics,#66b987
+81,35,Liberal Rubbernecking/Memes ,#8ac012
+82,72,Leftist Memes,#204a29
+83,150,Reddit Browsing and Educational,#d0c5af
+84,43,Casual Science and Politics Chat,#b307b4
+85,149,Bored at School/Work,#4ad1c1
+86,146,Casual Browsing,#2eaa92
+87,10,Popular Reddit/Schedenfreude,#406762
+88,105,Casual Browsing (trending young),#292ddd
+89,6,Free Online Games Chat/Social,#da5dde
+90,85,Chat/Social Time Wasters,#4d1b
+91,110,Gen Z Online Communities,#5d5837
+92,26,Sarcastic Memes (skewing Gen Z),#9503e6
+93,104,Online Teen Interests and Fandom,#6c00b5
+94,63,Youth Games and TV Fandom,#f796eb
+95,103,Online Teen Interests,#ae92bd
+96,16,Casual Teen Video Games/Interests,#952880
+97,39,Teen Memes,#614130
+98,24,Warhammer,#4a5b29
+99,139,Recreational Drugs,#6496fd
+100,49,Weed/CBD,#2276c4
+101,95,Other Drugs/Tips and Tricks,#2da319
+102,48,Finance and Startups,#1a1208
+103,61,Pokemon,#7fa5e9
+104,89,Home Cooking,#914c14
+105,175,Stereotypically Masculine Hobbies and Lifestyle,#48ec0a
+106,153,Coding and Modders,#cbca41
+107,8,Linux Hacker Content,#9169b5
+108,65,iOS and Mobile Hacking,#d3e0ed
+109,165,"Outdoor Hobbies, Collections, and Car Culture",#5defd9
+110,0,Car Culture and Driving Sims,#4971e
+111,161,Collections and Outdoor Hobbies,#945a10
+112,7,Guns,#4ba856
+113,141,Stereotypically Masculine Hobbies and Athletics,#afdda9
+114,76,Human-Powered Transit,#842bae
+115,136,Stereotypically Masculine Hobbies (DIY Dads),#b3ef73
+116,81,DIY And Engineering,#153420
+117,128,Cars and Attainable Luxuries,#56dc0e
+118,2,Attainable Luxuries and Related Hobbies,#65584b
+119,119,Vehicles,#6b593f
+120,23,Cars and Mechanics,#a064df
+121,56,Alternative Motor Vehicles,#e7b3d6
+122,87,PC DIY,#e5aecd
+123,86,Libertarian and Conservative Politics,#9caeb7
+124,50,Advanced STEAM Education,#3b620c
+125,77,Soccer,#d87c65
+126,97,College and University,#2ec007
+127,47,LGBTQ,#e4deae
+128,30,Leauge of Legends Meta,#1a2539
+129,102,Porn,#d7aaaa
+130,109,Porn,#8972f6
+131,111,Porn,#c35a7a
+132,114,Porn,#63ce07
+133,115,Porn,#9965c1
+134,121,Porn,#2d296a
+135,133,Porn,#a125aa
+136,138,Porn,#7a54ea
+137,100,Porn,#8316c8
+138,32,Porn,#ed9a84
+139,68,Porn,#68bfdf
+140,78,Porn,#d733f6
+141,18,Porn,#d917d1
+142,45,Porn,#efc592
+143,19,Porn,#d3a885
+144,1,Porn,#535272
+145,57,Porn,#fae408
+146,15,Porn,#300660
+147,83,Porn,#ead4fc
+148,184,East Africa and South Asia Local,#9fb97d
+149,41,India Local,#f4c2fb
+150,66,Islam Religion and Local Interest,#614416
+151,60,Visual Art and NFTs,#97be0d
+152,36,"East Asia Fans (Kpop, language learning, etc)",#a3131e
+153,3,Religion (strong skew towards Christian topics),#728b00
+154,34,Sneakers and Male Fashion,#44fb73
+155,46,Muscle Development Fitness,#71427d
+156,186,General Europe Local,#22a8cf
+157,127,Non UK Europe Local,#f71ccd
+158,82,Smaller European Countries Local,#b4086e
+159,84,Larger European Countries Local,#e6fca4
+160,90,UK Local,#9bde7
+161,154,Finance and Economics (inc Crypto),#601ac0
+162,37,Stock Trading,#186dee
+163,107,Crypto Currency General,#39061f
+164,71,Crypto (ETH split?),#eb6185
+165,101,Crypto Currency Standard,#ce78b0
+166,11,Crypto Mining and Eth,#e34818
+167,53,Crypto Trading,#e05113
+168,195,Latin America Local,#b7f680
+169,58,Brazil Local,#d9f250
+170,91,Mexico and other South America Local,#7651a7
+171,94,Australia Local,#b85f12
+172,28,Canada Local,#bc66f8
+173,169,Hobbies and Media Interests,#bc983e
+174,170,,#7f3d0c
+175,171,,#5fcd7c
+176,172,,#73b21f
+177,173,,#68ce2a
+178,174,,#9a55f2
+179,176,,#3e3d0d
+180,177,,#f674ff
+181,178,,#f1b8be
+182,179,,#613eb2
+183,180,,#a6ad48
+184,181,,#256bf
+185,182,,#ca617
+186,183,,#53bdf3
+187,185,,#6e53d4
+188,187,,#926b2c
+189,188,,#d5913a
+190,189,,#dcac1d
+191,190,,#834e84
+192,191,,#742ec8
+193,192,,#f2493a
+194,193,,#3557a6
+195,194,,#96bb11
+196,196,,#351e79
+197,197,,#375e67
+198,198,,#21dc09
