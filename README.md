@@ -25,25 +25,6 @@ Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create 
 
 For testing and development tools, install the `ihop` package to be importable for testing, install using `pip install -e .[test]`
 
-## Unity
-To install the packages on [Unity](https://unity.rc.umass.edu/docs/#modules/using/), you will need to load the python and miniconda modules, then install the package as usual with conda or pip:
-```
-module load miniconda/4.8.3
-
-conda create --yes --name ihop python=3.8
-conda activate ihop
-pip install .
-```
-
-In order to use the packages on Unity, you will load the miniconda and java modules, then activate the conda environment you created earlier:
-```
-module load miniconda/4.8.3
-module load java/11.0.2
-conda activate ihop
-```
-
-An example of using these modules to submit community2vec jobs to slurm on Unity is given in `scripts/hyperparam_tune_c2v_slurm.sh`
-
 # Testing
 Unit tests can be run with [`python -m pytest`](https://docs.pytest.org/en/6.2.x/).
 
@@ -82,8 +63,6 @@ It expects a JSON configuration file with paths to trained community2vec models,
 Run `python app.py --config config.json` to start the application on port 8050, you will be able to navigate to http://localhost:8050/ to see the app running. You can also run using the `--debug` flag to have the application dynamically relaunch on code changes.
 
 The committed `config.json` is configured to load in the best models for each month over a year, from April 2021 through March 2022. To pull the models, run `dvc pull community2vec_models`, assuming you have access to the `s3://ihopmeag` bucket on AWS. See more details on DVC below.
-
-
 
 # Known Issues
 - Spark can't read the origial zst compressed files from Pushshift, due to the window size being larger than 27 and I didn't know how to change the Spark/Hadoop settings to fix this (see note in [zstd man page](https://manpages.debian.org/unstable/zstd/zstd.1.en.html) and [Stackoverflow: Read zst to pandas](https://stackoverflow.com/questions/61067762/how-to-extract-zst-files-into-a-pandas-dataframe))). Moreover, if you try to read in large .zst files in Spark, you are limited by memory and if there's not enough, the dataframe just gets filled with `null`. The workaround is re-compress the file as a bzip2 before running `ihop.import_data.py`. This takes a long time, but is simple on the command line and `scripts/export_c2v.sh` is provided as a wrapper for the import.
