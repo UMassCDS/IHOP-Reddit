@@ -130,3 +130,7 @@ dmypy.json
 
 # Logging outputs
 logs/
+
+
+# Node-specific ignores
+/scripts/redditmap/node_modules/
