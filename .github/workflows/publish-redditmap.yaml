@@ -24,5 +24,5 @@ jobs:
         run: npx gulp publish --environment=production-data
         env:
           AWS_ACCESS_KEY_ID: AKIAVLPQTNXLIINXCGOO
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.REDDITMAP_AWS_SECRET }}
           AWS_REGION: us-east-1
