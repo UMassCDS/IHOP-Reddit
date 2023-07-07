@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
+- Upgraded DVC version from 2.10.0 to 3.2.1
 
 ### Fixed
 
