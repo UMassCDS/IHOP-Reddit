@@ -49,7 +49,7 @@ See the DVC documentation for more details.
 
 
 # Subreddit Clustering Application
-The `app.py` program is a [Dash](https://plotly.com/dash/) app that allows for filtering and visualizing subreddit clusters using the community2vec embeddings.
+This code includes a prototype predating the RedditMap.social website. The `app.py` program is a [Dash](https://plotly.com/dash/) app that allows for filtering and visualizing subreddit clusters using the community2vec embeddings.
 It expects a JSON configuration file with paths to trained community2vec models, for example:
 ```
 {
@@ -62,7 +62,10 @@ It expects a JSON configuration file with paths to trained community2vec models,
 ```
 Run `python app.py --config config.json` to start the application on port 8050, you will be able to navigate to http://localhost:8050/ to see the app running. You can also run using the `--debug` flag to have the application dynamically relaunch on code changes.
 
-The committed `config.json` is configured to load in the best models for each month over a year, from April 2021 through March 2022. To pull the models, run `dvc pull community2vec_models`, assuming you have access to the `s3://ihopmeag` bucket on AWS. See more details on DVC below.
+The committed `config.json` is configured to load in the best models for each month over a year, from April 2021 through March 2022. To pull the models, run `dvc pull community2vec_models`, assuming you have access to the `s3://ihopmeag` bucket on AWS. See more details on DVC above.
+
+# Citation
+If you use this code, please cite: https://arxiv.org/abs/2309.14259
 
 # Known Issues
 - Spark can't read the origial zst compressed files from Pushshift, due to the window size being larger than 27 and I didn't know how to change the Spark/Hadoop settings to fix this (see note in [zstd man page](https://manpages.debian.org/unstable/zstd/zstd.1.en.html) and [Stackoverflow: Read zst to pandas](https://stackoverflow.com/questions/61067762/how-to-extract-zst-files-into-a-pandas-dataframe))). Moreover, if you try to read in large .zst files in Spark, you are limited by memory and if there's not enough, the dataframe just gets filled with `null`. The workaround is re-compress the file as a bzip2 before running `ihop.import_data.py`. This takes a long time, but is simple on the command line and `scripts/export_c2v.sh` is provided as a wrapper for the import.
