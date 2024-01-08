@@ -1,0 +1,28 @@
+name: publish redditmap
+on: 
+  push:
+    branches:
+      - publish-redditmap
+
+jobs:
+  publish:
+    defaults:
+      run:
+        working-directory: scripts/redditmap
+    name: Sync RedditMap Data
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Install Dependencies
+        run: npm install
+      - name: Sync Data
+        run: npx gulp publish --environment=production-data
+        env:
+          AWS_ACCESS_KEY_ID: AKIAVLPQTNXLIINXCGOO
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.REDDITMAP_AWS_SECRET }}
+          AWS_REGION: us-east-1

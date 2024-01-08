@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 ### Added
+- Added data backing the newly released data visualization project, RedditMap. This data was added to `/data/redditmap`, containing a monthly analysis formatted in a hierarchical structure. This analysis is driven by a combination of manual categorization and KMeans clustering of subreddits.
+- Added metadata pertaining to RedditMap-catalogued subreddits.
+- Added scripts to `/scripts/redditmap` that manage publication of data for the RedditMap application.
 
 ### Removed
 - Removed Unity documentation
