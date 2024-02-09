@@ -1,5 +1,6 @@
-# IHOP
-The Center for Data Science repository for the International Hate Observatory Project.
+[![DOI](https://zenodo.org/badge/436675434.svg)](https://zenodo.org/doi/10.5281/zenodo.10641986)
+# RedditMap.Social Modeling
+The Center for Data Science repository for working with Reddit data as part of the International Hate Observatory Project.
 The `ihop` directory is a python module with submodules that can also be run as command line programs:
 - `ihop.import_data`: Uses Spark to import Reddit data from the Pushshift json dumps to formats more easily used for NLP modeling. Run `python -m ihop.import_data --help` for details
 - `ihop.community2vec`: Wrappers for training and tuning word2vec to implement community2vec on the Reddit datasets. Run `python -m ihop.community2vec --help` to see options for training community2vec with hyperparameter tuning for best accuracy on the subreddit analogy task.
