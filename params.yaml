@@ -1,4 +1,5 @@
-months:
+# Every month you'd like to have models for must be listed here.
+all_months:
   - 2021-04
   - 2021-05
   - 2021-06
@@ -14,6 +15,48 @@ months:
   - 2022-12
   - 2023-01
   - 2023-02
+  - 2023-03
+  - 2023-04
+  - 2023-05
+  - 2023-06
+  - 2023-07
+  - 2023-08
+  - 2023-09
+  - 2023-10
+  - 2023-11
+  - 2023-12
+
+# If you can download data from pushshift for a month, list it here. 
+download_months:
+  - 2021-04
+  - 2021-05
+  - 2021-06
+  - 2021-07
+  - 2021-08
+  - 2021-09
+  - 2021-10
+  - 2021-11
+  - 2021-12
+  - 2022-01
+  - 2022-02
+  - 2022-03
+  - 2022-12
+  - 2023-01
+  - 2023-02
+
+# If you had to manually download data from elsewhere, list it here. 
+# Make sure the .zst archives are in data/manual_downloads/comments
+manual_download_months:
+  - 2023-03
+  - 2023-04
+  - 2023-05
+  - 2023-06
+  - 2023-07
+  - 2023-08
+  - 2023-09
+  - 2023-10
+  - 2023-11
+  - 2023-12
 
 # Parameters to the ihop.import_data c2v script
 community2vec_data_prep:
@@ -43,3 +86,6 @@ comments_dir: data/raw_data/comments
 submissions_dir: data/raw_data/submissions
 community2vec_dir: data/community2vec
 annotation_data_dir: data/annotation_data
+
+# Manually downloaded data goes here
+manual_downloads_dir: data/manual_downloads
