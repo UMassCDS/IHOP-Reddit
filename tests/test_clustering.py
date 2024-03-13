@@ -41,7 +41,7 @@ def text_features(spark):
 def test_clustering_model(vector_data):
     model = ic.ClusteringModel(
         vector_data,
-        KMeans(n_clusters=2, max_iter=10),
+        KMeans(n_clusters=2, max_iter=10, n_init=10),
         "test",
         {0: "AskReddit", 1: "aww", 2: "NBA"},
     )
@@ -53,7 +53,7 @@ def test_clustering_model(vector_data):
     )
 
     expected_params = {
-        "algorithm": "auto",
+        "algorithm": "lloyd",
         "copy_x": True,
         "init": "k-means++",
         "max_iter": 10,
