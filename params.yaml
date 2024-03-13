@@ -44,8 +44,9 @@ download_months:
   - 2023-01
   - 2023-02
 
-# If you had to manually download data from elsewhere, list it here. 
-# Make sure the .zst archives are in data/manual_downloads/comments
+# If you had to manually download data from elsewhere, list the month here. 
+# Make sure the .zst archives are in ${manual_downloads_dir}/comments
+manual_downloads_dir: data/manual_downloads
 manual_download_months:
   - 2023-03
   - 2023-04
@@ -87,5 +88,3 @@ submissions_dir: data/raw_data/submissions
 community2vec_dir: data/community2vec
 annotation_data_dir: data/annotation_data
 
-# Manually downloaded data goes here
-manual_downloads_dir: data/manual_downloads

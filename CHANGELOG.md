@@ -5,12 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [2.1.0]
 ### Changed
-- Upgraded DVC version from 2.10.0 to 3.2.1
+- Added support for python 3.10 in build and tests
+- Made dependency verions less restrictive, except when necessary to avoid deprecations (sklearn, numpy)
+- Unit tests updated to handle sklearn deprecations
 
 ### Fixed
+- Upgraded DVC version from 2.10.0 to 3.33.1 to avoid https://github.com/iterative/dvc-objects/issues/241
 
 ### Added
+- Support for processing Reddit comments from manually downloaded archives
 
 ### Removed
 - Removed Unity documentation
