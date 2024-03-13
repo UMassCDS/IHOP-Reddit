@@ -4,7 +4,7 @@ stages:
     foreach: ${download_months}
     do:
       desc: Download Reddit comments data for the month ${item}.
-      cmd: curl  https://files.pushshift.io/reddit/comments/RC_${item}.zst | unzstd --long=31 | bzip2 > ${comments_dir}/RC_${item}.bz2
+      cmd: curl https://files.pushshift.io/reddit/comments/RC_${item}.zst | unzstd --long=31 | bzip2 > ${comments_dir}/RC_${item}.bz2
       outs:
         - ${comments_dir}/RC_${item}.bz2
 
@@ -14,7 +14,7 @@ stages:
     foreach: ${manual_download_months}
     do:
       desc: Converting manually downloaded Reddit comments to bzip for month ${item}.
-      cmd: unzstd --long=31 ${manual_downloads_dir}/comments/RC_${item}.zst | bzip2 > ${comments_dir}/RC_${item}.bz2
+      cmd: unzstd --stdout --long=31 ${manual_downloads_dir}/comments/RC_${item}.zst | bzip2 > ${comments_dir}/RC_${item}.bz2
       outs:
         - ${comments_dir}/RC_${item}.bz2 
 
