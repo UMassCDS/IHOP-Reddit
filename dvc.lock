@@ -2174,3 +2174,59 @@ stages:
       hash: md5
       md5: 8c2f0b0b695efa4a8ffa6f3b83b77053
       size: 323010
+  convert_manual_comments@2023-03:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-03.zst |
+      bzip2 > data/raw_data/comments/RC_2023-03.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-03.bz2
+      hash: md5
+      md5: bc7abf7693fe77e370b3c9398c81a1a2
+      size: 37326709389
+  convert_manual_comments@2023-04:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-04.zst |
+      bzip2 > data/raw_data/comments/RC_2023-04.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-04.bz2
+      hash: md5
+      md5: b0c5c5e390fa37faf932e2a0d024b403
+      size: 36521242398
+  convert_manual_comments@2023-05:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-05.zst |
+      bzip2 > data/raw_data/comments/RC_2023-05.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-05.bz2
+      hash: md5
+      md5: 399c1173bae8bcc9d89143186c9d0e30
+      size: 37324105691
+  convert_manual_comments@2023-06:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-06.zst |
+      bzip2 > data/raw_data/comments/RC_2023-06.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-06.bz2
+      hash: md5
+      md5: e4ad67bace79a32cbcef1c57122b5008
+      size: 36153170014
+  convert_manual_comments@2023-07:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-07.zst |
+      bzip2 > data/raw_data/comments/RC_2023-07.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-07.bz2
+      hash: md5
+      md5: f2cb111b48b9dac5fec6346568e90ae9
+      size: 38625929613
+  convert_manual_comments@2023-08:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-08.zst |
+      bzip2 > data/raw_data/comments/RC_2023-08.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-08.bz2
+      hash: md5
+      md5: 077ebc1b30b8fe4124412408bc21e431
+      size: 40862326239
+  convert_manual_comments@2023-09:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-09.zst |
+      bzip2 > data/raw_data/comments/RC_2023-09.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-09.bz2
+      hash: md5
+      md5: 770842f5660dab4c873797cba455d4dd
+      size: 40456777666
