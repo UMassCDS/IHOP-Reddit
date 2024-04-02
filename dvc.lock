@@ -2230,3 +2230,560 @@ stages:
       hash: md5
       md5: 770842f5660dab4c873797cba455d4dd
       size: 40456777666
+  convert_manual_comments@2023-10:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-10.zst |
+      bzip2 > data/raw_data/comments/RC_2023-10.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-10.bz2
+      hash: md5
+      md5: 13045e6588d7ac4908e2e7207d3918b2
+      size: 41307989778
+  convert_manual_comments@2023-11:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-11.zst |
+      bzip2 > data/raw_data/comments/RC_2023-11.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-11.bz2
+      hash: md5
+      md5: 405187d010de356eb697671a2d8a214f
+      size: 40431810153
+  convert_manual_comments@2023-12:
+    cmd: unzstd --stdout --long=31 data/manual_downloads/comments/RC_2023-12.zst |
+      bzip2 > data/raw_data/comments/RC_2023-12.bz2
+    outs:
+    - path: data/raw_data/comments/RC_2023-12.bz2
+      hash: md5
+      md5: 44373de6ec8a34345352f990b7a46dd1
+      size: 41339501382
+  prep_community2vec_data@2023-03:
+    cmd: mkdir -p data/community2vec/RC_2023-03 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-03/subreddit_counts.csv
+      data/community2vec/RC_2023-03/user_contexts data/raw_data/comments/RC_2023-03.bz2
+      && rm data/community2vec/RC_2023-03/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-03.bz2
+      hash: md5
+      md5: bc7abf7693fe77e370b3c9398c81a1a2
+      size: 37326709389
+    outs:
+    - path: data/community2vec/RC_2023-03/subreddit_counts.csv
+      hash: md5
+      md5: 92bc430d28735ffa2fad86f48b3e22cf
+      size: 174195
+    - path: data/community2vec/RC_2023-03/user_contexts
+      hash: md5
+      md5: d31ba01b487fd0bd5d1752eb48580d17.dir
+      size: 150772639
+      nfiles: 2
+  prep_community2vec_data@2023-04:
+    cmd: mkdir -p data/community2vec/RC_2023-04 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-04/subreddit_counts.csv
+      data/community2vec/RC_2023-04/user_contexts data/raw_data/comments/RC_2023-04.bz2
+      && rm data/community2vec/RC_2023-04/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-04.bz2
+      hash: md5
+      md5: b0c5c5e390fa37faf932e2a0d024b403
+      size: 36521242398
+    outs:
+    - path: data/community2vec/RC_2023-04/subreddit_counts.csv
+      hash: md5
+      md5: 2ea31c90fd8944b88161369e22d373cf
+      size: 174521
+    - path: data/community2vec/RC_2023-04/user_contexts
+      hash: md5
+      md5: e10eca94a95263040b117a78860df13c.dir
+      size: 145166418
+      nfiles: 2
+  prep_community2vec_data@2023-05:
+    cmd: mkdir -p data/community2vec/RC_2023-05 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-05/subreddit_counts.csv
+      data/community2vec/RC_2023-05/user_contexts data/raw_data/comments/RC_2023-05.bz2
+      && rm data/community2vec/RC_2023-05/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-05.bz2
+      hash: md5
+      md5: 399c1173bae8bcc9d89143186c9d0e30
+      size: 37324105691
+    outs:
+    - path: data/community2vec/RC_2023-05/subreddit_counts.csv
+      hash: md5
+      md5: fe06010d7af21f52edcdadc77e8ec8d7
+      size: 174030
+    - path: data/community2vec/RC_2023-05/user_contexts
+      hash: md5
+      md5: 9ab334384e1e0f830e195e64b17cc91d.dir
+      size: 150446185
+      nfiles: 2
+  prep_community2vec_data@2023-06:
+    cmd: mkdir -p data/community2vec/RC_2023-06 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-06/subreddit_counts.csv
+      data/community2vec/RC_2023-06/user_contexts data/raw_data/comments/RC_2023-06.bz2
+      && rm data/community2vec/RC_2023-06/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-06.bz2
+      hash: md5
+      md5: e4ad67bace79a32cbcef1c57122b5008
+      size: 36153170014
+    outs:
+    - path: data/community2vec/RC_2023-06/subreddit_counts.csv
+      hash: md5
+      md5: c10735cc21f238e41f0fa8ed573e6dd8
+      size: 174867
+    - path: data/community2vec/RC_2023-06/user_contexts
+      hash: md5
+      md5: 0c2d9b5f7d576d47966fd43eb12bf77e.dir
+      size: 152851614
+      nfiles: 2
+  prep_community2vec_data@2023-07:
+    cmd: mkdir -p data/community2vec/RC_2023-07 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-07/subreddit_counts.csv
+      data/community2vec/RC_2023-07/user_contexts data/raw_data/comments/RC_2023-07.bz2
+      && rm data/community2vec/RC_2023-07/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-07.bz2
+      hash: md5
+      md5: f2cb111b48b9dac5fec6346568e90ae9
+      size: 38625929613
+    outs:
+    - path: data/community2vec/RC_2023-07/subreddit_counts.csv
+      hash: md5
+      md5: a52fecd365bfa90bf3b863c7f890dd2f
+      size: 175289
+    - path: data/community2vec/RC_2023-07/user_contexts
+      hash: md5
+      md5: 53dd8cc9c0bcc15c009d0be798b4a051.dir
+      size: 161557540
+      nfiles: 2
+  prep_community2vec_data@2023-08:
+    cmd: mkdir -p data/community2vec/RC_2023-08 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-08/subreddit_counts.csv
+      data/community2vec/RC_2023-08/user_contexts data/raw_data/comments/RC_2023-08.bz2
+      && rm data/community2vec/RC_2023-08/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-08.bz2
+      hash: md5
+      md5: 077ebc1b30b8fe4124412408bc21e431
+      size: 40862326239
+    outs:
+    - path: data/community2vec/RC_2023-08/subreddit_counts.csv
+      hash: md5
+      md5: 2d786b0110afa9f0fc56e41706ef5adc
+      size: 175747
+    - path: data/community2vec/RC_2023-08/user_contexts
+      hash: md5
+      md5: c35e3f3fdf436a860f9183c1867c703a.dir
+      size: 167295811
+      nfiles: 2
+  prep_community2vec_data@2023-09:
+    cmd: mkdir -p data/community2vec/RC_2023-09 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-09/subreddit_counts.csv
+      data/community2vec/RC_2023-09/user_contexts data/raw_data/comments/RC_2023-09.bz2
+      && rm data/community2vec/RC_2023-09/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-09.bz2
+      hash: md5
+      md5: 770842f5660dab4c873797cba455d4dd
+      size: 40456777666
+    outs:
+    - path: data/community2vec/RC_2023-09/subreddit_counts.csv
+      hash: md5
+      md5: 3a068f6f67cd95cf06c8c5dd5be29f9b
+      size: 174718
+    - path: data/community2vec/RC_2023-09/user_contexts
+      hash: md5
+      md5: ab1c41f3c40ad2a395cef58bf33fb04c.dir
+      size: 170579560
+      nfiles: 2
+  prep_community2vec_data@2023-10:
+    cmd: mkdir -p data/community2vec/RC_2023-10 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-10/subreddit_counts.csv
+      data/community2vec/RC_2023-10/user_contexts data/raw_data/comments/RC_2023-10.bz2
+      && rm data/community2vec/RC_2023-10/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-10.bz2
+      hash: md5
+      md5: 13045e6588d7ac4908e2e7207d3918b2
+      size: 41307989778
+    outs:
+    - path: data/community2vec/RC_2023-10/subreddit_counts.csv
+      hash: md5
+      md5: 56bf0c0cc22ca2854be62f7b280ef719
+      size: 174954
+    - path: data/community2vec/RC_2023-10/user_contexts
+      hash: md5
+      md5: e655a45163f6379e32292986600828cb.dir
+      size: 174802443
+      nfiles: 2
+  prep_community2vec_data@2023-11:
+    cmd: mkdir -p data/community2vec/RC_2023-11 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-11/subreddit_counts.csv
+      data/community2vec/RC_2023-11/user_contexts data/raw_data/comments/RC_2023-11.bz2
+      && rm data/community2vec/RC_2023-11/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-11.bz2
+      hash: md5
+      md5: 405187d010de356eb697671a2d8a214f
+      size: 40431810153
+    outs:
+    - path: data/community2vec/RC_2023-11/subreddit_counts.csv
+      hash: md5
+      md5: 774d32202463746aae5fbd0680d588ed
+      size: 175041
+    - path: data/community2vec/RC_2023-11/user_contexts
+      hash: md5
+      md5: 42449e2bb405495e0b88259e4dda1635.dir
+      size: 168381891
+      nfiles: 2
+  prep_community2vec_data@2023-12:
+    cmd: mkdir -p data/community2vec/RC_2023-12 && python -m ihop.import_data --config
+      config.json c2v --top_n 10000 --exclude_top_user_perc 0.05 data/community2vec/RC_2023-12/subreddit_counts.csv
+      data/community2vec/RC_2023-12/user_contexts data/raw_data/comments/RC_2023-12.bz2
+      && rm data/community2vec/RC_2023-12/user_contexts/.*.crc
+    deps:
+    - path: data/raw_data/comments/RC_2023-12.bz2
+      hash: md5
+      md5: 44373de6ec8a34345352f990b7a46dd1
+      size: 41339501382
+    outs:
+    - path: data/community2vec/RC_2023-12/subreddit_counts.csv
+      hash: md5
+      md5: 22b9aeeeb8e9957bd2dc5f268e1a4367
+      size: 175177
+    - path: data/community2vec/RC_2023-12/user_contexts
+      hash: md5
+      md5: 387966eee48da667ccd060c46b6ed27f.dir
+      size: 172324983
+      nfiles: 2
+  community2vec_models@2023-03:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-03/user_contexts
+      --vocab_csv data/community2vec/RC_2023-03/subreddit_counts.csv --param_grid
+      '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],
+      \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-03
+      --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-03/subreddit_counts.csv
+      hash: md5
+      md5: 92bc430d28735ffa2fad86f48b3e22cf
+      size: 174195
+    - path: data/community2vec/RC_2023-03/user_contexts
+      hash: md5
+      md5: d31ba01b487fd0bd5d1752eb48580d17.dir
+      size: 150772639
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-03/analogy_accuracy_results.csv
+      hash: md5
+      md5: b99e4a9ffc9ad0d2299768d8883ae178
+      size: 4447
+    - path: data/community2vec/RC_2023-03/best_model/keyedVectors
+      hash: md5
+      md5: 27be246db75dafbadc9d21b2242cc372
+      size: 4379818
+    - path: data/community2vec/RC_2023-03/best_model/metrics.json
+      hash: md5
+      md5: 3f09701a12015822f2bc248dc1513873
+      size: 619
+    - path: data/community2vec/RC_2023-03/best_model/parameters.json
+      hash: md5
+      md5: 6c929b2ef89b8ab3eb8b8f9294db1b75
+      size: 301
+    - path: data/community2vec/RC_2023-03/best_model/word2vec.pickle
+      hash: md5
+      md5: d28336142b02fbf8fabd1f387a23fde7
+      size: 8384582
+  community2vec_models@2023-04:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-04/user_contexts
+      --vocab_csv data/community2vec/RC_2023-04/subreddit_counts.csv --param_grid
+      '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],
+      \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-04
+      --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-04/subreddit_counts.csv
+      hash: md5
+      md5: 2ea31c90fd8944b88161369e22d373cf
+      size: 174521
+    - path: data/community2vec/RC_2023-04/user_contexts
+      hash: md5
+      md5: e10eca94a95263040b117a78860df13c.dir
+      size: 145166418
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-04/analogy_accuracy_results.csv
+      hash: md5
+      md5: ffcc67b616355e9ee34a8cbc0d580e48
+      size: 4456
+    - path: data/community2vec/RC_2023-04/best_model/keyedVectors
+      hash: md5
+      md5: d385503a4b10e6045db2f2c57ae3c467
+      size: 4380244
+    - path: data/community2vec/RC_2023-04/best_model/metrics.json
+      hash: md5
+      md5: 763308731fbcadf208ac999b37cf19dc
+      size: 627
+    - path: data/community2vec/RC_2023-04/best_model/parameters.json
+      hash: md5
+      md5: 7a85dc84f70fed3fa59703bc6adaad67
+      size: 305
+    - path: data/community2vec/RC_2023-04/best_model/word2vec.pickle
+      hash: md5
+      md5: 730f386f92cc283ffba16258f1bd82ff
+      size: 8385027
+  community2vec_models@2023-06:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-06/user_contexts
+      --vocab_csv data/community2vec/RC_2023-06/subreddit_counts.csv --param_grid
+      '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],
+      \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-06
+      --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-06/subreddit_counts.csv
+      hash: md5
+      md5: c10735cc21f238e41f0fa8ed573e6dd8
+      size: 174867
+    - path: data/community2vec/RC_2023-06/user_contexts
+      hash: md5
+      md5: 0c2d9b5f7d576d47966fd43eb12bf77e.dir
+      size: 152851614
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-06/analogy_accuracy_results.csv
+      hash: md5
+      md5: 30ae90fd4a4d25901dfe88f0f45877a9
+      size: 4445
+    - path: data/community2vec/RC_2023-06/best_model/keyedVectors
+      hash: md5
+      md5: 869a970894660971765d5469091678db
+      size: 4380633
+    - path: data/community2vec/RC_2023-06/best_model/metrics.json
+      hash: md5
+      md5: 4cc66b0c865688d6fd84022fcddef76d
+      size: 619
+    - path: data/community2vec/RC_2023-06/best_model/parameters.json
+      hash: md5
+      md5: ea6ba1da7560fb8b865a6d3547270341
+      size: 301
+    - path: data/community2vec/RC_2023-06/best_model/word2vec.pickle
+      hash: md5
+      md5: fc773216b75b3f0ff7eeb04498673937
+      size: 8385396
+  community2vec_models@2023-07:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-07/user_contexts
+      --vocab_csv data/community2vec/RC_2023-07/subreddit_counts.csv --param_grid
+      '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],
+      \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-07
+      --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-07/subreddit_counts.csv
+      hash: md5
+      md5: a52fecd365bfa90bf3b863c7f890dd2f
+      size: 175289
+    - path: data/community2vec/RC_2023-07/user_contexts
+      hash: md5
+      md5: 53dd8cc9c0bcc15c009d0be798b4a051.dir
+      size: 161557540
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-07/analogy_accuracy_results.csv
+      hash: md5
+      md5: 4befa35e59f7ae9893ff157bf95fe182
+      size: 4443
+    - path: data/community2vec/RC_2023-07/best_model/keyedVectors
+      hash: md5
+      md5: 7775bae7caaf1b82561a9d54045db4a2
+      size: 4380766
+    - path: data/community2vec/RC_2023-07/best_model/metrics.json
+      hash: md5
+      md5: 3f1179e3b1af1e039d43a1cda006f34e
+      size: 619
+    - path: data/community2vec/RC_2023-07/best_model/parameters.json
+      hash: md5
+      md5: a440dde7f861cc829870c37573a98d3b
+      size: 301
+    - path: data/community2vec/RC_2023-07/best_model/word2vec.pickle
+      hash: md5
+      md5: eab8aaea2eef39a9baad92f122587db8
+      size: 8385530
+  community2vec_models@2023-08:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-08/user_contexts
+      --vocab_csv data/community2vec/RC_2023-08/subreddit_counts.csv --param_grid
+      '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],
+      \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-08
+      --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-08/subreddit_counts.csv
+      hash: md5
+      md5: 2d786b0110afa9f0fc56e41706ef5adc
+      size: 175747
+    - path: data/community2vec/RC_2023-08/user_contexts
+      hash: md5
+      md5: c35e3f3fdf436a860f9183c1867c703a.dir
+      size: 167295811
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-08/analogy_accuracy_results.csv
+      hash: md5
+      md5: 2d53872a716107601f3eab3633f18044
+      size: 4410
+    - path: data/community2vec/RC_2023-08/best_model/keyedVectors
+      hash: md5
+      md5: 5c886f7ad965c99af58a10507653b220
+      size: 4380998
+    - path: data/community2vec/RC_2023-08/best_model/metrics.json
+      hash: md5
+      md5: ef448ea827b3b371e6a00a025c45b370
+      size: 624
+    - path: data/community2vec/RC_2023-08/best_model/parameters.json
+      hash: md5
+      md5: 91ee087e0fd0a09054349f98599f7dd8
+      size: 305
+    - path: data/community2vec/RC_2023-08/best_model/word2vec.pickle
+      hash: md5
+      md5: 5b21861456d689270f89b9e039738865
+      size: 8385781
+  community2vec_models@2023-09:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-09/user_contexts
+      --vocab_csv data/community2vec/RC_2023-09/subreddit_counts.csv --param_grid
+      '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],
+      \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-09
+      --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-09/subreddit_counts.csv
+      hash: md5
+      md5: 3a068f6f67cd95cf06c8c5dd5be29f9b
+      size: 174718
+    - path: data/community2vec/RC_2023-09/user_contexts
+      hash: md5
+      md5: ab1c41f3c40ad2a395cef58bf33fb04c.dir
+      size: 170579560
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-09/analogy_accuracy_results.csv
+      hash: md5
+      md5: 55456a8849617d44440ca572f54c3b45
+      size: 4411
+    - path: data/community2vec/RC_2023-09/best_model/keyedVectors
+      hash: md5
+      md5: 3a9fc2ee97ee972028f4cfc44f1f72f7
+      size: 4379932
+    - path: data/community2vec/RC_2023-09/best_model/metrics.json
+      hash: md5
+      md5: 417d49c9f789e44948dfff7dcd2eb3b1
+      size: 624
+    - path: data/community2vec/RC_2023-09/best_model/parameters.json
+      hash: md5
+      md5: ebc5ee219171f56c1d4824df3854bf38
+      size: 305
+    - path: data/community2vec/RC_2023-09/best_model/word2vec.pickle
+      hash: md5
+      md5: 65e7c5ca5165fc33044137c132dc31f3
+      size: 8384714
+  community2vec_models@2023-10:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-10/user_contexts
+      --vocab_csv data/community2vec/RC_2023-10/subreddit_counts.csv --param_grid
+      '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],
+      \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-10
+      --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-10/subreddit_counts.csv
+      hash: md5
+      md5: 56bf0c0cc22ca2854be62f7b280ef719
+      size: 174954
+    - path: data/community2vec/RC_2023-10/user_contexts
+      hash: md5
+      md5: e655a45163f6379e32292986600828cb.dir
+      size: 174802443
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-10/analogy_accuracy_results.csv
+      hash: md5
+      md5: e8043012447d5532f362c5a1889e2460
+      size: 4446
+    - path: data/community2vec/RC_2023-10/best_model/keyedVectors
+      hash: md5
+      md5: 38bb21b3d18db3d757bd7ffb0970d1c1
+      size: 4380002
+    - path: data/community2vec/RC_2023-10/best_model/metrics.json
+      hash: md5
+      md5: f1480b13086df7b46dbefaca8fa830b8
+      size: 627
+    - path: data/community2vec/RC_2023-10/best_model/parameters.json
+      hash: md5
+      md5: 4a1dbfdc07056ea328a79a79a979d0c0
+      size: 305
+    - path: data/community2vec/RC_2023-10/best_model/word2vec.pickle
+      hash: md5
+      md5: a197fdfd675df1f647e1abcf40b6df37
+      size: 8384784
+  community2vec_models@2023-11:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-11/user_contexts
+      --vocab_csv data/community2vec/RC_2023-11/subreddit_counts.csv --param_grid
+      '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],
+      \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-11
+      --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-11/subreddit_counts.csv
+      hash: md5
+      md5: 774d32202463746aae5fbd0680d588ed
+      size: 175041
+    - path: data/community2vec/RC_2023-11/user_contexts
+      hash: md5
+      md5: 42449e2bb405495e0b88259e4dda1635.dir
+      size: 168381891
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-11/analogy_accuracy_results.csv
+      hash: md5
+      md5: defeb67c1de5e87fc4decad785ee66f8
+      size: 4444
+    - path: data/community2vec/RC_2023-11/best_model/keyedVectors
+      hash: md5
+      md5: f8b767606134d1939682ed0afe06256b
+      size: 4380197
+    - path: data/community2vec/RC_2023-11/best_model/metrics.json
+      hash: md5
+      md5: 90dea983e83cd00f7402450147f695f6
+      size: 627
+    - path: data/community2vec/RC_2023-11/best_model/parameters.json
+      hash: md5
+      md5: 8b36bfcb0adde9b92732304bdc2ecdf7
+      size: 305
+    - path: data/community2vec/RC_2023-11/best_model/word2vec.pickle
+      hash: md5
+      md5: 88e135d87426f2fbb0c96883f4486f0f
+      size: 8384980
+  community2vec_models@2023-12:
+    cmd: "python -m ihop.community2vec --config config.json --contexts data/community2vec/RC_2023-12/user_contexts
+      --vocab_csv data/community2vec/RC_2023-12/subreddit_counts.csv --param_grid
+      '{\"alpha\": [0.08, 0.05], \"vector_size\":[100], \"sample\":[0, 0.001, 0.005],
+      \"negative\":[10,20]}' --epochs 5 --output_dir data/community2vec/RC_2023-12
+      --workers 12"
+    deps:
+    - path: data/community2vec/RC_2023-12/subreddit_counts.csv
+      hash: md5
+      md5: 22b9aeeeb8e9957bd2dc5f268e1a4367
+      size: 175177
+    - path: data/community2vec/RC_2023-12/user_contexts
+      hash: md5
+      md5: 387966eee48da667ccd060c46b6ed27f.dir
+      size: 172324983
+      nfiles: 2
+    outs:
+    - path: data/community2vec/RC_2023-12/analogy_accuracy_results.csv
+      hash: md5
+      md5: 7dc203f6eadb478b253be5ea733c0549
+      size: 4444
+    - path: data/community2vec/RC_2023-12/best_model/keyedVectors
+      hash: md5
+      md5: fcc0f2718af2a31af52419eb42de0b00
+      size: 4380191
+    - path: data/community2vec/RC_2023-12/best_model/metrics.json
+      hash: md5
+      md5: 539a66d51ec21d5822d43ba2c61fac93
+      size: 619
+    - path: data/community2vec/RC_2023-12/best_model/parameters.json
+      hash: md5
+      md5: 0a8241ea944ce1cf058e97544a96cc14
+      size: 301
+    - path: data/community2vec/RC_2023-12/best_model/word2vec.pickle
+      hash: md5
+      md5: cc6bacb9d440f9ff9bf83e651b2e0d0d
+      size: 8384954
