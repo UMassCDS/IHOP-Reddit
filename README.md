@@ -39,12 +39,12 @@ The data, experiments and metrics for this project are tracked using [Data Versi
 Some useful commands are:
 - `dvc dag`: View the pipeline stages used to preprocess data and train models
 - `dvc metrics show`: See the community2vec model accuracy for each month
-- `dvc pull community2vec_models`: Download only the best trained community2vec model for each month of Reddit data. Useful for when you don't need the raw Reddit, such as when you are deploying the subreddit cluster viewer app.
+- `dvc pull community2vec_models`: Download only the best trained community2vec model for each month of Reddit data. Useful for when you don't need the raw Reddit data, such as when you are deploying the subreddit cluster viewer app.
 
 See the DVC documentation for more details.
 
 ## Tips for Processing Data
-- To reprocess the data without downloading the comments and submissions from Pushshift again, you can use the `dvc repro --downstream` option. There is an example in `scripts/reprocessing.sh`
+- To reprocess the data without downloading the comments and submissions from Pushshift again, you can use the `dvc repro --downstream --allow-missing` option. There is an example in `scripts/reprocessing.sh`
 - The `ihop.import_data` script uses Apache Spark under the hood, so that tasks can be distributed across resources, which will allow customizing processing to whatever resources are on hand. The Spark configuration options are described in the [Spark Documentation](https://spark.apache.org/docs/latest/configuration.html) and can be easily customized by adding a `"spark": {"option_name":"option_value"}` field in the `config.json` file. The default is to use 4G of memory for both the driver and executor, done in `ihop/utils.py`.
 - While the `ihop.import_data` script is running locally, you can go to <http://localhost:4040/jobs/> to monitor the Spark jobs progress.
 

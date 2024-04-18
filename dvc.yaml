@@ -9,7 +9,8 @@ stages:
         - ${comments_dir}/RC_${item}.bz2
 
   # If you've downloaded comments .zst files manually, make sure they are in the ${manual_downloads_dir}/comments first. 
-  # They still have to be converted to bzip2 and sent to ${comments_dir}.
+  # Using a symbolic link to the directory storing the manually downloaded files works well. 
+  # The comment archives still have to be converted to bzip2 and sent to ${comments_dir}.
   convert_manual_comments:
     foreach: ${manual_download_months}
     do:
