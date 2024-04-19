@@ -11,15 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added support for python 3.10 in build and tests
 - Made dependency verions less restrictive, except when necessary to avoid deprecations (sklearn, numpy)
 - Unit tests updated to handle sklearn deprecations
+- Updated prototype cluster browser to display 2023 data
 
 ### Fixed
 - Upgraded DVC version from 2.10.0 to 3.33.1 to avoid https://github.com/iterative/dvc-objects/issues/241
 
 ### Added
 - Support for processing Reddit comments from manually downloaded archives
+- Data and models for Reddit comments in 2023 tracked in DVC
+- Instructions and support for running the prototype cluster browser with gunicorn
 
 ### Removed
 - Removed Unity documentation
+- Removed argparse from app.py so that it can be served with gunicorn
 
 ## [2.0.0]
 ### Changed

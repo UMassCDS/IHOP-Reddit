@@ -61,9 +61,9 @@ It expects a JSON configuration file with paths to trained community2vec models,
     }
 }
 ```
-Run `python app.py --config config.json` to start the application on port 8050, you will be able to navigate to http://localhost:8050/ to see the app running. You can also run using the `--debug` flag to have the application dynamically relaunch on code changes.
+Run `python app.py` to start the application on port 8050, you will be able to navigate to http://localhost:8050/ to see the app running. 
 
-The committed `config.json` is configured to load in the best models for each month over a year, from April 2021 through March 2022. To pull the models, run `dvc pull community2vec_models`, assuming you have access to the `s3://ihopmeag` bucket on AWS. See more details on DVC above.
+The committed `config.json` is configured to load in the best models for each month over a year, from December 2022 through December 2022. To pull the models and visualization files, run `dvc pull community2vec_models` and `dvc pull tsne_visualizations`, assuming you have access to the `s3://ihopmeag` bucket on AWS. See more details on DVC above.
 
 # Citation
 If you use this code, please cite [Here Be Livestreams: Trade-offs in Creating Temporal Maps of Reddit](https://arxiv.org/abs/2309.14259) as
