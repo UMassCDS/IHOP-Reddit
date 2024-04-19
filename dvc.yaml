@@ -1,12 +1,23 @@
 stages:
   # Download Reddit comments data. Note that curl sometimes hangs up early, so you should double check all data gets pulled.
   download_comments:
-    foreach: ${months}
+    foreach: ${download_months}
     do:
       desc: Download Reddit comments data for the month ${item}.
-      cmd: curl  https://files.pushshift.io/reddit/comments/RC_${item}.zst | unzstd --long=31 | bzip2 > ${comments_dir}/RC_${item}.bz2
+      cmd: curl https://files.pushshift.io/reddit/comments/RC_${item}.zst | unzstd --long=31 | bzip2 > ${comments_dir}/RC_${item}.bz2
       outs:
         - ${comments_dir}/RC_${item}.bz2
+
+  # If you've downloaded comments .zst files manually, make sure they are in the ${manual_downloads_dir}/comments first. 
+  # Using a symbolic link to the directory storing the manually downloaded files works well. 
+  # The comment archives still have to be converted to bzip2 and sent to ${comments_dir}.
+  convert_manual_comments:
+    foreach: ${manual_download_months}
+    do:
+      desc: Converting manually downloaded Reddit comments to bzip for month ${item}.
+      cmd: unzstd --stdout --long=31 ${manual_downloads_dir}/comments/RC_${item}.zst | bzip2 > ${comments_dir}/RC_${item}.bz2
+      outs:
+        - ${comments_dir}/RC_${item}.bz2 
 
   # Download Reddit submissions data
   #download_submissions:
@@ -19,7 +30,7 @@ stages:
 
   # Turn the comments to 'user documents' to train community2vec models
   prep_community2vec_data:
-    foreach: ${months}
+    foreach: ${all_months}
     do:
       desc: Prepare data for training community2vec models over a single month's worth of data from ${item} and write it to the specified output directory. Cleans up Spark checkpoint files.
       cmd: mkdir -p ${community2vec_dir}/RC_${item} && python -m ihop.import_data --config config.json c2v --top_n ${community2vec_data_prep.top_n} --exclude_top_user_perc ${community2vec_data_prep.exclude_top_users} ${community2vec_dir}/RC_${item}/subreddit_counts.csv ${community2vec_dir}/RC_${item}/user_contexts ${comments_dir}/RC_${item}.bz2 && rm ${community2vec_dir}/RC_${item}/user_contexts/.*.crc
@@ -31,7 +42,7 @@ stages:
 
   # Use grid search to train community2vec models on a month's worth of Reddit data
   community2vec_models:
-    foreach: ${months}
+    foreach: ${all_months}
     do:
       desc: Train community2vec models on ${item} month of Reddit data, keeping the model that achieves the highest accuracy on the default analogy set. Grid search is done within the python script.
       cmd: python -m ihop.community2vec --config config.json --contexts ${community2vec_dir}/RC_${item}/user_contexts --vocab_csv ${community2vec_dir}/RC_${item}/subreddit_counts.csv --param_grid ${community2vec_params.param_grid} --epochs ${community2vec_params.epochs} --output_dir ${community2vec_dir}/RC_${item} --workers ${community2vec_params.workers}
@@ -48,7 +59,7 @@ stages:
 
   # Generate the TSNE visualizations that will be used in the Dash application
   tsne_visualizations:
-    foreach: ${months}
+    foreach: ${all_months}
     do:
         desc: Produce the 2 dimensional t-sne visualization for the community2vec model for ${item} Reddit data to be used in the Dash app.
         cmd: python -m ihop.visualizations --config config.json ${community2vec_dir}/RC_${item}/best_model ${community2vec_dir}/RC_${item}/best_model/tsne.csv
@@ -63,7 +74,7 @@ stages:
   # Note, for ease, this this just has explicit steps for kmeans and hierarchical agglomerative models,
   # but it could easly be generalized to any clustering model supported in ihop.clustering
   kmeans_cluster_models:
-    foreach: ${months}
+    foreach: ${all_months}
     do:
       desc: Train kmeans clusters from the community2vec models.
       cmd: >-
@@ -79,7 +90,7 @@ stages:
         - ${annotation_data_dir}/RC_${item}/kmeans_model/metrics.json
 
   agglomerative_cluster_models:
-    foreach: ${months}
+    foreach: ${all_months}
     do:
       desc: Train hierarchical agglomerative clusters from the community2vec models.
       cmd: >-
@@ -96,7 +107,7 @@ stages:
 
 
   prep_annotation_data:
-    foreach: ${months}
+    foreach: ${all_months}
     do:
       desc: Prepare cluster coherence and subreddit intruder annotation tasks given a kmeans and agglomerative cluster models and subreddit counts
       cmd: |

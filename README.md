@@ -9,11 +9,11 @@ The `ihop` directory is a python module with submodules that can also be run as 
 - `ihop.visualizations`: Visualization utilities to create T-SNE projections used the in the cluster viewer applications
 - `ihop.utils`: Options to configure logging and Spark environment
 - `ihop.resources`: Data resources
-	- `ihop.resources.analogies`: Subreddit algebra analogies for tuning community2vec, taken from [social-dimensions](https://github.com/CSSLab/social-dimensions) with minor updates
+    - `ihop.resources.analogies`: Subreddit algebra analogies for tuning community2vec, taken from [social-dimensions](https://github.com/CSSLab/social-dimensions) with minor updates
     - `ihop.resources.collections`: Pre-defined collections of subreddits from the Media Cloud team.
 
 # External Dependencies
-- Python >= 3.7
+- Python >= 3.8, <3.11. Note that <3.11 is only necessary because of the `dev` dependency [irrCAC](https://pypi.org/project/irrcac/)
 - [Java](https://docs.oracle.com/en/java/javase/17/install/overview-jdk-installation.html) or [OpenJDK](https://openjdk.java.net/install/) (at least version 8). Make sure you have `JAVA_HOME` set appropriately
 - (Optional to support faster compression & customize Hadoop config for Spark) [Hadoop](https://hadoop.apache.org) at least version 3.3 is needed for Pyspark to properly decompress the Reddit zst files (see [this issue](https://stackoverflow.com/questions/64607248/configure-spark-on-yarn-to-use-hadoop-native-libraries) or [this one](https://stackoverflow.com/questions/67099204/reading-a-zst-archive-in-scala-spark-native-zstandard-library-not-available)). Install Hadoop and configure the environment variables using [these instructions](https://phoenixnap.com/kb/install-hadoop-ubuntu).
 - [unzstd](http://manpages.ubuntu.com/manpages/bionic/man1/unzstd.1.html) and [bzip2](https://www.sourceware.org/bzip2/) are used for recompressing the monthly Reddit dumps to bzip2 format, which Spark and Gensim are more readily able to handle than the zst files.
@@ -22,7 +22,7 @@ The `ihop` directory is a python module with submodules that can also be run as 
 # Setup and Installation
 Note that [Pyspark](https://spark.apache.org/docs/latest/api/python/getting_started/install.html#dependencies) is used for training embeddings and LDA models, so you must have Java installed (at least version 8) and `JAVA_HOME` set appropriately.
 
-Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create the `ihop` environment by running `conda create -n ihop python=3.9`, install the package and its dependencies using `pip install .`. Note that if you are using a Mac with an M1 or M2 chip, install sklearn and numpy *first* using conda, `conda install numpy==1.21.2 scikit-learn==1.0.1`.  This installs everything needed for just for preprocessing data and training models. If you're going to run the Dash app, install using `pip install .[app]`.
+Use [Anaconda](https://docs.anaconda.com/anaconda/install/index.html) to create the `ihop` environment by running `conda create -n ihop python=3.10`, install the package and its dependencies using `pip install .`. This installs everything needed for just for preprocessing data and training models. If you're going to run the Dash app, install using `pip install .[app]`. Note that if you are using a Mac with an M1 or M2 chip, install sklearn and numpy *first* using conda, `conda install numpy scikit-learn`. 
 
 For testing and development tools, install the `ihop` package to be importable for testing, install using `pip install -e .[test,dev]`
 
@@ -39,12 +39,12 @@ The data, experiments and metrics for this project are tracked using [Data Versi
 Some useful commands are:
 - `dvc dag`: View the pipeline stages used to preprocess data and train models
 - `dvc metrics show`: See the community2vec model accuracy for each month
-- `dvc pull community2vec_models`: Download only the best trained community2vec model for each month of Reddit data. Useful for when you don't need the raw Reddit, such as when you are deploying the subreddit cluster viewer app.
+- `dvc pull community2vec_models`: Download only the best trained community2vec model for each month of Reddit data. Useful for when you don't need the raw Reddit data, such as when you are deploying the subreddit cluster viewer app.
 
 See the DVC documentation for more details.
 
 ## Tips for Processing Data
-- To reprocess the data without downloading the comments and submissions from Pushshift again, you can use the `dvc repro --downstream` option. There is an example in `scripts/reprocessing.sh`
+- To reprocess the data without downloading the comments and submissions from Pushshift again, you can use the `dvc repro --downstream --allow-missing` option. There is an example in `scripts/reprocessing.sh`
 - The `ihop.import_data` script uses Apache Spark under the hood, so that tasks can be distributed across resources, which will allow customizing processing to whatever resources are on hand. The Spark configuration options are described in the [Spark Documentation](https://spark.apache.org/docs/latest/configuration.html) and can be easily customized by adding a `"spark": {"option_name":"option_value"}` field in the `config.json` file. The default is to use 4G of memory for both the driver and executor, done in `ihop/utils.py`.
 - While the `ihop.import_data` script is running locally, you can go to <http://localhost:4040/jobs/> to monitor the Spark jobs progress.
 

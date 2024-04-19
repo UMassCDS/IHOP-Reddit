@@ -97,7 +97,6 @@ def generate_tsne_dataframe(
         init="pca",
         metric="cosine",
         learning_rate="auto",
-        square_distances=True,
         random_state=random_state,
     )
     tsne_projection = tsne_fitter.fit_transform(c2v_model.get_normed_vectors())
