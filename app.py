@@ -101,6 +101,13 @@ MONTH_SELECTION_SECTION = dash.html.Div(
     ]
 )
 
+DOWNLOAD_CLUSTER_CSV = dash.html.Div(
+    [
+        dbc.Button("Download Clusters CSV", id="cluster_csv_button"), 
+        dash.dcc.Download(id="download_cluster_csv"),
+    ]
+)
+
 
 # First section of page, define KMeans paramters, train model button and metrics values and explanation
 KMEANS_PARAM_SECTION = [
@@ -149,7 +156,10 @@ KMEANS_PARAM_SECTION = [
             dash.dcc.Loading(
                 id="loading-metrics",
                 type="default",
-                children=[dash.html.Article(id="cluster-metrics")],
+                children=[
+                    dash.html.Article(id="cluster-metrics"), 
+                    DOWNLOAD_CLUSTER_CSV,
+                    ],
             ),
             dash.html.Br(),
         ]
@@ -267,7 +277,7 @@ BODY = dash.html.Div(
         dash.html.Br(),
         SUBREDDIT_FILTERING_SECTION,
         dash.html.Br(),
-        # Stores the dataframe with cluster assingments and the name of the cluster model (for exporting labels)
+        # Stores the dataframe with cluster assignments and the name of the cluster model (for exporting labels)
         dash.dcc.Store(id="cluster-assignment"),
         # Stores the list of subbreddits available in the c2v model, for user to select in drop down
         dash.dcc.Store(id="subreddits"),
@@ -625,6 +635,22 @@ def get_display_table(
         export_format="csv",
     )
 
+@app.callback(
+    dash.Output("download_cluster_csv", "data"),
+    dash.Input("cluster_csv_button", "n_clicks"),
+    dash.Input("cluster-assignment", "data"),
+    prevent_initial_call=True
+)
+def download_cluster_csv(n_clicks, cluster_json):
+    if n_clicks is None:
+        raise dash.exceptions.PreventUpdate
+    
+    model_name = cluster_json["name"]
+    cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
+    cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME] = cluster_df[model_name]
+    csv_name = f"{model_name}.csv"
+    logger.info("Downloading clustering data to %s", csv_name)
+    return dash.dcc.send_data_frame(cluster_df.to_csv, csv_name, index=False)
 
 if __name__ == "__main__":
     print("Starting IHOP subreddit visualization application")
@@ -632,6 +658,6 @@ if __name__ == "__main__":
     try:
         # TODO Plotly handles logging strangely, so use logger.info or workaround to not silence logging,
         # see https://community.plotly.com/t/logging-debug-messages-suppressed-in-callbacks/17854
-        app.run_server()
+        app.run_server(debug=True)
     except Exception as e:
         logger.error(e)
