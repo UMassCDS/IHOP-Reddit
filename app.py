@@ -103,7 +103,7 @@ MONTH_SELECTION_SECTION = dash.html.Div(
 
 DOWNLOAD_CLUSTER_CSV = dash.html.Div(
     [
-        dbc.Button("Download Clusters CSV", id="cluster_csv_button"), 
+        dbc.Button("Download Clusters CSV", id="cluster_csv_button", n_clicks=0), 
         dash.dcc.Download(id="download_cluster_csv"),
     ]
 )
@@ -145,7 +145,7 @@ KMEANS_PARAM_SECTION = [
                 ]
             ),
             dash.html.Br(),
-            dbc.Button("Train clustering model", id="clustering_button"),
+            dbc.Button("Train clustering model", id="clustering_button",),
         ]
     ),
     dash.html.Br(),
@@ -401,6 +401,7 @@ def load_vector_model(selected_month):
     dash.State("random-seed", "value"),
     dash.Input("month-dropdown", "value"),
     dash.Input("tsne-df", "data"),
+    running=[(dash.Output("clustering_button", "disabled"), True, False)]
 )
 def train_clusters(n_clicks, n_clusters, random_seed, c2v_identifier, tsne_json_data):
     """Trains kmeans cluster with given number of clusters and random seed.
@@ -642,15 +643,18 @@ def get_display_table(
     prevent_initial_call=True
 )
 def download_cluster_csv(n_clicks, cluster_json):
-    if n_clicks is None:
+    trigger = dash.ctx.triggered_id
+    logger.info("Cluster download triggered by '%s'", trigger)
+    if trigger == "cluster_csv_button":
+        logger.info("Cluster download button clicked times: %s", n_clicks)
+        model_name = cluster_json["name"]
+        cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
+        cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME] = cluster_df[model_name]
+        csv_name = f"{model_name}.csv"
+        logger.info("Downloading clustering data to %s", csv_name)
+        return dash.dcc.send_data_frame(cluster_df.to_csv, csv_name, index=False)
+    else:
         raise dash.exceptions.PreventUpdate
-    
-    model_name = cluster_json["name"]
-    cluster_df = iv.unjsonify_stored_df(cluster_json["clusters"], [model_name])
-    cluster_df[CLUSTER_ASSIGNMENT_DISPLAY_NAME] = cluster_df[model_name]
-    csv_name = f"{model_name}.csv"
-    logger.info("Downloading clustering data to %s", csv_name)
-    return dash.dcc.send_data_frame(cluster_df.to_csv, csv_name, index=False)
 
 if __name__ == "__main__":
     print("Starting IHOP subreddit visualization application")
