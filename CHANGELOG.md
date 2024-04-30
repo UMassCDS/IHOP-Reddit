@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Made dependency versions less restrictive, except when necessary to avoid deprecations (sklearn, numpy)
 - Unit tests updated to handle sklearn deprecations
 - Updated prototype cluster browser to display 2023 data
+- Upgraded Dash dependency version to >=2.4.1 for the cluster prototype browser app
 
 ### Fixed
 - Upgraded DVC version from 2.10.0 to 3.33.1 to avoid https://github.com/iterative/dvc-objects/issues/241
