@@ -662,6 +662,6 @@ if __name__ == "__main__":
     try:
         # TODO Plotly handles logging strangely, so use logger.info or workaround to not silence logging,
         # see https://community.plotly.com/t/logging-debug-messages-suppressed-in-callbacks/17854
-        app.run_server(debug=True)
+        app.run_server()
     except Exception as e:
         logger.error(e)
