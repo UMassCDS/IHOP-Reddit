@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0]
 ### Changed
 - Added support for python 3.10 in build and tests
-- Made dependency verions less restrictive, except when necessary to avoid deprecations (sklearn, numpy)
+- Made dependency versions less restrictive, except when necessary to avoid deprecations (sklearn, numpy)
 - Unit tests updated to handle sklearn deprecations
 - Updated prototype cluster browser to display 2023 data
 
@@ -20,10 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for processing Reddit comments from manually downloaded archives
 - Data and models for Reddit comments in 2023 tracked in DVC
 - Instructions and support for running the prototype cluster browser with gunicorn
+- Added button to download all subreddit cluster assignments in prototype cluster browser
 
 ### Removed
 - Removed Unity documentation
 - Removed argparse from app.py so that it can be served with gunicorn
+
+## [2.1.0]
+### Changed
+- Update visualizations for WebScience 2024 paper
+
+### Added 
+- Added citation information in Readme
+- Trigger Zenodo DOI assignment for repository
+
 
 ## [2.0.0]
 ### Changed
