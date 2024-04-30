@@ -1,16 +1,19 @@
 """Visualize subreddit clusters using a dash app.
-Run using `python app.py` and visit http://127.0.0.1:8050
+Run locally for development and debugging using `python app.py` and visit http://127.0.0.1:8050
 
-The app can be configured to accept a different model path by feeding a JSON format config file structured as:
+Can also be served with gunicorn: `gunicorn --bind 0.0.0.0:8050 app:server`
+
+The app can be configured to accept different model paths by changing config.json file structured as:
 {
     "logger": {<log config>},
-    "model_path": '<path to output of ihop.community2vec.py model training>'
+    "model_paths": {
+        "Identifier that will appear on the UI": "<path to output of ihop.community2vec.py model training>",
+        }
 }
 
 # TODO vector models should be configurable (one model for each available time range? )
 # TODO list of subreddits can be chosen from a collection with descriptions
 """
-import argparse
 import json
 import logging
 import pathlib
@@ -29,26 +32,9 @@ import ihop.clustering
 
 logger = logging.getLogger(__name__)
 
-parser = argparse.ArgumentParser(
-    description="Runs a Dash application for browsing subreddit clusters"
-)
-# TODO Add application confiugration as needed
-parser.add_argument(
-    "--config",
-    default="config.json",
-    type=pathlib.Path,
-    help="JSON file used to override default logging and spark configurations",
-)
-parser.add_argument(
-    "-d",
-    "--debug",
-    action="store_true",
-    help="Use this flag to launch the application in 'hot-reload' mode",
-)
-
-args = parser.parse_args()
-spark_conf, logging_conf, conf = ihop.utils.parse_config_file(args.config)
-print("Configuration:", args.config)
+CONFIG = "config.json"
+spark_conf, logging_conf, conf = ihop.utils.parse_config_file(CONFIG)
+print("Configuration:", CONFIG)
 ihop.utils.configure_logging(logging_conf)
 logger.info("Logging configured")
 
@@ -58,7 +44,7 @@ MODEL_DIRS = conf["model_paths"]
 TSNE_CSV_NAME = "tsne.csv"
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
+server = app.server
 # APP DISPLAY CONSTANTS
 STARTING_NUM_CLUSTERS = 250
 STARTING_RANDOM_SEED = 100
@@ -99,7 +85,7 @@ MONTH_SELECTION_SECTION = dash.html.Div(
         dash.html.H2("Select the time period"),
         dash.dcc.Markdown(MONTH_SELECTION_MD),
         dash.dcc.Dropdown(
-            list(MODEL_DIRS.keys()), id="month-dropdown", value="April 2021"
+            list(MODEL_DIRS.keys()), id="month-dropdown", value="December 2022"
         ),
         dash.html.Br(),
         dash.html.H2("Model Details"),
@@ -646,6 +632,6 @@ if __name__ == "__main__":
     try:
         # TODO Plotly handles logging strangely, so use logger.info or workaround to not silence logging,
         # see https://community.plotly.com/t/logging-debug-messages-suppressed-in-callbacks/17854
-        app.run_server(debug=args.debug)
+        app.run_server()
     except Exception as e:
         logger.error(e)
